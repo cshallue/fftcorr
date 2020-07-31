@@ -1577,7 +1577,7 @@ int main(int argc, char *argv[]) {
 
     int i=1;
     while (i<argc) {
-             if (!strcmp(argv[i],"-ngrid")||!strcmp(argv[i],"-n")) ngridCube = atoi(argv[++i]);
+    if (!strcmp(argv[i],"-ngrid")||!strcmp(argv[i],"-n")) ngridCube = atoi(argv[++i]);
 	else if (!strcmp(argv[i],"-ngrid3")||!strcmp(argv[i],"-n3")) {
 		ngrid[0] = atoi(argv[++i]); ngrid[1] = atoi(argv[++i]); ngrid[2] = atoi(argv[++i]);
 	}
@@ -1597,7 +1597,7 @@ int main(int argc, char *argv[]) {
 	i++;
     }
 
-    assert(ngrid>0);
+    assert(ngridCube>0);
     assert(maxell>=0 && maxell%2==0);
     assert(wide_angle_exponent%2==0);  // Must be an even number
     assert(sep!=0.0);
