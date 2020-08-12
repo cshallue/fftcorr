@@ -779,9 +779,9 @@ class Grid {
 	double tmp[4]; 
 	int nread;
 	nread=fread(tmp, sizeof(double), 3, fp); assert(nread==3);
-	for (int j=0; j<3; j++) { posmin[j]=tmp[j]; assert(fabs(posmin[0])<TOOBIG); }
+	for (int j=0; j<3; j++) { posmin[j]=tmp[j]; assert(fabs(posmin[j])<TOOBIG); }
 	nread=fread(tmp, sizeof(double), 3, fp); assert(nread==3);
-	for (int j=0; j<3; j++) { posmax[j]=tmp[j]; assert(fabs(posmax[0])<TOOBIG); }
+	for (int j=0; j<3; j++) { posmax[j]=tmp[j]; assert(fabs(posmax[j])<TOOBIG); }
 	nread=fread(tmp, sizeof(double), 1, fp); assert(nread==1);
 	max_sep = tmp[0]; assert(max_sep>=0&&max_sep<TOOBIG);
 	nread=fread(tmp, sizeof(double), 1, fp); assert(nread==1); // Not used, just for alignment
