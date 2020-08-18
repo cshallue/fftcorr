@@ -81,7 +81,7 @@ either expressed or implied, of the FreeBSD Project.
 import scipy.integrate
 import numpy as np
 import scipy.special
-from incomplete_beta import beta_cont_frac_gsl
+from .incomplete_beta import beta_cont_frac_gsl
 
 ############### Implementation of the Incomplete Beta Function ###########
 
@@ -136,7 +136,7 @@ def wcdm_time(z, om, w):
     # This requires w<-1 if one is using the SciPy beta function, w<0 if using GSL
     ox = 1-om
     if (np.min(ox) < 0):
-        print "Can't evaluate negative dark energies"
+        print("Can't evaluate negative dark energies")
         exit
     xz = ox/(om*(1+z)**(-3.0*w)+ox)
     m = 1.0/(-2.0*w)
@@ -229,7 +229,7 @@ def wcdm_rad(z, om, w, rad=0.0):
     # and may be fragile.  But the GSL version seems to behave well enough.
     # Could use the following instead.
     #delrz = c*(om/ox)**m * incomplete_beta_approx(m,1.5-m,xz,x0)
-    print incomplete_beta(m, 1.5-m, xz, x0), incomplete_beta_approx(m, 1.5-m, xz, x0)
+    print(incomplete_beta(m, 1.5-m, xz, x0), incomplete_beta_approx(m, 1.5-m, xz, x0))
     rz += delrz
     return rz
 
@@ -261,93 +261,93 @@ def wcdmrad_romberg(z, om, w, rad):
 
 def rad_test(xmin):
     #integrand = lambda x: x**(-1.0/6.0-1) * (1-x)**(5.0/3.0-1.0)
-    # print scipy.integrate.romberg(integrand, xmin, 0.7, tol=1e-5, divmax=13)
+    # print(scipy.integrate.romberg(integrand, xmin, 0.7, tol=1e-5, divmax=13))
     def integrand(y): return -6.0*(1-y**-6.0)**(5.0/3.0-1.0)
-    print scipy.integrate.romberg(integrand, xmin**(-1.0/6.0), 0.7**(-1.0/6.0), tol=1e-5, divmax=13)
-    print incomplete_beta_nrcf(-1.0/6.0, 5.0/3.0, xmin, 0.7)
+    print(scipy.integrate.romberg(integrand, xmin**(-1.0/6.0), 0.7**(-1.0/6.0), tol=1e-5, divmax=13))
+    print(incomplete_beta_nrcf(-1.0/6.0, 5.0/3.0, xmin, 0.7))
 
 ########################  The test driver ################################
 # To run the tests, execute test()
 
 
 def test():
-    print "Testing the base wcdm code"
+    print("Testing the base wcdm code")
     x = wcdm(1.0, 0.3, -1)
-    print "LCDM, om=0.3, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -1)
+    print("LCDM, om=0.3, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -1))
 
     x = wcdm(1.0, 0.3, -0.2)
-    print "WCDM, om=0.3, w=-0.2, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -0.2)
+    print("WCDM, om=0.3, w=-0.2, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -0.2))
 
     x = wcdm(1.0, 0.3, -0.4)
-    print "WCDM, om=0.3, w=-0.4, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -0.4)
+    print("WCDM, om=0.3, w=-0.4, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -0.4))
 
     x = wcdm(1.0, 0.3, -1.4)
-    print "WCDM, om=0.3, w=-1.4, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -1.4)
+    print("WCDM, om=0.3, w=-1.4, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -1.4))
 
     x = wcdm(1.0, 1.3, -0.4)
-    print "WCDM, om=1.3, w=-0.4, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 1.3, -0.4)
+    print("WCDM, om=1.3, w=-0.4, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 1.3, -0.4))
 
-    print "\nTesting the owcdm code in the flat limit"
+    print("\nTesting the owcdm code in the flat limit")
     x = owcdm(1.0, 0.3, -1)[0]
-    print "Non-flat LCDM, om=0.3, ok=0, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -1)
+    print("Non-flat LCDM, om=0.3, ok=0, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -1))
 
     x = owcdm(1.0, 0.3, -0.4)[0]
-    print "Non-flat WCDM, om=0.3, w=-0.4, ok=0, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -0.4)
+    print("Non-flat WCDM, om=0.3, w=-0.4, ok=0, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -0.4))
 
     x = owcdm(1.0, 0.3, -1.4)[0]
-    print "Non-flat WCDM, om=0.3, w=-1.4, ok=0, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -1.4)
+    print("Non-flat WCDM, om=0.3, w=-1.4, ok=0, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -1.4))
 
-    print "\nSlightly open universes"
+    print("\nSlightly open universes")
     x = owcdm(1.0, 0.3, -1, 0.05)[0]
-    print "Non-flat LCDM, om=0.3, ok=0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -1, 0.05)
+    print("Non-flat LCDM, om=0.3, ok=0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -1, 0.05))
 
     x = owcdm(1.0, 0.3, -0.2, 0.05)[0]
-    print "Non-flat WCDM, om=0.3, w=-0.2, ok=0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -0.2, 0.05)
+    print("Non-flat WCDM, om=0.3, w=-0.2, ok=0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -0.2, 0.05))
 
     x = owcdm(1.0, 0.3, -0.4, 0.05)[0]
-    print "Non-flat WCDM, om=0.3, w=-0.4, ok=0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -0.4, 0.05)
+    print("Non-flat WCDM, om=0.3, w=-0.4, ok=0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -0.4, 0.05))
 
     x = owcdm(1.0, 0.3, -1.4, 0.05)[0]
-    print "Non-flat WCDM, om=0.3, w=-1.4, ok=0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -1.4, 0.05)
+    print("Non-flat WCDM, om=0.3, w=-1.4, ok=0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -1.4, 0.05))
 
-    print "\nSlightly closed univeses"
+    print("\nSlightly closed univeses")
     x = owcdm(1.0, 0.3, -1, -0.05)[0]
-    print "Non-flat LCDM, om=0.3, ok=-0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -1, -0.05)
+    print("Non-flat LCDM, om=0.3, ok=-0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -1, -0.05))
 
     x = owcdm(1.0, 0.3, -0.2, -0.05)[0]
-    print "Non-flat WCDM, om=0.3, w=-0.2, ok=-0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -0.2, -0.05)
+    print("Non-flat WCDM, om=0.3, w=-0.2, ok=-0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -0.2, -0.05))
 
     x = owcdm(1.0, 0.3, -0.4, -0.05)[0]
-    print "Non-flat WCDM, om=0.3, w=-0.4, ok=-0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -0.4, -0.05)
+    print("Non-flat WCDM, om=0.3, w=-0.4, ok=-0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -0.4, -0.05))
 
     x = owcdm(1.0, 0.3, -1.4, -0.05)[0]
-    print "Non-flat WCDM, om=0.3, w=-1.4, ok=-0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -1.4, -0.05)
+    print("Non-flat WCDM, om=0.3, w=-1.4, ok=-0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -1.4, -0.05))
 
-    print "\nTesting the t(z) code (expect O(1e-5) because control version is not so accurate)"
+    print("\nTesting the t(z) code (expect O(1e-5) because control version is not so accurate)")
     x = wcdm_time(0.0, 1.0, -1.4)
-    print "CDM, om=1.0, w=-1.4, z=0: r(z) = ", x, " Err = ", x-time_romberg(0.0, 1.0, -1.4)
+    print("CDM, om=1.0, w=-1.4, z=0: r(z) = ", x, " Err = ", x-time_romberg(0.0, 1.0, -1.4))
 
     x = wcdm_time(0.0, 0.3, -0.2)
-    print "WCDM, om=0.3, w=-0.2, z=0: r(z) = ", x, " Err = ", x-time_romberg(0.0, 0.3, -0.2)
+    print("WCDM, om=0.3, w=-0.2, z=0: r(z) = ", x, " Err = ", x-time_romberg(0.0, 0.3, -0.2))
 
     x = wcdm_time(0.0, 0.3, -1.4)
-    print "WCDM, om=0.3, w=-1.4, z=0: r(z) = ", x, " Err = ", x-time_romberg(0.0, 0.3, -1.4)
+    print("WCDM, om=0.3, w=-1.4, z=0: r(z) = ", x, " Err = ", x-time_romberg(0.0, 0.3, -1.4))
 
     x = wcdm_time(1.0, 1.0, -1.4)
-    print "CDM, om=1.0, w=-1.4, z=1: r(z) = ", x, " Err = ", x-time_romberg(1.0, 1.0, -1.4)
+    print("CDM, om=1.0, w=-1.4, z=1: r(z) = ", x, " Err = ", x-time_romberg(1.0, 1.0, -1.4))
 
     x = wcdm_time(1.0, 0.3, -1.4)
-    print "WCDM, om=0.3, w=-1.4, z=1: r(z) = ", x, " Err = ", x-time_romberg(1.0, 0.3, -1.4)
+    print("WCDM, om=0.3, w=-1.4, z=1: r(z) = ", x, " Err = ", x-time_romberg(1.0, 0.3, -1.4))
 
-    print "\nTesting the radiation code"
+    print("\nTesting the radiation code")
     x = wcdm_rad(1.0, 0.3, -1.0, 8e-5)
-    print "WCDM, om=0.3, w=-1.0, or=8e-5, z=1: r(z) = ", x, " Err = ", x-wcdmrad_romberg(1.0, 0.3, -1.0, 8e-5)
+    print("WCDM, om=0.3, w=-1.0, or=8e-5, z=1: r(z) = ", x, " Err = ", x-wcdmrad_romberg(1.0, 0.3, -1.0, 8e-5))
     x = wcdm_rad(1.0, 0.3, -0.4, 8e-5)
-    print "WCDM, om=0.3, w=-0.4, or=8e-5, z=1: r(z) = ", x, " Err = ", x-wcdmrad_romberg(1.0, 0.3, -0.4, 8e-5)
+    print("WCDM, om=0.3, w=-0.4, or=8e-5, z=1: r(z) = ", x, " Err = ", x-wcdmrad_romberg(1.0, 0.3, -0.4, 8e-5))
     x = wcdm_rad(10.0, 0.3, -1.0, 8e-5)
-    print "WCDM, om=0.3, w=-1.0, or=8e-5, z=10: r(z) = ", x, " Err = ", x-wcdmrad_romberg(10.0, 0.3, -1.0, 8e-5)
+    print("WCDM, om=0.3, w=-1.0, or=8e-5, z=10: r(z) = ", x, " Err = ", x-wcdmrad_romberg(10.0, 0.3, -1.0, 8e-5))
 
-    print "\nTesting the vectorization"
+    print("\nTesting the vectorization")
     z = np.arange(0.1, 1.1, 0.1)
     w = np.arange(-1.0, -0.4, 0.1)
     om = np.arange(1.0, 0.2, -0.1)
@@ -355,34 +355,34 @@ def test():
     om2 = np.arange(1.4, 0.2, -0.2)
     om2[2] = 1.0
 
-    print "z: ", z
-    print "owcdm(): ", owcdm(z, 0.3, -1, 0)[0]
-    print "wcdm(): ", wcdm(z, 0.3, -1)
+    print("z: ", z)
+    print("owcdm(): ", owcdm(z, 0.3, -1, 0)[0])
+    print("wcdm(): ", wcdm(z, 0.3, -1))
 
     print
-    print "w: ", w
-    print "owcdm(): ", owcdm(1.0, 0.3, w, 0)[0]
-    print "wcdm(): ", wcdm(1.0, 0.3, w)
+    print("w: ", w)
+    print("owcdm(): ", owcdm(1.0, 0.3, w, 0)[0])
+    print("wcdm(): ", wcdm(1.0, 0.3, w))
 
     print
-    print "om: ", om
-    print "wcdm(): ", wcdm(1.0, om, -1)
-    print "owcdm(): ", owcdm(1.0, om, -1, 0)[0]
-    print "owcdm(): ", propmotdis(1.0, om, -1, 0)
-    print "om: ", om2
-    print "wcdm(): ", wcdm(1.0, om2, -1)
+    print("om: ", om)
+    print("wcdm(): ", wcdm(1.0, om, -1))
+    print("owcdm(): ", owcdm(1.0, om, -1, 0)[0])
+    print("owcdm(): ", propmotdis(1.0, om, -1, 0))
+    print("om: ", om2)
+    print("wcdm(): ", wcdm(1.0, om2, -1))
 
     print
-    print "LCDM D_A: ", angdist(z, 0.3, -1, 0)*3000.0
-    print "OCDM D_A: ", angdist(z, 0.3, -1, 0.1)*3000.0
-    print "OCDM D_M: ", propmotdis(z, 0.3, -1, 0.1)
+    print("LCDM D_A: ", angdist(z, 0.3, -1, 0)*3000.0)
+    print("OCDM D_A: ", angdist(z, 0.3, -1, 0.1)*3000.0)
+    print("OCDM D_M: ", propmotdis(z, 0.3, -1, 0.1))
 
     print
-    print "LCDM H*t(z): ", wcdm_time(z, 0.3, -1)
-    print "wCDM H*t(z=1): ", wcdm_time(1, 0.3, w)
-    print "wCDM H*t(z=0): ", wcdm_time(0, 0.3, w)
-    print "LCDM H*t(z=0) om: ", wcdm_time(0, om, -1)
-    print "SCDM H*t(z=0): ", wcdm_time(0, 1, -1)
+    print("LCDM H*t(z): ", wcdm_time(z, 0.3, -1))
+    print("wCDM H*t(z=1): ", wcdm_time(1, 0.3, w))
+    print("wCDM H*t(z=0): ", wcdm_time(0, 0.3, w))
+    print("LCDM H*t(z=0) om: ", wcdm_time(0, om, -1))
+    print("SCDM H*t(z=0): ", wcdm_time(0, 1, -1))
 
 
 if __name__ == "__main__":
