@@ -116,8 +116,8 @@ class Grid:
 	self.posmax = self.posmax + np.ones(3)*self.max_sep/1.5
 	self.boxsize = np.max(self.posmax-self.posmin)
 	self.cell_size = self.boxsize/self.ngrid
-	print("Adopting boxsize %f, cell size %f for a %d^3 grid." % \)
-		    (self.boxsize,self.cell_size,self.ngrid)
+	print("Adopting boxsize %f, cell size %f for a %d^3 grid." %
+		    (self.boxsize,self.cell_size,self.ngrid))
 	# Keep track of the origin on the grid
 	tmp1,tmp2 = self.pos2grid(np.zeros(3))
 	self.origin = tmp1+tmp2
@@ -129,8 +129,8 @@ class Grid:
 	#
 	# Set up the correlation submatrix calculation
 	self.max_sep_cell = np.ceil(self.max_sep/self.cell_size)
-	print("Correlating to %f will extend to +-%d cells." % \)
-			(self.max_sep,self.max_sep_cell)
+	print("Correlating to %f will extend to +-%d cells." %
+			(self.max_sep,self.max_sep_cell))
 	if (self.ngrid<2*self.max_sep_cell+1):
 		print("Grid size is too small relative to separation request")
 		exit()
