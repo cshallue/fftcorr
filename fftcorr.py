@@ -110,18 +110,18 @@ class Grid:
 	self.max_sep = max_sep
 	self.posmin = np.amin(pos, axis=0)
 	self.posmax = np.amax(pos, axis=0)
-	print "Position minima: ", self.posmin
-	print "Position maxima: ", self.posmax
+	print("Position minima: ", self.posmin)
+	print("Position maxima: ", self.posmax)
 	self.posmin = self.posmin - np.ones(3)*self.max_sep/1.5
 	self.posmax = self.posmax + np.ones(3)*self.max_sep/1.5
 	self.boxsize = np.max(self.posmax-self.posmin)
 	self.cell_size = self.boxsize/self.ngrid
-	print "Adopting boxsize %f, cell size %f for a %d^3 grid." % \
+	print("Adopting boxsize %f, cell size %f for a %d^3 grid." % \)
 		    (self.boxsize,self.cell_size,self.ngrid)
 	# Keep track of the origin on the grid
 	tmp1,tmp2 = self.pos2grid(np.zeros(3))
 	self.origin = tmp1+tmp2
-	print "Origin is at grid location ", self.origin
+	print("Origin is at grid location ", self.origin)
 	# Make the x,y,z ingredients for the Ylm's
 	self.xcell = (np.arange(self.ngrid)+0.5-self.origin[0])
 	self.ycell = (np.arange(self.ngrid)+0.5-self.origin[1])
@@ -129,10 +129,10 @@ class Grid:
 	#
 	# Set up the correlation submatrix calculation
 	self.max_sep_cell = np.ceil(self.max_sep/self.cell_size)
-	print "Correlating to %f will extend to +-%d cells." % \
+	print("Correlating to %f will extend to +-%d cells." % \)
 			(self.max_sep,self.max_sep_cell)
 	if (self.ngrid<2*self.max_sep_cell+1):
-		print "Grid size is too small relative to separation request"
+		print("Grid size is too small relative to separation request")
 		exit()
 	# This list will be used for the Ylm call
 	self.corr_cell = np.arange(-self.max_sep_cell,self.max_sep_cell+1)
@@ -166,18 +166,18 @@ def readdata(filename, Nrandom, cosm, minz=0.43, maxz=0.70):
     # Read a data file.  Use Nrandom to specify the number of randoms to use.
     # Nrandom>0 also triggers treating the weightings as by the random file
     # Return the Cartesian positions and 
-    print "Reading from %s" % filename
+    print("Reading from %s" % filename)
     hdulist = pyfits.open(filename)
     if (Nrandom>0):
 	data = hdulist[1].data[0:Nrandom]
     else:
 	data = hdulist[1].data
     data = data[np.where((data['z']>minz) & (data['z']<maxz))]
-    print "Done reading and trimming data."
+    print("Done reading and trimming data.")
     redshifts = np.linspace(0.0, maxz+0.1, 1000)
     rz = interpolate.InterpolatedUnivariateSpline(redshifts, \
     	2997.92*wcdm.coorddist(redshifts, cosm['omega'], -1, 0))
-    print "Done computing cosmological distances."
+    print("Done computing cosmological distances.")
     pos = coord2pos(data['ra'], data['dec'], rz(data['z']))
     if (Nrandom>0):
 	w = np.float64(data['weight_fkp'])
@@ -185,8 +185,8 @@ def readdata(filename, Nrandom, cosm, minz=0.43, maxz=0.70):
 	w = np.float64(data['weight_fkp'])*data['weight_systot']*  \
 	    (data['weight_cp']+data['weight_noz']-1.0)
     hdulist.close()
-    #print np.result_type(w)
-    print "Using %d galaxies, total weight %g" % ( len(pos), np.sum(w) )
+    #print(np.result_type(w))
+    print("Using %d galaxies, total weight %g" % ( len(pos), np.sum(w) ))
     result = {}
     result['pos'] = pos
     result['w'] = w
@@ -197,7 +197,7 @@ def read_patchy_file(filename, Nrandom, cosm, minz=0.43, maxz=0.70):
     # Read a data file.  Use Nrandom to specify the number of randoms to use.
     # Nrandom>0 also triggers treating the weightings as by the random file
     # Return the Cartesian positions and 
-    print "Reading from %s" % filename
+    print("Reading from %s" % filename)
     if (Nrandom>0):
         data = np.loadtxt(filename,
             dtype=[('RA',float),('DEC',float),('Z',float),
@@ -209,16 +209,16 @@ def read_patchy_file(filename, Nrandom, cosm, minz=0.43, maxz=0.70):
     if (Nrandom>0):
         if (Nrandom<len(data)): data = data[0:Nrandom]
     data = data[np.where((data['Z']>minz) & (data['Z']<maxz))]
-    print "Done reading and trimming data."
+    print("Done reading and trimming data.")
 
     redshifts = np.linspace(0.0, maxz+0.1, 1000)
     rz = interpolate.InterpolatedUnivariateSpline(redshifts, \
     	2997.92*wcdm.coorddist(redshifts, cosm['omega'], -1, 0))
-    print "Done computing cosmological distances."
+    print("Done computing cosmological distances.")
     pos = coord2pos(data['RA'], data['DEC'], rz(data['Z']))
     w = data['VETO']*data['FIBER']/(1+1e4*data['NBAR'])
-    #print np.result_type(w)
-    print "Using %d galaxies, total weight %g" % ( len(pos), np.sum(w) )
+    #print(np.result_type(w))
+    print("Using %d galaxies, total weight %g" % ( len(pos), np.sum(w) ))
     result = {}
     result['pos'] = pos
     result['w'] = w
@@ -247,7 +247,7 @@ def makeYlm(ell, m, xcell, ycell, zcell):
     z4 = z3*z
     # TODO: If we could align this array, it would be better!
     Ylm = np.empty(np.ones(3)*ngrid)
-    # print "Type of Ylm: ", np.result_type(Ylm)  # This claims to be float64.
+    # print("Type of Ylm: ", np.result_type(Ylm)  # This claims to be float64.)
     for j in range(0,ngrid):
 	x = xcell[j]     # A scalar, just to make the code more symmetric
 	x2 = x*x
@@ -300,7 +300,7 @@ def makeYlm(ell, m, xcell, ycell, zcell):
 	    	/(x2+y2+z2+tiny)**2
         #
 	else:
-	    print "Illegal Ylm arguments: ", ell, m
+	    print("Illegal Ylm arguments: ", ell, m)
 	    exit()
     # Done with the loop over x slabs
     return Ylm
@@ -313,15 +313,15 @@ def compute_one_ell(dens_N, Nfft_star, ell, grid):
     corr = np.empty(np.ones(3)*(2*msc+1))
     total = np.zeros(np.ones(3)*(2*msc+1))
     for m in range(-ell,ell+1):
-	print "Computing ell, m = %1d %2d." % (ell, m),
+	print("Computing ell, m = %1d %2d." % (ell, m),)
 	t = timer()
 	Ylm = makeYlm(ell, m, grid.xcell, grid.ycell, grid.zcell)
 	Ylm *= dens_N
-	print " NY=%6.4f" % float(timer()-t),
+	print(" NY=%6.4f" % float(timer()-t),)
 	t = timer()
 	NYfft = np.fft.rfftn(Ylm)*Nfft_star
 	Ylm = np.fft.irfftn(NYfft)
-	print " FFT=%6.4f" % float(timer()-t),
+	print(" FFT=%6.4f" % float(timer()-t),)
 	# Now extract the submatrix
 	t = timer()
 	corr[msc:, msc:, msc:] = Ylm[0:msc+1, 0:msc+1, 0:msc+1]
@@ -335,10 +335,10 @@ def compute_one_ell(dens_N, Nfft_star, ell, grid):
 	# We need to multiply it by Ylm of the separation matrix
 	corr *= makeYlm(ell, m, grid.corr_cell, grid.corr_cell, grid.corr_cell)
 	total += corr
-	print " Sub=%6.4f" % float(timer()-t)
+	print(" Sub=%6.4f" % float(timer()-t))
     # Multiplying by 4*pi, to match SE15 equation 13
     total *= 4.0*np.pi
-    print total[msc-1:msc+2, msc-1:msc+2, msc-1:msc+2]
+    print(total[msc-1:msc+2, msc-1:msc+2, msc-1:msc+2])
     return total
 
 
@@ -361,20 +361,20 @@ def correlate(pos, w, grid, bins):
     # Convert the points to the grid
     t = timer()
     grid_N, residual_N = grid.pos2grid(pos)
-    print "Done assigning grid points"
+    print("Done assigning grid points")
     #
     # Form the N densities
     # TODO: If we could align this dens_N array, it would be better!
     dens_N, histbins = np.histogramdd(grid_N, weights=w, \
 	    bins=grid.ngrid, range = ((0,grid.ngrid),(0,grid.ngrid),(0,grid.ngrid)))
-    print "Sum of density grid: ", np.sum(dens_N), 
-    print "Type of density grid: ", np.result_type(dens_N), 
-    print " Time=%6.4f" % float(timer()-t)
+    print("Sum of density grid: ", np.sum(dens_N), )
+    print("Type of density grid: ", np.result_type(dens_N), )
+    print(" Time=%6.4f" % float(timer()-t))
     #
     # Compute the FFT of the density field, since we use it a lot
     t = timer()
     Nfft_star = np.conj(np.fft.rfftn(dens_N))
-    print "Done with FFT(density).  Time=%6.4f" % float(timer()-t)
+    print("Done with FFT(density).  Time=%6.4f" % float(timer()-t))
     # Now correlate!
     corr = []
     for ell in range(0,max_ell+1,2):
@@ -422,7 +422,7 @@ def boundary_correct(xi_raw, fRR):
 	    for l in range(len(fRR)):
 		# Remember that the ell's are indexed 0,2,4...
 		Mkl[k][l] += Mkl_calc(2*k,2*l, fRR[:,r])
-	if (r==len(fRR[0])-1): print r, Mkl
+	if (r==len(fRR[0])-1): print(r, Mkl)
 	Minv = np.linalg.inv(Mkl)
 	xi[:,r] = np.dot(Minv,xi_raw[:,r])
 	# TODO: Need to check whether this matrix should have been transposed
@@ -432,10 +432,10 @@ def boundary_correct(xi_raw, fRR):
 
 def setupCPP(pos, w, g, filename):
     binfile = open(filename,"wb")
-    print g.ngrid
-    print g.posmin
-    print g.boxsize
-    print g.max_sep
+    print(g.ngrid)
+    print(g.posmin)
+    print(g.boxsize)
+    print(g.max_sep)
     binfile.write(struct.pack("dddddddd", \
     	g.posmin[0], g.posmin[1], g.posmin[2], \
     	g.posmax[0], g.posmax[1], g.posmax[2], \
@@ -443,7 +443,7 @@ def setupCPP(pos, w, g, filename):
     posw = np.empty([len(pos),4], dtype=np.float64)
     posw[:,0:3] = pos
     posw[:,3] = w
-    print posw.shape
+    print(posw.shape)
     posw.tofile(binfile)
     binfile.close()
 
@@ -470,7 +470,7 @@ def correlateCPP(filename, dsep, file2=""):
     s = "fftcorr -in %s -out %s.out -dr %f -n %d -ell %d" % (filename, filename, dsep, ngrid, max_ell)
     if (file2!=""): s += " -in2 %s" % file2
     if (qperiodic): s += " -p -r %f" % max_sep
-    print s
+    print(s)
     call(shlex.split(s))
     data = np.loadtxt(filename+".out")
     return data[:,2:].T, data[:,1], data[:,0]
@@ -503,7 +503,7 @@ def readCPPoutput(filename):
 	    xi[xicnt,:] = np.fromstring(line, sep=' ')[1:]
 	    xicnt+=1
     f.close()
-    print "Read %s and found %d P values and %d xi values" % (filename, Pcnt, xicnt)
+    print("Read %s and found %d P values and %d xi values" % (filename, Pcnt, xicnt))
     P = P[:Pcnt]
     xi = xi[:xicnt]
     return xi[:,2:], xi[:,1], xi[:,0], P[:,2:], P[:,1], P[:,0], I, Pshot
@@ -529,7 +529,7 @@ def read_dataNGC(cosmology):
     ra_rotate = -142.5
     D = readdata(BOSSpath+'galaxy_DR12v5_CMASS_North.fits', 0, cosmology)
     R = readdata(BOSSpath+'random0_DR12v5_CMASS_North.fits', 51*len(D['w']), cosmology)
-    print
+    print()
     lapsed_time('io')
     return D,R
 
@@ -538,7 +538,7 @@ def read_dataSGC(cosmology):
     ra_rotate = 44
     D = readdata(BOSSpath+'galaxy_DR12v5_CMASS_South.fits', 0, cosmology)
     R = readdata(BOSSpath+'random0_DR12v5_CMASS_South.fits', 51*len(D['w']), cosmology)
-    print
+    print()
     lapsed_time('io')
     return D,R
 
@@ -553,7 +553,7 @@ def read_patchy(cosmology, NGC):
         ra_rotate=44
 	D = read_patchy_file(Mockpath+'untar/Patchy-Mocks-DR12CMASS-S-V6C-Portsmouth-mass_0001.dat', 0, cosmology)
 	R = read_patchy_file(Mockpath+'Random-DR12CMASS-S-V6C-x50.dat.gz', 51*len(D['w']), cosmology)
-    print
+    print()
     lapsed_time('io')
     return D,R
     # We're returning [pos,w] pairs, to keep data together
@@ -578,7 +578,7 @@ def setup_grid(D,R,max_sep):
 def writeCPPfiles(D, R, grid, DDfile, RRfile):
     setupCPP(D['pos'], D['w'], grid, DDfile)
     setupCPP(R['pos'], R['w'], grid, RRfile)
-    print "Wrote CPP binary input files to ", DDfile, "and", RRfile
+    print("Wrote CPP binary input files to ", DDfile, "and", RRfile)
 
 def analyze(hist_corrNN, hist_corrRR, rcen):
     #### Analyze the results ####
@@ -592,15 +592,15 @@ def analyze(hist_corrNN, hist_corrRR, rcen):
     xir2_raw = xi_raw*rcen**2
     xir2 = xi*rcen**2
 
-    print
+    print()
     for j in range(len(rcen)):
-	print "%6.2f" % rcen[j],
-	for i in range(len(xi)): print "%10.5f" % xir2[i][j],
-	print "  ",
-	for i in range(len(xi)): print "%10.5f" % xir2_raw[i][j],
-	print "  ",
-	for i in range(1,len(xi)): print "%9.6f" % fRR[i][j],
-	print
+	print("%6.2f" % rcen[j],)
+	for i in range(len(xi)): print("%10.5f" % xir2[i][j],)
+	print("  ",)
+	for i in range(len(xi)): print("%10.5f" % xir2_raw[i][j],)
+	print("  ",)
+	for i in range(1,len(xi)): print("%9.6f" % fRR[i][j],)
+	print()
     return rcen, xi, xi_raw, fRR
 
 
@@ -665,9 +665,9 @@ def analyze_set():
     Del = P*kcen/2.0/np.pi**2
     xi = analyze(corr.T, corrRR.T, rcen)
     for j in range(len(kcen)):
-	print "%6.4f " % kcen[j],
-	for i in range(0,len(P)): print "%9.2f" % Del[i][j],
-	print
+	print("%6.4f " % kcen[j],)
+	for i in range(0,len(P)): print("%9.2f" % Del[i][j],)
+	print()
     return xi, Del
 
 a = analyze_set()
@@ -704,21 +704,21 @@ def run(cpp):
 	# Choose the binning
 	bins = linear_binning(grid.max_sep, dsep)
 
-	print "\nCorrelating NN"
+	print("\nCorrelating NN")
 	hist_corrNN, hist_corr_num, hist_edges = correlate(N['pos'], N['w'], grid, bins)
 	lapsed_time('corrNN')
 
-	print "Correlating RR"
+	print("Correlating RR")
 	hist_corrRR, hist_corr_num, hist_edges = correlate(R['pos'], R['w'], grid, bins)
 	lapsed_time('corrRR')
 
 	rcen = (hist_edges[0:-1]+hist_edges[1:])/2.0
 
-    if 'io' in times: print "\nTime to read the data files: ", times['io']
-    if 'setup' in times: print "Time to setup the calculation: ", times['setup']
-    if 'corrNN' in times: print "Time to run the NN correlations: ", times['corrNN']
-    if 'corrRR' in times: print "Time to run the RR correlations: ", times['corrRR']
-    print
+    if 'io' in times: print("\nTime to read the data files: ", times['io'])
+    if 'setup' in times: print("Time to setup the calculation: ", times['setup'])
+    if 'corrNN' in times: print("Time to run the NN correlations: ", times['corrNN'])
+    if 'corrRR' in times: print("Time to run the RR correlations: ", times['corrRR'])
+    print()
     return analyze(hist_corrNN, hist_corrRR, rcen), hist_corrNN, hist_corrRR
 
 
