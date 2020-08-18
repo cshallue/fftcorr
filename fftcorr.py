@@ -708,7 +708,7 @@ def analyze_set():
     return xi, Del
 
 
-a = analyze_set()
+#a = analyze_set()
 
 ##########################
 
