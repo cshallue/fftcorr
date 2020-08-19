@@ -52,9 +52,10 @@ except ImportError:
 import struct
 from timeit import default_timer as timer
 from scipy import interpolate
-import scipy.misc as sm
-from subprocess import call
+import scipy.special
+import subprocess
 import shlex
+import os
 
 # Timing
 
@@ -398,7 +399,11 @@ def linear_binning(max_sep, dsep):
 
 def triplefact(j1, j2, j3):
     jhalf = (j1+j2+j3)/2.0
-    return sm.factorial(jhalf) / sm.factorial(jhalf-j1) / sm.factorial(jhalf-j2) / sm.factorial(jhalf-j3)
+    return (
+        scipy.special.factorial(jhalf) / 
+        scipy.special.factorial(jhalf-j1) / 
+        scipy.special.factorial(jhalf-j2) / 
+        scipy.special.factorial(jhalf-j3))
 
 
 def threej(j1, j2, j3):
@@ -479,14 +484,16 @@ def write_periodic_random(n, boxsize, filename):
 
 
 def correlateCPP(filename, dsep, file2=""):
-    s = "fftcorr -in %s -out %s.out -dr %f -n %d -ell %d" % (
-        filename, filename, dsep, ngrid, max_ell)
+
+    s = "%s/fftcorr -in %s -out %s.out -dr %f -n %d -ell %d" % (
+        os.getcwd(), filename, filename, dsep, ngrid, max_ell)
     if (file2 != ""):
         s += " -in2 %s" % file2
     if (qperiodic):
         s += " -p -r %f" % max_sep
     print(s)
-    call(shlex.split(s))
+    retcode = subprocess.call(shlex.split(s))
+    assert retcode >= 0
     data = np.loadtxt(filename+".out")
     return data[:, 2:].T, data[:, 1], data[:, 0]
 
@@ -535,18 +542,21 @@ def readCPPfast(filename):
 
 
 #####################  Main Code #############
-BOSSpath = 'Data/'
-Mockpath = 'Patchy/'
+# BOSSpath = 'Data/'
+# Mockpath = 'Patchy/'
 
 #BOSSpath = '/Users/eisenste/cmb/AS2/BOSS/DR12v5/'
 #Mockpath = '/Users/eisenste/cmb/AS2/BOSS/DR12v5/Patchy-V6C/'
+
+BOSSpath = '/Users/shallue/sdss/sas/dr12/boss/lss/'
+Mockpath = 'Patchy/'
 
 
 def read_dataNGC(cosmology):
     global ra_rotate
     ra_rotate = -142.5
-    D = readdata(BOSSpath+'galaxy_DR12v5_CMASS_North.fits', 0, cosmology)
-    R = readdata(BOSSpath+'random0_DR12v5_CMASS_North.fits',
+    D = readdata(BOSSpath+'galaxy_DR12v5_CMASS_North.fits.gz', 0, cosmology)
+    R = readdata(BOSSpath+'random0_DR12v5_CMASS_North.fits.gz',
                  51*len(D['w']), cosmology)
     print()
     lapsed_time('io')
@@ -556,8 +566,8 @@ def read_dataNGC(cosmology):
 def read_dataSGC(cosmology):
     global ra_rotate
     ra_rotate = 44
-    D = readdata(BOSSpath+'galaxy_DR12v5_CMASS_South.fits', 0, cosmology)
-    R = readdata(BOSSpath+'random0_DR12v5_CMASS_South.fits',
+    D = readdata(BOSSpath+'galaxy_DR12v5_CMASS_South.fits.gz', 0, cosmology)
+    R = readdata(BOSSpath+'random0_DR12v5_CMASS_South.fits.gz',
                  51*len(D['w']), cosmology)
     print()
     lapsed_time('io')
@@ -713,28 +723,24 @@ def analyze_set():
 ##########################
 
 
-def run(cpp):
-    # cpp = 3     # To run CPP code without setup
-    # cpp = 2     # To run CPP code with setup
-    # cpp = 1     # To run Python code while writing CPP input files
-    # cpp = 0     # To run Python code without writing CPP input files
-    DDfile = "Data/corrDD.dat"
-    RRfile = "Data/corrRR.dat"
-    if (cpp < 3):
+def run(run_cpp=True, setup_cpp=False):
+    DDfile = "/tmp/corrDD.dat"
+    RRfile = "/tmp/corrRR.dat"
+    if (not run_cpp or setup_cpp):
         ####  Read in the data ####
         #D,R = read_dataNGC(cosmology)
         D, R = read_dataSGC(cosmology)
         N, grid = setup_grid(D, R, max_sep)
 
         # Write out the CPP files
-        if (cpp > 0):
+        if (setup_cpp):
             DDfile = "/tmp/corrDD.dat"
             RRfile = "/tmp/corrRR.dat"
             writeCPPfiles(D, R, grid, DDfile, RRfile)
 
     #### Run the correlations ####
 
-    if (cpp > 1):
+    if (run_cpp):
         hist_corrNN, hist_corr_num, rcen = correlateCPP(
             DDfile, dsep, file2=RRfile)
         lapsed_time('corrNN')
@@ -768,9 +774,6 @@ def run(cpp):
     return analyze(hist_corrNN, hist_corrRR, rcen), hist_corrNN, hist_corrRR
 
 
-# cpp = 3     # To run CPP code without setup
-cpp = 2     # To run CPP code with setup
-# cpp = 1     # To run Python code while writing CPP input files
-# cpp = 0     # To run Python code without writing CPP input files
-
-#result = run(cpp)
+run_cpp = True  # Whether to run CPP instead of Python code.
+setup_cpp = False  # Whether to convert input files to CPP input format.
+result = run(run_cpp, setup_cpp)
