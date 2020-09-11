@@ -129,7 +129,7 @@ class Grid(object):
         self.posmax = posmax
         self.boxsize = boxsize
         self.cell_size = cell_size
-        
+
         print("Adopting boxsize %f, cell size %f for a %d^3 grid." %
               (boxsize, cell_size, ngrid))
         # Keep track of the origin on the grid
@@ -193,7 +193,8 @@ def read_data_file(filename, fmt, Nrandom, cosmology, ra_rotate, minz=0.43, maxz
         data = data[np.where((data["z"] > minz) & (data["z"] < maxz))]
         w = np.float64(data["weight_fkp"])
         if not Nrandom:
-            w *= data["weight_systot"] * (data["weight_cp"]+data["weight_noz"]-1.0)
+            w *= data["weight_systot"] * \
+                (data["weight_cp"]+data["weight_noz"]-1.0)
     elif fmt == "patchy":
         if Nrandom > 0:
             dtypes = [
@@ -210,7 +211,7 @@ def read_data_file(filename, fmt, Nrandom, cosmology, ra_rotate, minz=0.43, maxz
         w = data["veto"]*data["fiber"]/(1+1e4*data["nbar"])
     else:
         raise ValueError("Unrecognized fmt: %s" % fmt)
-    
+
     # Convert (ra, dec, Z) to (x, y, z).
     redshifts = np.linspace(0.0, maxz+0.1, 1000)
     rz = interpolate.InterpolatedUnivariateSpline(
@@ -394,9 +395,9 @@ def triplefact(j1, j2, j3):
     """Returns g!/((g - j1)!(g - j2)!(g - j3!)), where g = (j1 + j2 + j3)/2."""
     jhalf = (j1 + j2 + j3) / 2
     return (
-        scipy.special.factorial(jhalf) / 
-        scipy.special.factorial(jhalf - j1) / 
-        scipy.special.factorial(jhalf - j2) / 
+        scipy.special.factorial(jhalf) /
+        scipy.special.factorial(jhalf - j1) /
+        scipy.special.factorial(jhalf - j2) /
         scipy.special.factorial(jhalf - j3))
 
 
@@ -409,7 +410,7 @@ def threej(j1, j2, j3):
     if j % 2:
         return 0  # Must be even
     if (j1 + j2 < j3) or (j2 + j3 < j1) or (j3 + j1 < j2):
-      return 0  # Check legel triangle
+        return 0  # Check legel triangle
     return (-1)**(j / 2) * triplefact(j1, j2, j3) / (
         triplefact(2 * j1, 2 * j2, 2 * j3) * (j + 1))**0.5
     # DJE did check this against Wolfram
@@ -442,6 +443,21 @@ def boundary_correct(xi_raw, fRR):
     return xi
 
 
+def compute_xi(hist_corrNN, hist_corrRR):
+    """Computes the anisotropic 2PCF from multipole moments of NN and RR.
+
+    NN(s, mu) and RR(s, mu) are as defined in SE15, eq. 5.
+    
+    Args:
+      hist_corrNN: Array [num_ell, num_s] of multipole moments of NN(s, mu)
+      hist_corrRR: Array [num_ell, num_s] of multipole moments of RR(s, mu)
+    """
+    fRR = hist_corrRR / hist_corrRR[0]  # f_j from SE15 eq. 8
+    xi_raw = hist_corrNN / hist_corrRR[0]  # LHS of SE15 eq. 10
+    xi = boundary_correct(xi_raw, fRR)  # Solve SE15 eq. 10
+    return xi
+
+
 def setupCPP(pos, w, g, filename):
     with open(filename, "wb") as binfile:
         print(g.ngrid)
@@ -460,9 +476,9 @@ def setupCPP(pos, w, g, filename):
 def write_periodic_random(n, boxsize, filename):
     with open(filename, "wb") as binfile:
         binfile.write(struct.pack("dddddddd",
-                                0.0, 0.0, 0.0,
-                                boxsize, boxsize, boxsize,
-                                0.0, 0.0))
+                                  0.0, 0.0, 0.0,
+                                  boxsize, boxsize, boxsize,
+                                  0.0, 0.0))
         posw = np.empty([n, 4], dtype=np.float64)
         posw[:, 0:3] = boxsize*np.random.uniform(size=(n, 3))
         posw[:, 3] = np.ones(n)
@@ -546,16 +562,21 @@ def readCPPfast(filename):
 BOSSpath = "/Users/shallue/sdss/sas/dr12/boss/lss/"
 Mockpath = "Patchy/"
 
+
 def read_galaxies(hemisphere, cosmology, mocks=False):
     ra_rotate = RA_ROTATE[hemisphere]
     if mocks:
-        dfile = os.path.join(Mockpath, "untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_0001.dat" % hemisphere[0])
-        rfile = os.path.join(Mockpath, "Random-DR12CMASS-%s-V6C-x50.dat.gz" % hemisphere[0])
+        dfile = os.path.join(
+            Mockpath, "untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_0001.dat" % hemisphere[0])
+        rfile = os.path.join(
+            Mockpath, "Random-DR12CMASS-%s-V6C-x50.dat.gz" % hemisphere[0])
         D = read_data_file(dfile, "patchy", 0, cosmology, ra_rotate)
         R = read_data_file(rfile, "patchy", 51*len(D.w), cosmology, ra_rotate)
     else:
-        dfile = os.path.join(BOSSpath, "galaxy_DR12v5_CMASS_%s.fits.gz" % hemisphere)
-        rfile = os.path.join(BOSSpath, "random0_DR12v5_CMASS_%s.fits.gz" % hemisphere)
+        dfile = os.path.join(
+            BOSSpath, "galaxy_DR12v5_CMASS_%s.fits.gz" % hemisphere)
+        rfile = os.path.join(
+            BOSSpath, "random0_DR12v5_CMASS_%s.fits.gz" % hemisphere)
         D = read_data_file(dfile, "boss", 0, cosmology, ra_rotate)
         R = read_data_file(rfile, "boss", 51*len(D.w), cosmology, ra_rotate)
     print()
@@ -628,13 +649,15 @@ def make_patchy(hemisphere, file_range, cosmology, ngrid, max_sep):
         # Get file %f
         filename = "untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_%04d.dat" % (
             hemisphere[0], f)
-        D = read_data_file(Mockpath+filename, "patchy", 0, cosmology, ra_rotate)
+        D = read_data_file(Mockpath+filename, "patchy",
+                           0, cosmology, ra_rotate)
         out = "binary/patchy-DR12CMASS-%s-V6C-%04d.dat" % (hemisphere[0], f)
         setupCPP(D.pos, D.w, grid, Mockpath+out)
 
     if (len(file_range) == 0):
         filename = "Random-DR12CMASS-%s-V6C-x50.dat.gz" % hemisphere[0]
-        R = read_data_file(Mockpath+filename, "patchy", 100*len(D.w), cosmology, ra_rotate)
+        R = read_data_file(Mockpath+filename, "patchy",
+                           100*len(D.w), cosmology, ra_rotate)
         # Need to renormalize the weights
         # Set the randoms to have negative weight
         R.w *= np.sum(D.w)/np.sum(R.w)
