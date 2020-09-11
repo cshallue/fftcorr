@@ -120,50 +120,55 @@ class Grid(object):
     def __init__(self, ngrid, posmin, posmax, max_sep):
         self.ngrid = ngrid
         self.max_sep = max_sep
-        self.posmin = posmin
-        self.posmax = posmax
-        print("Position minima: ", self.posmin)
-        print("Position maxima: ", self.posmax)
 
         # Find the bounding box, including the appropriate buffer
         # Returns the minimum corner of the box and the cubic box size
-        self.posmin = self.posmin - self.max_sep/1.5
-        self.posmax = self.posmax + self.max_sep/1.5
-        self.boxsize = np.max(self.posmax-self.posmin)
-        self.cell_size = self.boxsize/self.ngrid
+        pad = max_sep / 1.5
+        posmin -= pad
+        posmax += pad
+        boxsize = np.max(posmax - posmin)
+        cell_size = boxsize / ngrid
+        self.posmin = posmin
+        self.posmax = posmax
+        self.boxsize = boxsize
+        self.cell_size = cell_size
+        
         print("Adopting boxsize %f, cell size %f for a %d^3 grid." %
-              (self.boxsize, self.cell_size, self.ngrid))
+              (boxsize, cell_size, ngrid))
         # Keep track of the origin on the grid
-        tmp1, tmp2 = self.pos2grid(np.zeros(3))
-        self.origin = tmp1+tmp2
-        print("Origin is at grid location ", self.origin)
+        origin = np.add(*self.pos2grid(np.zeros(3)))
+        print("Origin is at grid location ", origin)
+        self.origin = origin
+
         # Make the x,y,z ingredients for the Ylm's
-        self.xcell = np.arange(self.ngrid)+0.5-self.origin[0]
-        self.ycell = np.arange(self.ngrid)+0.5-self.origin[1]
-        self.zcell = np.arange(self.ngrid)+0.5-self.origin[2]
+        self.xcell = np.arange(ngrid) + 0.5 - origin[0]
+        self.ycell = np.arange(ngrid) + 0.5 - origin[1]
+        self.zcell = np.arange(ngrid) + 0.5 - origin[2]
 
         # Set up the correlation submatrix calculation
-        self.max_sep_cell = np.ceil(self.max_sep/self.cell_size)
+        max_sep_cell = np.ceil(max_sep / cell_size)
         print("Correlating to %f will extend to +-%d cells." %
-              (self.max_sep, self.max_sep_cell))
-        if (self.ngrid < 2*self.max_sep_cell+1):
-            print("Grid size is too small relative to separation request")
-            exit()
+              (max_sep, max_sep_cell))
+        if (ngrid < 2 * max_sep_cell + 1):
+            raise ValueError(
+                "Grid size is too small relative to separation request")
         # This list will be used for the Ylm call
-        self.corr_cell = np.arange(-self.max_sep_cell, self.max_sep_cell+1)
+        corr_cell = np.arange(-max_sep_cell, max_sep_cell+1)
         # Make the radial grid
         corr_grid = np.meshgrid(
-            self.corr_cell, self.corr_cell, self.corr_cell, indexing="ij")
-        self.rcorr = np.sqrt(
-            corr_grid[0]**2+corr_grid[1]**2+corr_grid[2]**2)*self.cell_size
+            corr_cell, corr_cell, corr_cell, indexing="ij")
+        rcorr = np.sqrt(
+            corr_grid[0]**2+corr_grid[1]**2+corr_grid[2]**2)*cell_size
         del corr_grid
+        self.max_sep_cell = max_sep_cell
+        self.corr_cell = corr_cell
+        self.rcorr = rcorr
 
     def pos2grid(self, pos):
         # Convert positions to grid locations. Also return the residuals
         # Note that this does not check that the resulting grid is within ngrid
-        grid = (pos-self.posmin)/self.cell_size
-        residual = grid-np.floor(grid)
-        return np.floor(grid), residual
+        return np.divmod(pos - self.posmin, self.cell_size)
+
 # End class Grid
 
 
@@ -178,7 +183,7 @@ def coord2pos(ra, dec, rz, ra_rotate):
     ]).T
 
 
-def read_data_file(filename, fmt, Nrandom, cosm, ra_rotate, minz=0.43, maxz=0.70):
+def read_data_file(filename, fmt, Nrandom, cosmology, ra_rotate, minz=0.43, maxz=0.70):
     # Read a data file.  Use Nrandom to specify the number of randoms to use.
     # Nrandom>0 also triggers treating the weightings as by the random file
     # Return the Cartesian positions and
@@ -211,8 +216,8 @@ def read_data_file(filename, fmt, Nrandom, cosm, ra_rotate, minz=0.43, maxz=0.70
     
     # Convert (ra, dec, Z) to (x, y, z).
     redshifts = np.linspace(0.0, maxz+0.1, 1000)
-    rz = interpolate.InterpolatedUnivariateSpline(redshifts,
-                                                  2997.92*wcdm.coorddist(redshifts, cosm["omega"], -1, 0))
+    rz = interpolate.InterpolatedUnivariateSpline(
+        redshifts, 2997.92*wcdm.coorddist(redshifts, cosmology["omega"], -1, 0))
     print("Done computing cosmological distances.")
     pos = coord2pos(data["ra"], data["dec"], rz(data["z"]), ra_rotate)
 
@@ -243,7 +248,7 @@ def makeYlm(ell, m, xcell, ycell, zcell):
     z3 = z2*z
     z4 = z3*z
     # TODO: If we could align this array, it would be better!
-    Ylm = np.empty(np.ones(3)*ngrid)
+    Ylm = np.empty((ngrid,) * 3)
     # print("Type of Ylm: ", np.result_type(Ylm)  # This claims to be float64.)
     for j in range(0, ngrid):
         x = xcell[j]     # A scalar, just to make the code more symmetric
@@ -307,8 +312,8 @@ def compute_one_ell(dens_N, Nfft_star, ell, grid):
     # Compute the correlation submatrix for a given ell
     # Loop over all m
     msc = grid.max_sep_cell    # Rename for brevity
-    corr = np.empty(np.ones(3)*(2*msc+1))
-    total = np.zeros(np.ones(3)*(2*msc+1))
+    corr = np.empty((2*msc+1,) * 3)
+    total = np.zeros_like(corr)
     for m in range(-ell, ell+1):
         print("Computing ell, m = %1d %2d." % (ell, m),)
         t = timer()
@@ -439,45 +444,39 @@ def boundary_correct(xi_raw, fRR):
 
 
 def setupCPP(pos, w, g, filename):
-    binfile = open(filename, "wb")
-    print(g.ngrid)
-    print(g.posmin)
-    print(g.boxsize)
-    print(g.max_sep)
-    binfile.write(struct.pack("dddddddd",
-                              g.posmin[0], g.posmin[1], g.posmin[2],
-                              g.posmax[0], g.posmax[1], g.posmax[2],
-                              g.max_sep, 0.0))
-    posw = np.empty([len(pos), 4], dtype=np.float64)
-    posw[:, 0:3] = pos
-    posw[:, 3] = w
-    print(posw.shape)
-    posw.tofile(binfile)
-    binfile.close()
+    with open(filename, "wb") as binfile:
+        print(g.ngrid)
+        print(g.posmin)
+        print(g.boxsize)
+        print(g.max_sep)
+        binfile.write(struct.pack(
+            "dddddddd", *g.posmin, *g.posmax, g.max_sep, 0.0))
+        posw = np.empty([len(pos), 4], dtype=np.float64)
+        posw[:, 0:3] = pos
+        posw[:, 3] = w
+        print(posw.shape)
+        posw.tofile(binfile)
 
 
 def write_periodic_random(n, boxsize, filename):
-    binfile = open(filename, "wb")
-    binfile.write(struct.pack("dddddddd",
-                              0.0, 0.0, 0.0,
-                              boxsize, boxsize, boxsize,
-                              0.0, 0.0))
-    posw = np.empty([n, 4], dtype=np.float64)
-    posw[:, 0] = boxsize*np.random.rand(n)
-    posw[:, 1] = boxsize*np.random.rand(n)
-    posw[:, 2] = boxsize*np.random.rand(n)
-    posw[:, 3] = np.ones(n)
-    posw.tofile(binfile)
-    binfile.close()
+    with open(filename, "wb") as binfile:
+        binfile.write(struct.pack("dddddddd",
+                                0.0, 0.0, 0.0,
+                                boxsize, boxsize, boxsize,
+                                0.0, 0.0))
+        posw = np.empty([n, 4], dtype=np.float64)
+        posw[:, 0:3] = boxsize*np.random.uniform(size=(n, 3))
+        posw[:, 3] = np.ones(n)
+        posw.tofile(binfile)
 
 
 #write_periodic_random(100000, 1000.0, "random1e5.box1e3.dat")
 
 
 def correlateCPP(filename, dsep, ngrid, max_ell, qperiodic, file2=""):
-
-    s = "%s/fftcorr -in %s -out %s.out -dr %f -n %d -ell %d" % (
-        os.getcwd(), filename, filename, dsep, ngrid, max_ell)
+    outfile = filename + ".out"
+    s = "%s/fftcorr -in %s -out %s -dr %f -n %d -ell %d" % (
+        os.getcwd(), filename, outfile, dsep, ngrid, max_ell)
     if file2:
         s += " -in2 %s" % file2
     if qperiodic:
@@ -485,8 +484,14 @@ def correlateCPP(filename, dsep, ngrid, max_ell, qperiodic, file2=""):
     print(s)
     retcode = subprocess.call(shlex.split(s))
     assert retcode >= 0
-    data = np.loadtxt(filename+".out")
-    return data[:, 2:].T, data[:, 1], data[:, 0]
+
+    # Load the anisotropic correlation function.
+    data = np.loadtxt(outfile)
+    data = data[data[:, 0] == 0]  # corr indicated by 0 in first col
+    rcen = data[:, 1]
+    num = data[:, 2]
+    hist_corr = data[:, 3:].T
+    return hist_corr, num, rcen
 
 
 def readCPPoutput(filename):
@@ -569,6 +574,8 @@ def setup_grid(D, R, ngrid, max_sep):
 
     posmin = np.amin(N.pos, axis=0)
     posmax = np.amax(N.pos, axis=0)
+    print("Position minima: ", posmin)
+    print("Position maxima: ", posmax)
     grid = Grid(ngrid, posmin, posmax, max_sep)
 
     lapsed_time("setup")
@@ -594,17 +601,16 @@ def analyze(hist_corrNN, hist_corrRR, rcen):
     xir2 = xi*rcen**2
 
     print()
+    print("rcen   xir2[0]    xir2[1]    xir2_raw[0] xir2_raw[1] fRR")
     for j in range(len(rcen)):
-        print("%6.2f" % rcen[j],)
+        line = ["%6.2f" % rcen[j]]
         for i in range(len(xi)):
-            print("%10.5f" % xir2[i][j],)
-        print("  ",)
+            line.append("%10.5f" % xir2[i][j])
         for i in range(len(xi)):
-            print("%10.5f" % xir2_raw[i][j],)
-        print("  ",)
+            line.append("%10.5f" % xir2_raw[i][j])
         for i in range(1, len(xi)):
-            print("%9.6f" % fRR[i][j],)
-        print()
+            line.append("%9.6f" % fRR[i][j])
+        print(" ".join(line))
     return rcen, xi, xi_raw, fRR
 
 
