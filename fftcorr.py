@@ -1,4 +1,4 @@
-'''
+"""
 fftcorr.py: Daniel Eisenstein, July 2016
 
 This implements the anisotropic 2-point correlation function based on the
@@ -40,7 +40,7 @@ Should one care, the random points are being gridded twice, rather than storing
 and co-adding a density grid.  That said, the current code is minimizing memory
 usage, since the grid is probably bigger than the list of points.
 
-'''
+"""
 
 
 import numpy as np
@@ -101,7 +101,7 @@ class Catalog(object):
 ##################  Grid class #####################
 
 class Grid(object):
-    '''
+    """
     Data in this class:
     ngrid: The grid size
     max_sep: The maximum separation we'll be computing
@@ -115,7 +115,7 @@ class Grid(object):
         chosen so that max_sep is safely included
     corr_cell: The centers of the separation cells, in this submatrix
     rcorr: The radii of each 3-d cell, in this submatrix
-    '''
+    """
 
     def __init__(self, ngrid, posmin, posmax, max_sep):
         self.ngrid = ngrid
@@ -153,7 +153,7 @@ class Grid(object):
         self.corr_cell = np.arange(-self.max_sep_cell, self.max_sep_cell+1)
         # Make the radial grid
         corr_grid = np.meshgrid(
-            self.corr_cell, self.corr_cell, self.corr_cell, indexing='ij')
+            self.corr_cell, self.corr_cell, self.corr_cell, indexing="ij")
         self.rcorr = np.sqrt(
             corr_grid[0]**2+corr_grid[1]**2+corr_grid[2]**2)*self.cell_size
         del corr_grid
@@ -188,33 +188,33 @@ def read_data_file(filename, fmt, Nrandom, cosm, ra_rotate, minz=0.43, maxz=0.70
             data = hdulist[1].data
         if Nrandom > 0:
             data = data[0:Nrandom]
-        data = data[np.where((data['z'] > minz) & (data['z'] < maxz))]
-        w = np.float64(data['weight_fkp'])
+        data = data[np.where((data["z"] > minz) & (data["z"] < maxz))]
+        w = np.float64(data["weight_fkp"])
         if not Nrandom:
-            w *= data['weight_systot'] * (data['weight_cp']+data['weight_noz']-1.0)
+            w *= data["weight_systot"] * (data["weight_cp"]+data["weight_noz"]-1.0)
     elif fmt == "patchy":
         if Nrandom > 0:
             dtypes = [
-                ('ra', float), ('dec', float), ('z', float), ('nbar', float),
-                ('bias', float), ('veto', float), ('fiber', float)]
+                ("ra", float), ("dec", float), ("z", float), ("nbar", float),
+                ("bias", float), ("veto", float), ("fiber", float)]
         else:
             dtypes = [
-                ('ra', float), ('dec', float), ('z', float), ('mass', float),
-                ('nbar', float), ('bias', float), ('veto', float), ('fiber', float)]
+                ("ra", float), ("dec", float), ("z", float), ("mass", float),
+                ("nbar", float), ("bias", float), ("veto", float), ("fiber", float)]
         data = np.loadtxt(filename, dtypes)
         if Nrandom > 0:
             data = data[0:Nrandom]
-        data = data[np.where((data['z'] > minz) & (data['z'] < maxz))]
-        w = data['veto']*data['fiber']/(1+1e4*data['nbar'])
+        data = data[np.where((data["z"] > minz) & (data["z"] < maxz))]
+        w = data["veto"]*data["fiber"]/(1+1e4*data["nbar"])
     else:
         raise ValueError("Unrecognized fmt: %s" % fmt)
     
     # Convert (ra, dec, Z) to (x, y, z).
     redshifts = np.linspace(0.0, maxz+0.1, 1000)
     rz = interpolate.InterpolatedUnivariateSpline(redshifts,
-                                                  2997.92*wcdm.coorddist(redshifts, cosm['omega'], -1, 0))
+                                                  2997.92*wcdm.coorddist(redshifts, cosm["omega"], -1, 0))
     print("Done computing cosmological distances.")
-    pos = coord2pos(data['ra'], data['dec'], rz(data['z']), ra_rotate)
+    pos = coord2pos(data["ra"], data["dec"], rz(data["z"]), ra_rotate)
 
     print("Using %d galaxies, total weight %g" % (len(pos), np.sum(w)))
     print("Done reading and trimming data.")
@@ -235,7 +235,7 @@ def makeYlm(ell, m, xcell, ycell, zcell):
     tiny = 1e-20
     ngrid = len(xcell)
     # TODO: If we could align these arrays, it would be better!
-    y, z = np.meshgrid(ycell, zcell, indexing='ij')
+    y, z = np.meshgrid(ycell, zcell, indexing="ij")
     y2 = y*y     # These get used for each x, so good to cache
     y3 = y2*y     # These get used for each x, so good to cache
     y4 = y3*y     # These get used for each x, so good to cache
@@ -496,26 +496,26 @@ def readCPPoutput(filename):
     Pcnt = 0
     xicnt = 0
     for line in f:
-        if ('Anisotropic power' in line):
+        if ("Anisotropic power" in line):
             Pxi = 1
             continue
-        if ('Anisotropic correlation' in line):
+        if ("Anisotropic correlation" in line):
             Pxi = 0
             continue
-        if ('Estimate of I' in line):
-            s = line.rsplit('=', 1)
-            I = np.fromstring(s[1], sep=' ')
-        if ('divide by I for Pshot' in line):
-            s = line.rsplit('=', 1)
-            Pshot = np.fromstring(s[1], sep=' ')
-        if ('#' in line):
+        if ("Estimate of I" in line):
+            s = line.rsplit("=", 1)
+            I = np.fromstring(s[1], sep=" ")
+        if ("divide by I for Pshot" in line):
+            s = line.rsplit("=", 1)
+            Pshot = np.fromstring(s[1], sep=" ")
+        if ("#" in line):
             continue
         # Otherwise, we're going to parse this line
         if (Pxi):
-            P[Pcnt, :] = np.fromstring(line, sep=' ')[1:]
+            P[Pcnt, :] = np.fromstring(line, sep=" ")[1:]
             Pcnt += 1
         else:
-            xi[xicnt, :] = np.fromstring(line, sep=' ')[1:]
+            xi[xicnt, :] = np.fromstring(line, sep=" ")[1:]
             xicnt += 1
     f.close()
     print("Read %s and found %d P values and %d xi values" %
@@ -533,29 +533,29 @@ def readCPPfast(filename):
 
 
 #####################  Main Code #############
-# BOSSpath = 'Data/'
-# Mockpath = 'Patchy/'
+# BOSSpath = "Data/"
+# Mockpath = "Patchy/"
 
-#BOSSpath = '/Users/eisenste/cmb/AS2/BOSS/DR12v5/'
-#Mockpath = '/Users/eisenste/cmb/AS2/BOSS/DR12v5/Patchy-V6C/'
+#BOSSpath = "/Users/eisenste/cmb/AS2/BOSS/DR12v5/"
+#Mockpath = "/Users/eisenste/cmb/AS2/BOSS/DR12v5/Patchy-V6C/"
 
-BOSSpath = '/Users/shallue/sdss/sas/dr12/boss/lss/'
-Mockpath = 'Patchy/'
+BOSSpath = "/Users/shallue/sdss/sas/dr12/boss/lss/"
+Mockpath = "Patchy/"
 
 def read_galaxies(hemisphere, cosmology, mocks=False):
     ra_rotate = RA_ROTATE[hemisphere]
     if mocks:
-        dfile = os.path.join(Mockpath, 'untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_0001.dat' % hemisphere[0])
-        rfile = os.path.join(Mockpath, 'Random-DR12CMASS-%s-V6C-x50.dat.gz' % hemisphere[0])
+        dfile = os.path.join(Mockpath, "untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_0001.dat" % hemisphere[0])
+        rfile = os.path.join(Mockpath, "Random-DR12CMASS-%s-V6C-x50.dat.gz" % hemisphere[0])
         D = read_data_file(dfile, "patchy", 0, cosmology, ra_rotate)
         R = read_data_file(rfile, "patchy", 51*len(D.w), cosmology, ra_rotate)
     else:
-        dfile = os.path.join(BOSSpath, 'galaxy_DR12v5_CMASS_%s.fits.gz' % hemisphere)
-        rfile = os.path.join(BOSSpath, 'random0_DR12v5_CMASS_%s.fits.gz' % hemisphere)
+        dfile = os.path.join(BOSSpath, "galaxy_DR12v5_CMASS_%s.fits.gz" % hemisphere)
+        rfile = os.path.join(BOSSpath, "random0_DR12v5_CMASS_%s.fits.gz" % hemisphere)
         D = read_data_file(dfile, "boss", 0, cosmology, ra_rotate)
         R = read_data_file(rfile, "boss", 51*len(D.w), cosmology, ra_rotate)
     print()
-    lapsed_time('io')
+    lapsed_time("io")
     return D, R
     # We're returning [pos,w] pairs, to keep data together
 
@@ -571,7 +571,7 @@ def setup_grid(D, R, ngrid, max_sep):
     posmax = np.amax(N.pos, axis=0)
     grid = Grid(ngrid, posmin, posmax, max_sep)
 
-    lapsed_time('setup')
+    lapsed_time("setup")
     return N, grid
 
 
@@ -609,12 +609,12 @@ def analyze(hist_corrNN, hist_corrRR, rcen):
 
 
 def make_patchy(hemisphere, file_range, cosmology, ngrid, max_sep):
-    # Let hemisphere = 'North' or 'South'
+    # Let hemisphere = "North" or "South"
     # Let file_range be a range of numbers, e.g., range(1,10)
     # If no files are given, then do randoms
     ra_rotate = RA_ROTATE[hemisphere]
     # We will use mock 0001 to set the box size
-    filename = 'untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_0001.dat' % (
+    filename = "untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_0001.dat" % (
         hemisphere)
     D = read_data_file(Mockpath+filename, "patchy", 0, cosmology, ra_rotate)
     N, grid = setup_grid(D, D, ngrid, max_sep)
@@ -624,25 +624,25 @@ def make_patchy(hemisphere, file_range, cosmology, ngrid, max_sep):
 
     for f in file_range:
         # Get file %f
-        filename = 'untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_%04d.dat' % (
+        filename = "untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_%04d.dat" % (
             hemisphere[0], f)
         D = read_data_file(Mockpath+filename, "patchy", 0, cosmology, ra_rotate)
-        out = 'binary/patchy-DR12CMASS-%s-V6C-%04d.dat' % (hemisphere[0], f)
+        out = "binary/patchy-DR12CMASS-%s-V6C-%04d.dat" % (hemisphere[0], f)
         setupCPP(D.pos, D.w, grid, Mockpath+out)
 
     if (len(file_range) == 0):
-        filename = 'Random-DR12CMASS-%s-V6C-x50.dat.gz' % hemisphere[0]
+        filename = "Random-DR12CMASS-%s-V6C-x50.dat.gz" % hemisphere[0]
         R = read_data_file(Mockpath+filename, "patchy", 100*len(D.w), cosmology, ra_rotate)
         # Need to renormalize the weights
         # Set the randoms to have negative weight
         R.w *= np.sum(D.w)/np.sum(R.w)
-        out = 'binary/patchy-DR12CMASS-%s-V6C-random50.dat' % hemisphere[0]
+        out = "binary/patchy-DR12CMASS-%s-V6C-random50.dat" % hemisphere[0]
         setupCPP(R.pos, R.w, grid, Mockpath+out)
 
 
 def run_patchy():
-    make_patchy('S', [], COSMOLOGY, NGRID, MAX_SEP)
-    make_patchy('N', [], COSMOLOGY, NGRID, MAX_SEP)
+    make_patchy("S", [], COSMOLOGY, NGRID, MAX_SEP)
+    make_patchy("N", [], COSMOLOGY, NGRID, MAX_SEP)
     #make_patchy('S', range(1,601))
     #make_patchy('N', range(1,601))
 
@@ -688,7 +688,7 @@ def run(run_cpp, setup_cpp):
     RRfile = "/tmp/corrRR.dat"
     if (not run_cpp or setup_cpp):
         ####  Read in the data ####
-        D, R = read_galaxies('South', COSMOLOGY)
+        D, R = read_galaxies("South", COSMOLOGY)
         max_sep = 0.0 if QPERIODIC else MAX_SEP
         N, grid = setup_grid(D, R, NGRID, max_sep)
 
@@ -701,10 +701,10 @@ def run(run_cpp, setup_cpp):
     if (run_cpp):
         hist_corrNN, hist_corr_num, rcen = correlateCPP(
             DDfile, DSEP, NGRID, MAX_ELL, QPERIODIC, file2=RRfile)
-        lapsed_time('corrNN')
+        lapsed_time("corrNN")
         hist_corrRR, hist_corr_num, rcen = correlateCPP(
             RRfile, DSEP, NGRID, MAX_ELL, QPERIODIC)
-        lapsed_time('corrRR')
+        lapsed_time("corrRR")
     else:
         # Choose the binning
         bins = linear_binning(grid.max_sep, DSEP)
@@ -712,23 +712,23 @@ def run(run_cpp, setup_cpp):
         print("\nCorrelating NN")
         hist_corrNN, hist_corr_num, hist_edges = correlate(
             N.pos, N.w, grid, bins)
-        lapsed_time('corrNN')
+        lapsed_time("corrNN")
 
         print("Correlating RR")
         hist_corrRR, hist_corr_num, hist_edges = correlate(
             R.pos, R.w, grid, bins)
-        lapsed_time('corrRR')
+        lapsed_time("corrRR")
 
         rcen = (hist_edges[0:-1]+hist_edges[1:])/2.0
 
-    if 'io' in times:
-        print("\nTime to read the data files: ", times['io'])
-    if 'setup' in times:
-        print("Time to setup the calculation: ", times['setup'])
-    if 'corrNN' in times:
-        print("Time to run the NN correlations: ", times['corrNN'])
-    if 'corrRR' in times:
-        print("Time to run the RR correlations: ", times['corrRR'])
+    if "io" in times:
+        print("\nTime to read the data files: ", times["io"])
+    if "setup" in times:
+        print("Time to setup the calculation: ", times["setup"])
+    if "corrNN" in times:
+        print("Time to run the NN correlations: ", times["corrNN"])
+    if "corrRR" in times:
+        print("Time to run the RR correlations: ", times["corrRR"])
     print()
     return analyze(hist_corrNN, hist_corrRR, rcen), hist_corrNN, hist_corrRR
 
