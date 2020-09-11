@@ -49,14 +49,25 @@ class BaseTest(abc.ABC, unittest.TestCase):
                 fftcorr.qperiodic = qperiodic_save
 
 
-class TestSetupCPP(BaseTest):
-    def assertFilesEqual(self, f1, f2):
-        """Asserts that the binary contents of f1 and f2 match exactly."""
-        self.assertTrue(
-            filecmp.cmp(f1, f2),
-            "{} and {} do not match".format(os.path.basename(f1),
-                                            os.path.basename(f2)))
+    def assertSameData(self, f1, f2, fmt):
+        """Asserts that the numeric contents of f1 and f2 match closely."""
+        if fmt == "bin":
+            loader = np.fromfile
+        elif fmt == "txt":
+            loader = np.loadtxt
+        else:
+            raise ValueError("Unrecognized fmt: {}".format(fmt))
 
+        f1_data = loader(f1)
+        f2_data = loader(f2)
+        np.testing.assert_allclose(f1_data,
+                                   f2_data,
+                                   err_msg="{} and {} do not match".format(
+                                       os.path.basename(f1),
+                                       os.path.basename(f2)))
+
+
+class TestSetupCPP(BaseTest):
     def run_test(self):
         ref_dd_file = os.path.join(self.ref_data_dir, "corrDD.dat")
         ref_rr_file = os.path.join(self.ref_data_dir, "corrRR.dat")
@@ -68,21 +79,11 @@ class TestSetupCPP(BaseTest):
                 self.hemisphere.title(), fftcorr.cosmology)
             grid = fftcorr.setup_grid(D, R, fftcorr.max_sep)[1]
             fftcorr.writeCPPfiles(D, R, grid, dd_file, rr_file)
-            self.assertFilesEqual(dd_file, ref_dd_file)
-            self.assertFilesEqual(rr_file, ref_rr_file)
+            self.assertSameData(dd_file, ref_dd_file, "bin")
+            self.assertSameData(rr_file, ref_rr_file, "bin")
 
 
 class TestCorrelateCPP(BaseTest):
-    def assertSameData(self, f1, f2):
-        """Assert that two text data files have the same data."""
-        f1_data = np.loadtxt(f1)
-        f2_data = np.loadtxt(f2)
-        np.testing.assert_allclose(f1_data,
-                                   f2_data,
-                                   err_msg="{} and {} do not match".format(
-                                       os.path.basename(f1),
-                                       os.path.basename(f2)))
-
     def run_test(self):
         ref_dd_infile = os.path.join(self.ref_data_dir, "corrDD.dat")
         ref_rr_infile = os.path.join(self.ref_data_dir, "corrRR.dat")
@@ -101,8 +102,8 @@ class TestCorrelateCPP(BaseTest):
                                  file2=rr_infile)
             fftcorr.correlateCPP(rr_infile, DSEP)
             # Check outputs.
-            self.assertSameData(dd_infile + ".out", ref_nn_outfile)
-            self.assertSameData(rr_infile + ".out", ref_rr_outfile)
+            self.assertSameData(dd_infile + ".out", ref_nn_outfile, "txt")
+            self.assertSameData(rr_infile + ".out", ref_rr_outfile, "txt")
 
 
 class TestComputeXi(BaseTest):

@@ -76,8 +76,13 @@ ngrid = 256         # The grid size for the main FFTs
 max_sep = 200.0	    # The maximum separation for correlation computation
 dsep = 10.0         # The binning of the separations
 max_ell = 2         # How many multipoles we'll compute (ell must be even!)
-ra_rotate = 44      # The best choice for the BOSS SGC
 qperiodic = 1	    # If ==1, use periodic boundary conditions
+
+# The best choices for BOSS.
+RA_ROTATE = {
+    "North": -142.5,
+    "South": 44,
+}
 
 # And the cosmological parameters
 cosmology = {}
@@ -155,9 +160,8 @@ class Grid:
 
 ################ Functions ###############################
 
-def coord2pos(ra, dec, rz):
+def coord2pos(ra, dec, rz, ra_rotate):
     # Convert angular positions to our Cartesian basis
-    global ra_rotate
     return np.array([
         rz*np.cos(dec*np.pi/180.0)*np.cos((ra+ra_rotate)*np.pi/180.0),
         rz*np.cos(dec*np.pi/180.0)*np.sin((ra+ra_rotate)*np.pi/180.0),
@@ -165,53 +169,46 @@ def coord2pos(ra, dec, rz):
     ]).T
 
 
-def read_boss_file(filename, Nrandom, cosm, minz=0.43, maxz=0.70):
+def read_boss_file(filename, Nrandom, cosm, ra_rotate, minz=0.43, maxz=0.70):
     # Read a data file.  Use Nrandom to specify the number of randoms to use.
     # Nrandom>0 also triggers treating the weightings as by the random file
     # Return the Cartesian positions and
     print("Reading from %s" % filename)
-    hdulist = pyfits.open(filename)
-    if (Nrandom > 0):
-        data = hdulist[1].data[0:Nrandom]
-    else:
+    with pyfits.open(filename) as hdulist:
         data = hdulist[1].data
+    if Nrandom > 0:
+        data = data[0:Nrandom]
     data = data[np.where((data['z'] > minz) & (data['z'] < maxz))]
     print("Done reading and trimming data.")
     redshifts = np.linspace(0.0, maxz+0.1, 1000)
     rz = interpolate.InterpolatedUnivariateSpline(redshifts,
                                                   2997.92*wcdm.coorddist(redshifts, cosm['omega'], -1, 0))
     print("Done computing cosmological distances.")
-    pos = coord2pos(data['ra'], data['dec'], rz(data['z']))
-    if (Nrandom > 0):
-        w = np.float64(data['weight_fkp'])
-    else:
-        w = np.float64(data['weight_fkp'])*data['weight_systot'] *  \
-            (data['weight_cp']+data['weight_noz']-1.0)
-    hdulist.close()
+    pos = coord2pos(data['ra'], data['dec'], rz(data['z']), ra_rotate)
+    w = np.float64(data['weight_fkp'])
+    if Nrandom <= 0:
+        w *= data['weight_systot'] * (data['weight_cp']+data['weight_noz']-1.0)
     # print(np.result_type(w))
     print("Using %d galaxies, total weight %g" % (len(pos), np.sum(w)))
-    result = {}
-    result['pos'] = pos
-    result['w'] = w
-    return result
+    return {'pos': pos, 'w': w}
 
 
-def read_patchy_file(filename, Nrandom, cosm, minz=0.43, maxz=0.70):
+def read_patchy_file(filename, Nrandom, cosm, ra_rotate, minz=0.43, maxz=0.70):
     # Read a data file.  Use Nrandom to specify the number of randoms to use.
     # Nrandom>0 also triggers treating the weightings as by the random file
     # Return the Cartesian positions and
     print("Reading from %s" % filename)
-    if (Nrandom > 0):
-        data = np.loadtxt(filename,
-                          dtype=[('RA', float), ('DEC', float), ('Z', float),
-                                 ('NBAR', float), ('BIAS', float), ('VETO', float), ('FIBER', float)])
+    if Nrandom > 0:
+        dtypes = [
+            ('RA', float), ('DEC', float), ('Z', float), ('NBAR', float),
+            ('BIAS', float), ('VETO', float), ('FIBER', float)]
     else:
-        data = np.loadtxt(filename,
-                          dtype=[('RA', float), ('DEC', float), ('Z', float), ('MASS', float),
-                                 ('NBAR', float), ('BIAS', float), ('VETO', float), ('FIBER', float)])
-    if (Nrandom > 0):
-        if (Nrandom < len(data)):
-            data = data[0:Nrandom]
+        dtypes = [
+            ('RA', float), ('DEC', float), ('Z', float), ('MASS', float),
+            ('NBAR', float), ('BIAS', float), ('VETO', float), ('FIBER', float)]
+    data = np.loadtxt(filename, dtypes)
+    if Nrandom > 0:
+        data = data[0:Nrandom]
     data = data[np.where((data['Z'] > minz) & (data['Z'] < maxz))]
     print("Done reading and trimming data.")
 
@@ -223,10 +220,7 @@ def read_patchy_file(filename, Nrandom, cosm, minz=0.43, maxz=0.70):
     w = data['VETO']*data['FIBER']/(1+1e4*data['NBAR'])
     # print(np.result_type(w))
     print("Using %d galaxies, total weight %g" % (len(pos), np.sum(w)))
-    result = {}
-    result['pos'] = pos
-    result['w'] = w
-    return result
+    return {'pos': pos, 'w': w}
 
 
 def makeYlm(ell, m, xcell, ycell, zcell):
@@ -551,24 +545,17 @@ BOSSpath = '/Users/shallue/sdss/sas/dr12/boss/lss/'
 Mockpath = 'Patchy/'
 
 def read_galaxies(hemisphere, cosmology, mocks=False):
-    global ra_rotate
-    if hemisphere == 'North':
-        ra_rotate = -142.5
-    elif hemisphere == 'South':
-        ra_rotate = 44
-    else:
-        raise ValueError('Unrecognized hemisphere: %s' % hemisphere)
-
+    ra_rotate = RA_ROTATE[hemisphere]
     if mocks:
         dfile = os.path.join(Mockpath, 'untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_0001.dat' % hemisphere[0])
         rfile = os.path.join(Mockpath, 'Random-DR12CMASS-%s-V6C-x50.dat.gz' % hemisphere[0])
-        D = read_patchy_file(dfile, 0, cosmology)
-        R = read_patchy_file(rfile, 51*len(D['w']), cosmology)
+        D = read_patchy_file(dfile, 0, cosmology, ra_rotate)
+        R = read_patchy_file(rfile, 51*len(D['w']), cosmology, ra_rotate)
     else:
         dfile = os.path.join(BOSSpath, 'galaxy_DR12v5_CMASS_%s.fits.gz' % hemisphere)
         rfile = os.path.join(BOSSpath, 'random0_DR12v5_CMASS_%s.fits.gz' % hemisphere)
-        D = read_boss_file(dfile, 0, cosmology)
-        R = read_boss_file(rfile, 51*len(D['w']), cosmology)
+        D = read_boss_file(dfile, 0, cosmology, ra_rotate)
+        R = read_boss_file(rfile, 51*len(D['w']), cosmology, ra_rotate)
     print()
     lapsed_time('io')
     return D, R
@@ -627,18 +614,14 @@ def analyze(hist_corrNN, hist_corrRR, rcen):
 
 
 def make_patchy(hemisphere, file_range):
-    # Let hemisphere = 'N' or 'S'
+    # Let hemisphere = 'North' or 'South'
     # Let file_range be a range of numbers, e.g., range(1,10)
     # If no files are given, then do randoms
-    global ra_rotate
-    if hemisphere == 'N':
-        ra_rotate = -142.5
-    else:
-        ra_rotate = 44
+    ra_rotate = RA_ROTATE[hemisphere]
     # We will use mock 0001 to set the box size
     filename = 'untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_0001.dat' % (
         hemisphere)
-    D = read_patchy_file(Mockpath+filename, 0, cosmology)
+    D = read_patchy_file(Mockpath+filename, 0, cosmology, ra_rotate)
     N, grid = setup_grid(D, D, max_sep)
 
     # Could have had this, but it's annoying to reload the randoms
@@ -647,18 +630,18 @@ def make_patchy(hemisphere, file_range):
     for f in file_range:
         # Get file %f
         filename = 'untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_%04d.dat' % (
-            hemisphere, f)
-        D = read_patchy_file(Mockpath+filename, 0, cosmology)
-        out = 'binary/patchy-DR12CMASS-%s-V6C-%04d.dat' % (hemisphere, f)
+            hemisphere[0], f)
+        D = read_patchy_file(Mockpath+filename, 0, cosmology, ra_rotate)
+        out = 'binary/patchy-DR12CMASS-%s-V6C-%04d.dat' % (hemisphere[0], f)
         setupCPP(D['pos'], D['w'], grid, Mockpath+out)
 
     if (len(file_range) == 0):
-        filename = 'Random-DR12CMASS-%s-V6C-x50.dat.gz' % hemisphere
-        R = read_patchy_file(Mockpath+filename, 100*len(D['w']), cosmology)
+        filename = 'Random-DR12CMASS-%s-V6C-x50.dat.gz' % hemisphere[0]
+        R = read_patchy_file(Mockpath+filename, 100*len(D['w']), cosmology, ra_rotate)
         # Need to renormalize the weights
         # Set the randoms to have negative weight
         R['w'] *= np.sum(D['w'])/np.sum(R['w'])
-        out = 'binary/patchy-DR12CMASS-%s-V6C-random50.dat' % hemisphere
+        out = 'binary/patchy-DR12CMASS-%s-V6C-random50.dat' % hemisphere[0]
         setupCPP(R['pos'], R['w'], grid, Mockpath+out)
 
 
