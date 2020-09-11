@@ -89,9 +89,17 @@ cosmology = {}
 cosmology['omega'] = 0.317
 
 
+##################  Catalog class #####################
+
+class Catalog(object):
+    def __init__(self, pos, w):
+        self.pos = pos
+        self.w = w
+
+
 ##################  Grid class #####################
 
-class Grid:
+class Grid(object):
     '''
     Data in this class:
     ngrid: The grid size
@@ -209,7 +217,7 @@ def read_data_file(filename, fmt, Nrandom, cosm, ra_rotate, minz=0.43, maxz=0.70
 
     print("Using %d galaxies, total weight %g" % (len(pos), np.sum(w)))
     print("Done reading and trimming data.")
-    return {'pos': pos, 'w': w}
+    return Catalog(pos, w)
 
 
 def makeYlm(ell, m, xcell, ycell, zcell):
@@ -539,12 +547,12 @@ def read_galaxies(hemisphere, cosmology, mocks=False):
         dfile = os.path.join(Mockpath, 'untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_0001.dat' % hemisphere[0])
         rfile = os.path.join(Mockpath, 'Random-DR12CMASS-%s-V6C-x50.dat.gz' % hemisphere[0])
         D = read_data_file(dfile, "patchy", 0, cosmology, ra_rotate)
-        R = read_data_file(rfile, "patchy", 51*len(D['w']), cosmology, ra_rotate)
+        R = read_data_file(rfile, "patchy", 51*len(D.w), cosmology, ra_rotate)
     else:
         dfile = os.path.join(BOSSpath, 'galaxy_DR12v5_CMASS_%s.fits.gz' % hemisphere)
         rfile = os.path.join(BOSSpath, 'random0_DR12v5_CMASS_%s.fits.gz' % hemisphere)
         D = read_data_file(dfile, "boss", 0, cosmology, ra_rotate)
-        R = read_data_file(rfile, "boss", 51*len(D['w']), cosmology, ra_rotate)
+        R = read_data_file(rfile, "boss", 51*len(D.w), cosmology, ra_rotate)
     print()
     lapsed_time('io')
     return D, R
@@ -554,14 +562,12 @@ def read_galaxies(hemisphere, cosmology, mocks=False):
 def setup_grid(D, R, max_sep):
     # Set up the N=D-R vector and find the bounding box
     # Set the randoms to have negative weight
-    R['w'] *= -np.sum(D['w'])/np.sum(R['w'])
-    N = {}
-    N['pos'] = np.concatenate((D['pos'], R['pos']))
-    N['w'] = np.concatenate((D['w'], R['w']))
+    R.w *= -np.sum(D.w)/np.sum(R.w)
+    N = Catalog(np.concatenate((D.pos, R.pos)), np.concatenate((D.w, R.w)))
     # Now we have the N and R lists to process
 
-    posmin = np.amin(N['pos'], axis=0)
-    posmax = np.amax(N['pos'], axis=0)
+    posmin = np.amin(N.pos, axis=0)
+    posmax = np.amax(N.pos, axis=0)
     max_sep = 0.0 if qperiodic else max_sep
     grid = Grid(ngrid, posmin, posmax, max_sep)
 
@@ -570,8 +576,8 @@ def setup_grid(D, R, max_sep):
 
 
 def writeCPPfiles(D, R, grid, DDfile, RRfile):
-    setupCPP(D['pos'], D['w'], grid, DDfile)
-    setupCPP(R['pos'], R['w'], grid, RRfile)
+    setupCPP(D.pos, D.w, grid, DDfile)
+    setupCPP(R.pos, R.w, grid, RRfile)
     print("Wrote CPP binary input files to ", DDfile, "and", RRfile)
 
 
@@ -622,16 +628,16 @@ def make_patchy(hemisphere, file_range):
             hemisphere[0], f)
         D = read_data_file(Mockpath+filename, "patchy", 0, cosmology, ra_rotate)
         out = 'binary/patchy-DR12CMASS-%s-V6C-%04d.dat' % (hemisphere[0], f)
-        setupCPP(D['pos'], D['w'], grid, Mockpath+out)
+        setupCPP(D.pos, D.w, grid, Mockpath+out)
 
     if (len(file_range) == 0):
         filename = 'Random-DR12CMASS-%s-V6C-x50.dat.gz' % hemisphere[0]
-        R = read_data_file(Mockpath+filename, "patchy", 100*len(D['w']), cosmology, ra_rotate)
+        R = read_data_file(Mockpath+filename, "patchy", 100*len(D.w), cosmology, ra_rotate)
         # Need to renormalize the weights
         # Set the randoms to have negative weight
-        R['w'] *= np.sum(D['w'])/np.sum(R['w'])
+        R.w *= np.sum(D.w)/np.sum(R.w)
         out = 'binary/patchy-DR12CMASS-%s-V6C-random50.dat' % hemisphere[0]
-        setupCPP(R['pos'], R['w'], grid, Mockpath+out)
+        setupCPP(R.pos, R.w, grid, Mockpath+out)
 
 
 def run_patchy():
@@ -703,12 +709,12 @@ def run(run_cpp, setup_cpp):
 
         print("\nCorrelating NN")
         hist_corrNN, hist_corr_num, hist_edges = correlate(
-            N['pos'], N['w'], grid, bins)
+            N.pos, N.w, grid, bins)
         lapsed_time('corrNN')
 
         print("Correlating RR")
         hist_corrRR, hist_corr_num, hist_edges = correlate(
-            R['pos'], R['w'], grid, bins)
+            R.pos, R.w, grid, bins)
         lapsed_time('corrRR')
 
         rcen = (hist_edges[0:-1]+hist_edges[1:])/2.0
