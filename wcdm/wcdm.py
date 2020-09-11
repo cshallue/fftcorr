@@ -2,7 +2,6 @@
 #
 # Written by Daniel Eisenstein, save for adaptation of GSL code in
 # beta_cont_frac_gsl(a, b, x).
-
 '''
 wcdm(z,om,w):  Compute the proper motion distance in (c/H_0) units.
 	Allows vector z, om, and/or w
@@ -95,7 +94,7 @@ def incomplete_beta(a, b, x1, x2):
     # To use the modified GSL code.
     # Here we avoid the pre-factor normalization with the complete beta function.
     # This allows one to use b<0 without problem.
-    return beta_cont_frac_gsl(a, b, x2)-beta_cont_frac_gsl(a, b, x1)
+    return beta_cont_frac_gsl(a, b, x2) - beta_cont_frac_gsl(a, b, x1)
 
     # If you don't want the modified GSL code, here's the standard SciPy call.
     # If you use SciPy, then you must have b>0, which limits these routines
@@ -107,22 +106,23 @@ def incomplete_beta(a, b, x1, x2):
 
 ############# Dark Energy models #########################################
 
+
 def wcdm(z, om, w):
     # For redshifts z and Omega_m om and constant w,
     # compute D_M(z)=r(z) in Hubble distance (c/H0) units for a flat Universe.
     # Can give z or w as vectors; will produce a vector output.
     # om must be a scalar; see owcdm() to allow a vector
     # This requires w<-1/3 if one is using the SciPy beta function, w<0 if using GSL
-    ox = 1-om
-    m = 1.0/(-6.0*w)
+    ox = 1 - om
+    m = 1.0 / (-6.0 * w)
     # Return the EdS simple case or compute the incomplete beta function
-    return np.where(ox == 0, 2.0*(1-(1+z)**-0.5),
-                    2.0*m/np.sqrt(om) * np.abs(om/np.where(ox != 0, ox, 1.0))**m *
-                    incomplete_beta(m,
-                                    np.where(ox > 0, 0.5-m, 0.5),
-                                    np.where(ox > 0, ox/(om*(1+z)**(-3.0*w)+ox), -
-                                             ox/om*(1+z)**(3.0*w)),
-                                    np.where(ox > 0, ox/(om+ox), -ox/om)))
+    return np.where(
+        ox == 0, 2.0 * (1 - (1 + z)**-0.5), 2.0 * m / np.sqrt(om) *
+        np.abs(om / np.where(ox != 0, ox, 1.0))**m * incomplete_beta(
+            m, np.where(ox > 0, 0.5 - m, 0.5),
+            np.where(ox > 0, ox / (om * (1 + z)**(-3.0 * w) + ox), -ox / om *
+                     (1 + z)**(3.0 * w)),
+            np.where(ox > 0, ox / (om + ox), -ox / om)))
     # This is handling all three ox branches at once.
     # Not the prettiest code, but it avoids floating point errors on the
     # conditional branch executions in the vector case.
@@ -134,15 +134,16 @@ def wcdm_time(z, om, w):
     # Can give z or w as vectors; will produce a vector output.
     # This requires om<=1 and ox=1-om>=0.
     # This requires w<-1 if one is using the SciPy beta function, w<0 if using GSL
-    ox = 1-om
+    ox = 1 - om
     if (np.min(ox) < 0):
         print("Can't evaluate negative dark energies")
         exit
-    xz = ox/(om*(1+z)**(-3.0*w)+ox)
-    m = 1.0/(-2.0*w)
-    return np.where(ox == 0, 2.0/3.0*np.power(1+z, -1.5),
-                    2.0/3.0*m/np.sqrt(om) * np.power(om/np.where(ox == 0, 1.0, ox), m) *
-                    incomplete_beta(m, 0.5-m, 0.0, xz))
+    xz = ox / (om * (1 + z)**(-3.0 * w) + ox)
+    m = 1.0 / (-2.0 * w)
+    return np.where(
+        ox == 0, 2.0 / 3.0 * np.power(1 + z, -1.5), 2.0 / 3.0 * m /
+        np.sqrt(om) * np.power(om / np.where(ox == 0, 1.0, ox), m) *
+        incomplete_beta(m, 0.5 - m, 0.0, xz))
     # Separately compute the flat and open cases, avoiding
     # the divide-by-zero possibility on the second branch.
 
@@ -154,46 +155,53 @@ def owcdm(z, om, w, ok=0.0):
     # ok must be a scalar, because of our if statements.
     # We must have om<1 and ox=1-om-ok>0.  Use om=0.99999 if you want om=1
     # This requires w<-1/3 if one is using the SciPy beta function, w<0 if using GSL
-    ox = 1-om-ok
-    xz = ox/(om*(1+z)**(-3.0*w)+ox)
-    x0 = ox/(om+ox)
+    ox = 1 - om - ok
+    xz = ox / (om * (1 + z)**(-3.0 * w) + ox)
+    x0 = ox / (om + ox)
     # Make the flat limit
-    m = 1.0/(-6.0*w)
-    c = 2.0*m/np.sqrt(om)
-    rz = c * (om/ox)**m * incomplete_beta(m, 0.5-m, xz, x0)
+    m = 1.0 / (-6.0 * w)
+    c = 2.0 * m / np.sqrt(om)
+    rz = c * (om / ox)**m * incomplete_beta(m, 0.5 - m, xz, x0)
     if (ok == 0):
         propmotdis = rz
     else:
         # Now make the curvature corrections, up to 10th order in Ok/Om
         # Stop when the contributions are small
         for order in range(1, 11):
-            m = (1.0+2*order)/(-6.0*w)
-            c *= -(2.0*order-1.0)/(2.0*order)*ok/om
-            delrz = c*(om/ox)**m * incomplete_beta(m, 0.5+order-m, xz, x0)
+            m = (1.0 + 2 * order) / (-6.0 * w)
+            c *= -(2.0 * order - 1.0) / (2.0 * order) * ok / om
+            delrz = c * (om / ox)**m * incomplete_beta(m, 0.5 + order - m, xz,
+                                                       x0)
             rz += delrz
             if (np.max(np.abs(delrz)) < 1e-7):
                 break
         # Compute the proper motion distance
         if (ok > 0):
-            propmotdis = np.sinh(np.sqrt(ok)*rz)/np.sqrt(ok)
+            propmotdis = np.sinh(np.sqrt(ok) * rz) / np.sqrt(ok)
         else:
-            propmotdis = np.sin(np.sqrt(-ok)*rz)/np.sqrt(-ok)
+            propmotdis = np.sin(np.sqrt(-ok) * rz) / np.sqrt(-ok)
     # Now return the answer
     return rz, propmotdis
+
 
 ############# Drivers ####################################################
 
 
-def coorddist(z, om, w, ok): return owcdm(z, om, w, ok)[0]
+def coorddist(z, om, w, ok):
+    return owcdm(z, om, w, ok)[0]
 
 
-def propmotdis(z, om, w, ok): return owcdm(z, om, w, ok)[1]
+def propmotdis(z, om, w, ok):
+    return owcdm(z, om, w, ok)[1]
 
 
-def angdist(z, om, w, ok): return owcdm(z, om, w, ok)[1]/(1+z)
+def angdist(z, om, w, ok):
+    return owcdm(z, om, w, ok)[1] / (1 + z)
 
 
-def lumdist(z, om, w, ok): return owcdm(z, om, w, ok)[1]*(1+z)
+def lumdist(z, om, w, ok):
+    return owcdm(z, om, w, ok)[1] * (1 + z)
+
 
 ############# Radiation perturbations #########################################
 
@@ -203,9 +211,9 @@ def incomplete_beta_approx(a, b, x1, x2):
     # This is the integral from x1 to x2 of x^(a-1) (1-x)^(b-1) dx
     # However, this is a crude approximation; only suitable for
     # very small perturbations, such as for the radiation term.
-    i1 = x1**a/a*(1.0-a*(b-1.0)/(a+1.0)*x1)
-    i2 = x2**a/a*(1.0-a*(b-1.0)/(a+1.0)*x2)
-    return i2-i1
+    i1 = x1**a / a * (1.0 - a * (b - 1.0) / (a + 1.0) * x1)
+    i2 = x2**a / a * (1.0 - a * (b - 1.0) / (a + 1.0) * x2)
+    return i2 - i1
 
 
 def wcdm_rad(z, om, w, rad=0.0):
@@ -214,57 +222,75 @@ def wcdm_rad(z, om, w, rad=0.0):
     # Can give z, om, or w as vectors; will produce a vector output.
     # We must have om<1 and ox=1-om>0.
     # This requires w<-1/3 if one is using the SciPy beta function, w<0 if using GSL
-    ox = 1-om-rad
-    xz = ox/(om*(1+z)**(-3.0*w)+ox)
-    x0 = ox/(om+ox)
+    ox = 1 - om - rad
+    xz = ox / (om * (1 + z)**(-3.0 * w) + ox)
+    x0 = ox / (om + ox)
     # Make the radiation-free limit
-    m = 1.0/(-6.0*w)
-    c = 2.0*m/np.sqrt(om)
-    rz = c * (om/ox)**m * incomplete_beta(m, 0.5-m, xz, x0)
+    m = 1.0 / (-6.0 * w)
+    c = 2.0 * m / np.sqrt(om)
+    rz = c * (om / ox)**m * incomplete_beta(m, 0.5 - m, xz, x0)
     # Now add in the radiation part
-    m = 1.0/(6.0*w)
-    c = m*rad/om/np.sqrt(om)
-    delrz = c*(om/ox)**m * incomplete_beta(m, 1.5-m, xz, x0)
+    m = 1.0 / (6.0 * w)
+    c = m * rad / om / np.sqrt(om)
+    delrz = c * (om / ox)**m * incomplete_beta(m, 1.5 - m, xz, x0)
     # This uses a B(a,b,x) implementation with a<0, which is not formally allowed
     # and may be fragile.  But the GSL version seems to behave well enough.
     # Could use the following instead.
     #delrz = c*(om/ox)**m * incomplete_beta_approx(m,1.5-m,xz,x0)
-    print(incomplete_beta(m, 1.5-m, xz, x0), incomplete_beta_approx(m, 1.5-m, xz, x0))
+    print(incomplete_beta(m, 1.5 - m, xz, x0),
+          incomplete_beta_approx(m, 1.5 - m, xz, x0))
     rz += delrz
     return rz
+
 
 ################### Direct integration codes for testing ###################
 
 
 def wcdm_romberg(z, om, w):
-    def integrand(z): return 1.0/np.sqrt(om*(1.0+z) **
-                                         3.0+(1.0-om)*(1.0+z)**(3.0*(1.0+w)))
+    def integrand(z):
+        return 1.0 / np.sqrt(om * (1.0 + z)**3.0 + (1.0 - om) *
+                             (1.0 + z)**(3.0 * (1.0 + w)))
+
     return scipy.integrate.romberg(integrand, 0.0, z)
 
 
 def owcdm_romberg(z, om, w, ok=0.0):
-    def integrand(z): return 1.0/np.sqrt(om*(1.0+z)**3.0+ok *
-                                         (1.0+z)**2.0+(1.0-om-ok)*(1.0+z)**(3.0*(1.0+w)))
+    def integrand(z):
+        return 1.0 / np.sqrt(om * (1.0 + z)**3.0 + ok * (1.0 + z)**2.0 +
+                             (1.0 - om - ok) * (1.0 + z)**(3.0 * (1.0 + w)))
+
     return scipy.integrate.romberg(integrand, 0.0, z)
 
 
 def time_romberg(z, om, w):
-    def integrand(a): return np.sqrt(a)/np.sqrt(om+(1.0-om)*a**(-3.0*w))
-    return scipy.integrate.romberg(integrand, 0.0, 1.0/(1.0+z), tol=1e-5)
+    def integrand(a):
+        return np.sqrt(a) / np.sqrt(om + (1.0 - om) * a**(-3.0 * w))
+
+    return scipy.integrate.romberg(integrand, 0.0, 1.0 / (1.0 + z), tol=1e-5)
 
 
 def wcdmrad_romberg(z, om, w, rad):
-    def integrand(z): return 1.0/np.sqrt(rad*(1.0+z)**4.0+om *
-                                         (1.0+z)**3.0+(1.0-om-rad)*(1.0+z)**(3.0*(1.0+w)))
+    def integrand(z):
+        return 1.0 / np.sqrt(rad * (1.0 + z)**4.0 + om * (1.0 + z)**3.0 +
+                             (1.0 - om - rad) * (1.0 + z)**(3.0 * (1.0 + w)))
+
     return scipy.integrate.romberg(integrand, 0.0, z)
 
 
 def rad_test(xmin):
     #integrand = lambda x: x**(-1.0/6.0-1) * (1-x)**(5.0/3.0-1.0)
     # print(scipy.integrate.romberg(integrand, xmin, 0.7, tol=1e-5, divmax=13))
-    def integrand(y): return -6.0*(1-y**-6.0)**(5.0/3.0-1.0)
-    print(scipy.integrate.romberg(integrand, xmin**(-1.0/6.0), 0.7**(-1.0/6.0), tol=1e-5, divmax=13))
-    print(incomplete_beta_nrcf(-1.0/6.0, 5.0/3.0, xmin, 0.7))
+    def integrand(y):
+        return -6.0 * (1 - y**-6.0)**(5.0 / 3.0 - 1.0)
+
+    print(
+        scipy.integrate.romberg(integrand,
+                                xmin**(-1.0 / 6.0),
+                                0.7**(-1.0 / 6.0),
+                                tol=1e-5,
+                                divmax=13))
+    print(incomplete_beta_nrcf(-1.0 / 6.0, 5.0 / 3.0, xmin, 0.7))
+
 
 ########################  The test driver ################################
 # To run the tests, execute test()
@@ -273,79 +299,105 @@ def rad_test(xmin):
 def test():
     print("Testing the base wcdm code")
     x = wcdm(1.0, 0.3, -1)
-    print("LCDM, om=0.3, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -1))
+    print("LCDM, om=0.3, z=1: r(z) = ", x, " Err = ",
+          x - wcdm_romberg(1.0, 0.3, -1))
 
     x = wcdm(1.0, 0.3, -0.2)
-    print("WCDM, om=0.3, w=-0.2, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -0.2))
+    print("WCDM, om=0.3, w=-0.2, z=1: r(z) = ", x, " Err = ",
+          x - wcdm_romberg(1.0, 0.3, -0.2))
 
     x = wcdm(1.0, 0.3, -0.4)
-    print("WCDM, om=0.3, w=-0.4, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -0.4))
+    print("WCDM, om=0.3, w=-0.4, z=1: r(z) = ", x, " Err = ",
+          x - wcdm_romberg(1.0, 0.3, -0.4))
 
     x = wcdm(1.0, 0.3, -1.4)
-    print("WCDM, om=0.3, w=-1.4, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -1.4))
+    print("WCDM, om=0.3, w=-1.4, z=1: r(z) = ", x, " Err = ",
+          x - wcdm_romberg(1.0, 0.3, -1.4))
 
     x = wcdm(1.0, 1.3, -0.4)
-    print("WCDM, om=1.3, w=-0.4, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 1.3, -0.4))
+    print("WCDM, om=1.3, w=-0.4, z=1: r(z) = ", x, " Err = ",
+          x - wcdm_romberg(1.0, 1.3, -0.4))
 
     print("\nTesting the owcdm code in the flat limit")
     x = owcdm(1.0, 0.3, -1)[0]
-    print("Non-flat LCDM, om=0.3, ok=0, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -1))
+    print("Non-flat LCDM, om=0.3, ok=0, z=1: r(z) = ", x, " Err = ",
+          x - wcdm_romberg(1.0, 0.3, -1))
 
     x = owcdm(1.0, 0.3, -0.4)[0]
-    print("Non-flat WCDM, om=0.3, w=-0.4, ok=0, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -0.4))
+    print("Non-flat WCDM, om=0.3, w=-0.4, ok=0, z=1: r(z) = ", x, " Err = ",
+          x - wcdm_romberg(1.0, 0.3, -0.4))
 
     x = owcdm(1.0, 0.3, -1.4)[0]
-    print("Non-flat WCDM, om=0.3, w=-1.4, ok=0, z=1: r(z) = ", x, " Err = ", x-wcdm_romberg(1.0, 0.3, -1.4))
+    print("Non-flat WCDM, om=0.3, w=-1.4, ok=0, z=1: r(z) = ", x, " Err = ",
+          x - wcdm_romberg(1.0, 0.3, -1.4))
 
     print("\nSlightly open universes")
     x = owcdm(1.0, 0.3, -1, 0.05)[0]
-    print("Non-flat LCDM, om=0.3, ok=0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -1, 0.05))
+    print("Non-flat LCDM, om=0.3, ok=0.05, z=1: r(z) = ", x, " Err = ",
+          x - owcdm_romberg(1.0, 0.3, -1, 0.05))
 
     x = owcdm(1.0, 0.3, -0.2, 0.05)[0]
-    print("Non-flat WCDM, om=0.3, w=-0.2, ok=0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -0.2, 0.05))
+    print("Non-flat WCDM, om=0.3, w=-0.2, ok=0.05, z=1: r(z) = ", x, " Err = ",
+          x - owcdm_romberg(1.0, 0.3, -0.2, 0.05))
 
     x = owcdm(1.0, 0.3, -0.4, 0.05)[0]
-    print("Non-flat WCDM, om=0.3, w=-0.4, ok=0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -0.4, 0.05))
+    print("Non-flat WCDM, om=0.3, w=-0.4, ok=0.05, z=1: r(z) = ", x, " Err = ",
+          x - owcdm_romberg(1.0, 0.3, -0.4, 0.05))
 
     x = owcdm(1.0, 0.3, -1.4, 0.05)[0]
-    print("Non-flat WCDM, om=0.3, w=-1.4, ok=0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -1.4, 0.05))
+    print("Non-flat WCDM, om=0.3, w=-1.4, ok=0.05, z=1: r(z) = ", x, " Err = ",
+          x - owcdm_romberg(1.0, 0.3, -1.4, 0.05))
 
     print("\nSlightly closed univeses")
     x = owcdm(1.0, 0.3, -1, -0.05)[0]
-    print("Non-flat LCDM, om=0.3, ok=-0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -1, -0.05))
+    print("Non-flat LCDM, om=0.3, ok=-0.05, z=1: r(z) = ", x, " Err = ",
+          x - owcdm_romberg(1.0, 0.3, -1, -0.05))
 
     x = owcdm(1.0, 0.3, -0.2, -0.05)[0]
-    print("Non-flat WCDM, om=0.3, w=-0.2, ok=-0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -0.2, -0.05))
+    print("Non-flat WCDM, om=0.3, w=-0.2, ok=-0.05, z=1: r(z) = ", x,
+          " Err = ", x - owcdm_romberg(1.0, 0.3, -0.2, -0.05))
 
     x = owcdm(1.0, 0.3, -0.4, -0.05)[0]
-    print("Non-flat WCDM, om=0.3, w=-0.4, ok=-0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -0.4, -0.05))
+    print("Non-flat WCDM, om=0.3, w=-0.4, ok=-0.05, z=1: r(z) = ", x,
+          " Err = ", x - owcdm_romberg(1.0, 0.3, -0.4, -0.05))
 
     x = owcdm(1.0, 0.3, -1.4, -0.05)[0]
-    print("Non-flat WCDM, om=0.3, w=-1.4, ok=-0.05, z=1: r(z) = ", x, " Err = ", x-owcdm_romberg(1.0, 0.3, -1.4, -0.05))
+    print("Non-flat WCDM, om=0.3, w=-1.4, ok=-0.05, z=1: r(z) = ", x,
+          " Err = ", x - owcdm_romberg(1.0, 0.3, -1.4, -0.05))
 
-    print("\nTesting the t(z) code (expect O(1e-5) because control version is not so accurate)")
+    print(
+        "\nTesting the t(z) code (expect O(1e-5) because control version is not so accurate)"
+    )
     x = wcdm_time(0.0, 1.0, -1.4)
-    print("CDM, om=1.0, w=-1.4, z=0: r(z) = ", x, " Err = ", x-time_romberg(0.0, 1.0, -1.4))
+    print("CDM, om=1.0, w=-1.4, z=0: r(z) = ", x, " Err = ",
+          x - time_romberg(0.0, 1.0, -1.4))
 
     x = wcdm_time(0.0, 0.3, -0.2)
-    print("WCDM, om=0.3, w=-0.2, z=0: r(z) = ", x, " Err = ", x-time_romberg(0.0, 0.3, -0.2))
+    print("WCDM, om=0.3, w=-0.2, z=0: r(z) = ", x, " Err = ",
+          x - time_romberg(0.0, 0.3, -0.2))
 
     x = wcdm_time(0.0, 0.3, -1.4)
-    print("WCDM, om=0.3, w=-1.4, z=0: r(z) = ", x, " Err = ", x-time_romberg(0.0, 0.3, -1.4))
+    print("WCDM, om=0.3, w=-1.4, z=0: r(z) = ", x, " Err = ",
+          x - time_romberg(0.0, 0.3, -1.4))
 
     x = wcdm_time(1.0, 1.0, -1.4)
-    print("CDM, om=1.0, w=-1.4, z=1: r(z) = ", x, " Err = ", x-time_romberg(1.0, 1.0, -1.4))
+    print("CDM, om=1.0, w=-1.4, z=1: r(z) = ", x, " Err = ",
+          x - time_romberg(1.0, 1.0, -1.4))
 
     x = wcdm_time(1.0, 0.3, -1.4)
-    print("WCDM, om=0.3, w=-1.4, z=1: r(z) = ", x, " Err = ", x-time_romberg(1.0, 0.3, -1.4))
+    print("WCDM, om=0.3, w=-1.4, z=1: r(z) = ", x, " Err = ",
+          x - time_romberg(1.0, 0.3, -1.4))
 
     print("\nTesting the radiation code")
     x = wcdm_rad(1.0, 0.3, -1.0, 8e-5)
-    print("WCDM, om=0.3, w=-1.0, or=8e-5, z=1: r(z) = ", x, " Err = ", x-wcdmrad_romberg(1.0, 0.3, -1.0, 8e-5))
+    print("WCDM, om=0.3, w=-1.0, or=8e-5, z=1: r(z) = ", x, " Err = ",
+          x - wcdmrad_romberg(1.0, 0.3, -1.0, 8e-5))
     x = wcdm_rad(1.0, 0.3, -0.4, 8e-5)
-    print("WCDM, om=0.3, w=-0.4, or=8e-5, z=1: r(z) = ", x, " Err = ", x-wcdmrad_romberg(1.0, 0.3, -0.4, 8e-5))
+    print("WCDM, om=0.3, w=-0.4, or=8e-5, z=1: r(z) = ", x, " Err = ",
+          x - wcdmrad_romberg(1.0, 0.3, -0.4, 8e-5))
     x = wcdm_rad(10.0, 0.3, -1.0, 8e-5)
-    print("WCDM, om=0.3, w=-1.0, or=8e-5, z=10: r(z) = ", x, " Err = ", x-wcdmrad_romberg(10.0, 0.3, -1.0, 8e-5))
+    print("WCDM, om=0.3, w=-1.0, or=8e-5, z=10: r(z) = ", x, " Err = ",
+          x - wcdmrad_romberg(10.0, 0.3, -1.0, 8e-5))
 
     print("\nTesting the vectorization")
     z = np.arange(0.1, 1.1, 0.1)
@@ -373,8 +425,8 @@ def test():
     print("wcdm(): ", wcdm(1.0, om2, -1))
 
     print
-    print("LCDM D_A: ", angdist(z, 0.3, -1, 0)*3000.0)
-    print("OCDM D_A: ", angdist(z, 0.3, -1, 0.1)*3000.0)
+    print("LCDM D_A: ", angdist(z, 0.3, -1, 0) * 3000.0)
+    print("OCDM D_A: ", angdist(z, 0.3, -1, 0.1) * 3000.0)
     print("OCDM D_M: ", propmotdis(z, 0.3, -1, 0.1))
 
     print

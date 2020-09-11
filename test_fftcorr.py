@@ -11,11 +11,11 @@ import numpy as np
 import fftcorr
 
 NGRID = 256
-MAX_SEP = 200.0	
+MAX_SEP = 200.0
 DSEP = 10.0
 MAX_ELL = 2
 COSMOLOGY = {
-    "omega": 0.317
+    "omega": 0.317,
 }
 
 DATA_DIR = "./test_data/"
@@ -54,7 +54,6 @@ class BaseTest(abc.ABC, unittest.TestCase):
                     self.run_test()
                 fftcorr.QPERIODIC = qperiodic_save
 
-
     def assertSameData(self, f1, f2, fmt):
         """Asserts that the numeric contents of f1 and f2 match closely."""
         if fmt == "bin":
@@ -82,8 +81,7 @@ class TestSetupCPP(BaseTest):
             rr_file = os.path.join(test_dir, "corrRR.dat")
             # TODO: make this a function in fftcorr.py.
             max_sep = 0.0 if self.periodic else MAX_SEP
-            D, R = fftcorr.read_galaxies(
-                self.hemisphere.title(), COSMOLOGY)
+            D, R = fftcorr.read_galaxies(self.hemisphere.title(), COSMOLOGY)
             grid = fftcorr.setup_grid(D, R, NGRID, max_sep)[1]
             fftcorr.writeCPPfiles(D, R, grid, dd_file, rr_file)
             self.assertSameData(dd_file, ref_dd_file, "bin")
@@ -104,10 +102,14 @@ class TestCorrelateCPP(BaseTest):
             shutil.copyfile(ref_dd_infile, dd_infile)
             shutil.copyfile(ref_rr_infile, rr_infile)
             # Run the CPP correlation code.
-            fftcorr.correlateCPP(
-                dd_infile, DSEP, NGRID, MAX_ELL, self.periodic, file2=rr_infile)
-            fftcorr.correlateCPP(
-                rr_infile, DSEP, NGRID, MAX_ELL, self.periodic)
+            fftcorr.correlateCPP(dd_infile,
+                                 DSEP,
+                                 NGRID,
+                                 MAX_ELL,
+                                 self.periodic,
+                                 file2=rr_infile)
+            fftcorr.correlateCPP(rr_infile, DSEP, NGRID, MAX_ELL,
+                                 self.periodic)
             # Check outputs.
             self.assertSameData(dd_infile + ".out", ref_nn_outfile, "txt")
             self.assertSameData(rr_infile + ".out", ref_rr_outfile, "txt")
