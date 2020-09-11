@@ -587,11 +587,8 @@ def writeCPPfiles(D, R, grid, DDfile, RRfile):
 
 def analyze(hist_corrNN, hist_corrRR, rcen):
     #### Analyze the results ####
-    fRR = np.empty([len(hist_corrRR), len(hist_corrRR[0])])
-    xi_raw = np.empty([len(hist_corrRR), len(hist_corrRR[0])])
-    for j in range(len(hist_corrRR)):
-        fRR[j, :] = hist_corrRR[j]/(hist_corrRR[0]+1e-30)
-        xi_raw[j, :] = hist_corrNN[j]/(hist_corrRR[0]+1e-30)
+    fRR = hist_corrRR / hist_corrRR[0]
+    xi_raw = hist_corrNN / hist_corrRR[0]
     xi = boundary_correct(xi_raw, fRR)
 
     xir2_raw = xi_raw*rcen**2
