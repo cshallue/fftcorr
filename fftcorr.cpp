@@ -139,8 +139,9 @@ class Histogram {
     binsize = _dsep;
     zerolag = -12345.0;
     nbins = floor(sep / binsize);
-    assert(nbins > 0 &&
-           nbins < 1e6);  // Too big probably means data entry error.
+    fprintf(stderr, "nbins = %d\n", nbins);
+    // Too big probably means data entry error.
+    assert(nbins > 0 && nbins < 1e6);
 
     // Allocate cnt[nbins], hist[maxell/2+1, nbins]
     err = posix_memalign((void **)&cnt, PAGE, sizeof(Float) * nbins);
