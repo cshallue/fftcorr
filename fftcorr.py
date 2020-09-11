@@ -103,19 +103,18 @@ class Grid:
     rcorr: The radii of each 3-d cell, in this submatrix
     '''
 
-    def __init__(self, ngrid):
+    def __init__(self, ngrid, posmin, posmax, max_sep):
         self.ngrid = ngrid
-
-    def find_bounding_box(self, pos, max_sep):
-        # Find the bounding box, including the appropriate buffer
-        # Returns the minimum corner of the box and the cubic box size
         self.max_sep = max_sep
-        self.posmin = np.amin(pos, axis=0)
-        self.posmax = np.amax(pos, axis=0)
+        self.posmin = posmin
+        self.posmax = posmax
         print("Position minima: ", self.posmin)
         print("Position maxima: ", self.posmax)
-        self.posmin = self.posmin - np.ones(3)*self.max_sep/1.5
-        self.posmax = self.posmax + np.ones(3)*self.max_sep/1.5
+
+        # Find the bounding box, including the appropriate buffer
+        # Returns the minimum corner of the box and the cubic box size
+        self.posmin = self.posmin - self.max_sep/1.5
+        self.posmax = self.posmax + self.max_sep/1.5
         self.boxsize = np.max(self.posmax-self.posmin)
         self.cell_size = self.boxsize/self.ngrid
         print("Adopting boxsize %f, cell size %f for a %d^3 grid." %
@@ -125,10 +124,10 @@ class Grid:
         self.origin = tmp1+tmp2
         print("Origin is at grid location ", self.origin)
         # Make the x,y,z ingredients for the Ylm's
-        self.xcell = (np.arange(self.ngrid)+0.5-self.origin[0])
-        self.ycell = (np.arange(self.ngrid)+0.5-self.origin[1])
-        self.zcell = (np.arange(self.ngrid)+0.5-self.origin[2])
-        #
+        self.xcell = np.arange(self.ngrid)+0.5-self.origin[0]
+        self.ycell = np.arange(self.ngrid)+0.5-self.origin[1]
+        self.zcell = np.arange(self.ngrid)+0.5-self.origin[2]
+
         # Set up the correlation submatrix calculation
         self.max_sep_cell = np.ceil(self.max_sep/self.cell_size)
         print("Correlating to %f will extend to +-%d cells." %
@@ -148,7 +147,7 @@ class Grid:
     def pos2grid(self, pos):
         # Convert positions to grid locations. Also return the residuals
         # Note that this does not check that the resulting grid is within ngrid
-        grid = ((pos-self.posmin)/self.cell_size)
+        grid = (pos-self.posmin)/self.cell_size
         residual = grid-np.floor(grid)
         return np.floor(grid), residual
 # End class Grid
@@ -602,11 +601,12 @@ def setup_grid(D, R, max_sep):
     N['pos'] = np.concatenate((D['pos'], R['pos']))
     N['w'] = np.concatenate((D['w'], R['w']))
     # Now we have the N and R lists to process
-    grid = Grid(ngrid)
-    if (qperiodic):
-        grid.find_bounding_box(N['pos'], 0.0)
-    else:
-        grid.find_bounding_box(N['pos'], max_sep)
+
+    posmin = np.amin(N['pos'], axis=0)
+    posmax = np.amax(N['pos'], axis=0)
+    max_sep = 0.0 if qperiodic else max_sep
+    grid = Grid(ngrid, posmin, posmax, max_sep)
+
     lapsed_time('setup')
     return N, grid
 
@@ -723,7 +723,7 @@ def analyze_set():
 ##########################
 
 
-def run(run_cpp=True, setup_cpp=False):
+def run(run_cpp, setup_cpp):
     DDfile = "/tmp/corrDD.dat"
     RRfile = "/tmp/corrRR.dat"
     if (not run_cpp or setup_cpp):
@@ -734,8 +734,6 @@ def run(run_cpp=True, setup_cpp=False):
 
         # Write out the CPP files
         if (setup_cpp):
-            DDfile = "/tmp/corrDD.dat"
-            RRfile = "/tmp/corrRR.dat"
             writeCPPfiles(D, R, grid, DDfile, RRfile)
 
     #### Run the correlations ####
