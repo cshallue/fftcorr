@@ -72,11 +72,11 @@ def lapsed_time(name):
 ##################  Global parameters ##############
 
 
-ngrid = 256         # The grid size for the main FFTs
-max_sep = 200.0	    # The maximum separation for correlation computation
-dsep = 10.0         # The binning of the separations
-max_ell = 2         # How many multipoles we'll compute (ell must be even!)
-qperiodic = 1	    # If ==1, use periodic boundary conditions
+NGRID = 256         # The grid size for the main FFTs
+MAX_SEP = 200.0	    # The maximum separation for correlation computation
+DSEP = 10.0         # The binning of the separations
+MAX_ELL = 2         # How many multipoles we'll compute (ell must be even!)
+QPERIODIC = 1	    # If ==1, use periodic boundary conditions
 
 # The best choices for BOSS.
 RA_ROTATE = {
@@ -85,8 +85,9 @@ RA_ROTATE = {
 }
 
 # And the cosmological parameters
-cosmology = {}
-cosmology['omega'] = 0.317
+COSMOLOGY = {
+    "omega": 0.317
+}
 
 
 ##################  Catalog class #####################
@@ -373,7 +374,7 @@ def correlate(pos, w, grid, bins):
     print("Done with FFT(density).  Time=%6.4f" % float(timer()-t))
     # Now correlate!
     corr = []
-    for ell in range(0, max_ell+1, 2):
+    for ell in range(0, MAX_ELL+1, 2):
         corr.append(compute_one_ell(dens_N, Nfft_star, ell, grid))
     #
     # Now histogram
@@ -473,14 +474,14 @@ def write_periodic_random(n, boxsize, filename):
 #write_periodic_random(100000, 1000.0, "random1e5.box1e3.dat")
 
 
-def correlateCPP(filename, dsep, file2=""):
+def correlateCPP(filename, dsep, ngrid, max_ell, qperiodic, file2=""):
 
     s = "%s/fftcorr -in %s -out %s.out -dr %f -n %d -ell %d" % (
         os.getcwd(), filename, filename, dsep, ngrid, max_ell)
-    if (file2 != ""):
+    if file2:
         s += " -in2 %s" % file2
-    if (qperiodic):
-        s += " -p -r %f" % max_sep
+    if qperiodic:
+        s += " -p -r %f" % MAX_SEP
     print(s)
     retcode = subprocess.call(shlex.split(s))
     assert retcode >= 0
@@ -559,7 +560,7 @@ def read_galaxies(hemisphere, cosmology, mocks=False):
     # We're returning [pos,w] pairs, to keep data together
 
 
-def setup_grid(D, R, max_sep):
+def setup_grid(D, R, ngrid, max_sep):
     # Set up the N=D-R vector and find the bounding box
     # Set the randoms to have negative weight
     R.w *= -np.sum(D.w)/np.sum(R.w)
@@ -568,7 +569,6 @@ def setup_grid(D, R, max_sep):
 
     posmin = np.amin(N.pos, axis=0)
     posmax = np.amax(N.pos, axis=0)
-    max_sep = 0.0 if qperiodic else max_sep
     grid = Grid(ngrid, posmin, posmax, max_sep)
 
     lapsed_time('setup')
@@ -608,7 +608,7 @@ def analyze(hist_corrNN, hist_corrRR, rcen):
     return rcen, xi, xi_raw, fRR
 
 
-def make_patchy(hemisphere, file_range):
+def make_patchy(hemisphere, file_range, cosmology, ngrid, max_sep):
     # Let hemisphere = 'North' or 'South'
     # Let file_range be a range of numbers, e.g., range(1,10)
     # If no files are given, then do randoms
@@ -617,10 +617,10 @@ def make_patchy(hemisphere, file_range):
     filename = 'untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_0001.dat' % (
         hemisphere)
     D = read_data_file(Mockpath+filename, "patchy", 0, cosmology, ra_rotate)
-    N, grid = setup_grid(D, D, max_sep)
+    N, grid = setup_grid(D, D, ngrid, max_sep)
 
     # Could have had this, but it's annoying to reload the randoms
-    # N,grid = setup_grid(D,R,max_sep)
+    # N,grid = setup_grid(D,R,MAX_SEP)
 
     for f in file_range:
         # Get file %f
@@ -641,8 +641,8 @@ def make_patchy(hemisphere, file_range):
 
 
 def run_patchy():
-    make_patchy('S', [])
-    make_patchy('N', [])
+    make_patchy('S', [], COSMOLOGY, NGRID, MAX_SEP)
+    make_patchy('N', [], COSMOLOGY, NGRID, MAX_SEP)
     #make_patchy('S', range(1,601))
     #make_patchy('N', range(1,601))
 
@@ -688,8 +688,9 @@ def run(run_cpp, setup_cpp):
     RRfile = "/tmp/corrRR.dat"
     if (not run_cpp or setup_cpp):
         ####  Read in the data ####
-        D, R = read_galaxies('South', cosmology)
-        N, grid = setup_grid(D, R, max_sep)
+        D, R = read_galaxies('South', COSMOLOGY)
+        max_sep = 0.0 if QPERIODIC else MAX_SEP
+        N, grid = setup_grid(D, R, NGRID, max_sep)
 
         # Write out the CPP files
         if (setup_cpp):
@@ -699,13 +700,14 @@ def run(run_cpp, setup_cpp):
 
     if (run_cpp):
         hist_corrNN, hist_corr_num, rcen = correlateCPP(
-            DDfile, dsep, file2=RRfile)
+            DDfile, DSEP, NGRID, MAX_ELL, QPERIODIC, file2=RRfile)
         lapsed_time('corrNN')
-        hist_corrRR, hist_corr_num, rcen = correlateCPP(RRfile, dsep)
+        hist_corrRR, hist_corr_num, rcen = correlateCPP(
+            RRfile, DSEP, NGRID, MAX_ELL, QPERIODIC)
         lapsed_time('corrRR')
     else:
         # Choose the binning
-        bins = linear_binning(grid.max_sep, dsep)
+        bins = linear_binning(grid.max_sep, DSEP)
 
         print("\nCorrelating NN")
         hist_corrNN, hist_corr_num, hist_edges = correlate(
