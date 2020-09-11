@@ -776,4 +776,4 @@ def run(run_cpp=True, setup_cpp=False):
 
 run_cpp = True  # Whether to run CPP instead of Python code.
 setup_cpp = False  # Whether to convert input files to CPP input format.
-result = run(run_cpp, setup_cpp)
+# result = run(run_cpp, setup_cpp)

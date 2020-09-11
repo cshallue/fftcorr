@@ -1,3 +1,5 @@
 .vscode/*
 fftcorr
+wisdom_fftw
 *.pyc
+test_data*
