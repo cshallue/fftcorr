@@ -44,11 +44,8 @@ usage, since the grid is probably bigger than the list of points.
 
 
 import numpy as np
+import astropy.io.fits
 import wcdm
-try:
-    import pyfits
-except ImportError:
-    pass
 import struct
 from timeit import default_timer as timer
 from scipy import interpolate
@@ -189,8 +186,8 @@ def read_data_file(filename, fmt, Nrandom, cosmology, ra_rotate, minz=0.43, maxz
     # Return the Cartesian positions and
     print("Reading from %s" % filename)
     if fmt == "boss":
-        with pyfits.open(filename) as hdulist:
-            data = hdulist[1].data
+        with astropy.io.fits.open(filename) as hdulist:
+            data = hdulist[1].data  # pylint:disable=no-member
         if Nrandom > 0:
             data = data[0:Nrandom]
         data = data[np.where((data["z"] > minz) & (data["z"] < maxz))]
