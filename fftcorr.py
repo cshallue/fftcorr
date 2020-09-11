@@ -165,7 +165,7 @@ def coord2pos(ra, dec, rz):
     ]).T
 
 
-def readdata(filename, Nrandom, cosm, minz=0.43, maxz=0.70):
+def read_boss_file(filename, Nrandom, cosm, minz=0.43, maxz=0.70):
     # Read a data file.  Use Nrandom to specify the number of randoms to use.
     # Nrandom>0 also triggers treating the weightings as by the random file
     # Return the Cartesian positions and
@@ -550,43 +550,25 @@ def readCPPfast(filename):
 BOSSpath = '/Users/shallue/sdss/sas/dr12/boss/lss/'
 Mockpath = 'Patchy/'
 
-
-def read_dataNGC(cosmology):
+def read_galaxies(hemisphere, cosmology, mocks=False):
     global ra_rotate
-    ra_rotate = -142.5
-    D = readdata(BOSSpath+'galaxy_DR12v5_CMASS_North.fits.gz', 0, cosmology)
-    R = readdata(BOSSpath+'random0_DR12v5_CMASS_North.fits.gz',
-                 51*len(D['w']), cosmology)
-    print()
-    lapsed_time('io')
-    return D, R
-
-
-def read_dataSGC(cosmology):
-    global ra_rotate
-    ra_rotate = 44
-    D = readdata(BOSSpath+'galaxy_DR12v5_CMASS_South.fits.gz', 0, cosmology)
-    R = readdata(BOSSpath+'random0_DR12v5_CMASS_South.fits.gz',
-                 51*len(D['w']), cosmology)
-    print()
-    lapsed_time('io')
-    return D, R
-
-
-def read_patchy(cosmology, NGC):
-    global ra_rotate
-    if (NGC == 'N'):
+    if hemisphere == 'North':
         ra_rotate = -142.5
-        D = read_patchy_file(
-            Mockpath+'untar/Patchy-Mocks-DR12CMASS-N-V6C-Portsmouth-mass_0001.dat', 0, cosmology)
-        R = read_patchy_file(
-            Mockpath+'Random-DR12CMASS-N-V6C-x50.dat.gz', 51*len(D['w']), cosmology)
-    else:
+    elif hemisphere == 'South':
         ra_rotate = 44
-        D = read_patchy_file(
-            Mockpath+'untar/Patchy-Mocks-DR12CMASS-S-V6C-Portsmouth-mass_0001.dat', 0, cosmology)
-        R = read_patchy_file(
-            Mockpath+'Random-DR12CMASS-S-V6C-x50.dat.gz', 51*len(D['w']), cosmology)
+    else:
+        raise ValueError('Unrecognized hemisphere: %s' % hemisphere)
+
+    if mocks:
+        dfile = os.path.join(Mockpath, 'untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_0001.dat' % hemisphere[0])
+        rfile = os.path.join(Mockpath, 'Random-DR12CMASS-%s-V6C-x50.dat.gz' % hemisphere[0])
+        D = read_patchy_file(dfile, 0, cosmology)
+        R = read_patchy_file(rfile, 51*len(D['w']), cosmology)
+    else:
+        dfile = os.path.join(BOSSpath, 'galaxy_DR12v5_CMASS_%s.fits.gz' % hemisphere)
+        rfile = os.path.join(BOSSpath, 'random0_DR12v5_CMASS_%s.fits.gz' % hemisphere)
+        D = read_boss_file(dfile, 0, cosmology)
+        R = read_boss_file(rfile, 51*len(D['w']), cosmology)
     print()
     lapsed_time('io')
     return D, R
@@ -644,18 +626,18 @@ def analyze(hist_corrNN, hist_corrRR, rcen):
     return rcen, xi, xi_raw, fRR
 
 
-def make_patchy(NGC, file_range):
-    # Let NGC = 'N' or 'S'
+def make_patchy(hemisphere, file_range):
+    # Let hemisphere = 'N' or 'S'
     # Let file_range be a range of numbers, e.g., range(1,10)
     # If no files are given, then do randoms
     global ra_rotate
-    if (NGC == 'N'):
+    if hemisphere == 'N':
         ra_rotate = -142.5
     else:
         ra_rotate = 44
     # We will use mock 0001 to set the box size
     filename = 'untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_0001.dat' % (
-        NGC)
+        hemisphere)
     D = read_patchy_file(Mockpath+filename, 0, cosmology)
     N, grid = setup_grid(D, D, max_sep)
 
@@ -665,18 +647,18 @@ def make_patchy(NGC, file_range):
     for f in file_range:
         # Get file %f
         filename = 'untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_%04d.dat' % (
-            NGC, f)
+            hemisphere, f)
         D = read_patchy_file(Mockpath+filename, 0, cosmology)
-        out = 'binary/patchy-DR12CMASS-%s-V6C-%04d.dat' % (NGC, f)
+        out = 'binary/patchy-DR12CMASS-%s-V6C-%04d.dat' % (hemisphere, f)
         setupCPP(D['pos'], D['w'], grid, Mockpath+out)
 
     if (len(file_range) == 0):
-        filename = 'Random-DR12CMASS-%s-V6C-x50.dat.gz' % (NGC)
+        filename = 'Random-DR12CMASS-%s-V6C-x50.dat.gz' % hemisphere
         R = read_patchy_file(Mockpath+filename, 100*len(D['w']), cosmology)
         # Need to renormalize the weights
         # Set the randoms to have negative weight
         R['w'] *= np.sum(D['w'])/np.sum(R['w'])
-        out = 'binary/patchy-DR12CMASS-%s-V6C-random50.dat' % (NGC)
+        out = 'binary/patchy-DR12CMASS-%s-V6C-random50.dat' % hemisphere
         setupCPP(R['pos'], R['w'], grid, Mockpath+out)
 
 
@@ -728,8 +710,7 @@ def run(run_cpp, setup_cpp):
     RRfile = "/tmp/corrRR.dat"
     if (not run_cpp or setup_cpp):
         ####  Read in the data ####
-        #D,R = read_dataNGC(cosmology)
-        D, R = read_dataSGC(cosmology)
+        D, R = read_galaxies('South', cosmology)
         N, grid = setup_grid(D, R, max_sep)
 
         # Write out the CPP files

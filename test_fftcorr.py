@@ -64,10 +64,8 @@ class TestSetupCPP(BaseTest):
             dd_file = os.path.join(test_dir, "corrDD.dat")
             rr_file = os.path.join(test_dir, "corrRR.dat")
             # TODO: make this a function in fftcorr.py.
-            if self.hemisphere == "north":
-                D, R = fftcorr.read_dataNGC(fftcorr.cosmology)
-            elif self.hemisphere == "south":
-                D, R = fftcorr.read_dataSGC(fftcorr.cosmology)
+            D, R = fftcorr.read_galaxies(
+                self.hemisphere.title(), fftcorr.cosmology)
             grid = fftcorr.setup_grid(D, R, fftcorr.max_sep)[1]
             fftcorr.writeCPPfiles(D, R, grid, dd_file, rr_file)
             self.assertFilesEqual(dd_file, ref_dd_file)
