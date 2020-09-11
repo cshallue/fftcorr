@@ -169,57 +169,46 @@ def coord2pos(ra, dec, rz, ra_rotate):
     ]).T
 
 
-def read_boss_file(filename, Nrandom, cosm, ra_rotate, minz=0.43, maxz=0.70):
+def read_data_file(filename, fmt, Nrandom, cosm, ra_rotate, minz=0.43, maxz=0.70):
     # Read a data file.  Use Nrandom to specify the number of randoms to use.
     # Nrandom>0 also triggers treating the weightings as by the random file
     # Return the Cartesian positions and
     print("Reading from %s" % filename)
-    with pyfits.open(filename) as hdulist:
-        data = hdulist[1].data
-    if Nrandom > 0:
-        data = data[0:Nrandom]
-    data = data[np.where((data['z'] > minz) & (data['z'] < maxz))]
-    print("Done reading and trimming data.")
+    if fmt == "boss":
+        with pyfits.open(filename) as hdulist:
+            data = hdulist[1].data
+        if Nrandom > 0:
+            data = data[0:Nrandom]
+        data = data[np.where((data['z'] > minz) & (data['z'] < maxz))]
+        w = np.float64(data['weight_fkp'])
+        if not Nrandom:
+            w *= data['weight_systot'] * (data['weight_cp']+data['weight_noz']-1.0)
+    elif fmt == "patchy":
+        if Nrandom > 0:
+            dtypes = [
+                ('ra', float), ('dec', float), ('z', float), ('nbar', float),
+                ('bias', float), ('veto', float), ('fiber', float)]
+        else:
+            dtypes = [
+                ('ra', float), ('dec', float), ('z', float), ('mass', float),
+                ('nbar', float), ('bias', float), ('veto', float), ('fiber', float)]
+        data = np.loadtxt(filename, dtypes)
+        if Nrandom > 0:
+            data = data[0:Nrandom]
+        data = data[np.where((data['z'] > minz) & (data['z'] < maxz))]
+        w = data['veto']*data['fiber']/(1+1e4*data['nbar'])
+    else:
+        raise ValueError("Unrecognized fmt: %s" % fmt)
+    
+    # Convert (ra, dec, Z) to (x, y, z).
     redshifts = np.linspace(0.0, maxz+0.1, 1000)
     rz = interpolate.InterpolatedUnivariateSpline(redshifts,
                                                   2997.92*wcdm.coorddist(redshifts, cosm['omega'], -1, 0))
     print("Done computing cosmological distances.")
     pos = coord2pos(data['ra'], data['dec'], rz(data['z']), ra_rotate)
-    w = np.float64(data['weight_fkp'])
-    if Nrandom <= 0:
-        w *= data['weight_systot'] * (data['weight_cp']+data['weight_noz']-1.0)
-    # print(np.result_type(w))
+
     print("Using %d galaxies, total weight %g" % (len(pos), np.sum(w)))
-    return {'pos': pos, 'w': w}
-
-
-def read_patchy_file(filename, Nrandom, cosm, ra_rotate, minz=0.43, maxz=0.70):
-    # Read a data file.  Use Nrandom to specify the number of randoms to use.
-    # Nrandom>0 also triggers treating the weightings as by the random file
-    # Return the Cartesian positions and
-    print("Reading from %s" % filename)
-    if Nrandom > 0:
-        dtypes = [
-            ('RA', float), ('DEC', float), ('Z', float), ('NBAR', float),
-            ('BIAS', float), ('VETO', float), ('FIBER', float)]
-    else:
-        dtypes = [
-            ('RA', float), ('DEC', float), ('Z', float), ('MASS', float),
-            ('NBAR', float), ('BIAS', float), ('VETO', float), ('FIBER', float)]
-    data = np.loadtxt(filename, dtypes)
-    if Nrandom > 0:
-        data = data[0:Nrandom]
-    data = data[np.where((data['Z'] > minz) & (data['Z'] < maxz))]
     print("Done reading and trimming data.")
-
-    redshifts = np.linspace(0.0, maxz+0.1, 1000)
-    rz = interpolate.InterpolatedUnivariateSpline(redshifts,
-                                                  2997.92*wcdm.coorddist(redshifts, cosm['omega'], -1, 0))
-    print("Done computing cosmological distances.")
-    pos = coord2pos(data['RA'], data['DEC'], rz(data['Z']))
-    w = data['VETO']*data['FIBER']/(1+1e4*data['NBAR'])
-    # print(np.result_type(w))
-    print("Using %d galaxies, total weight %g" % (len(pos), np.sum(w)))
     return {'pos': pos, 'w': w}
 
 
@@ -549,13 +538,13 @@ def read_galaxies(hemisphere, cosmology, mocks=False):
     if mocks:
         dfile = os.path.join(Mockpath, 'untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_0001.dat' % hemisphere[0])
         rfile = os.path.join(Mockpath, 'Random-DR12CMASS-%s-V6C-x50.dat.gz' % hemisphere[0])
-        D = read_patchy_file(dfile, 0, cosmology, ra_rotate)
-        R = read_patchy_file(rfile, 51*len(D['w']), cosmology, ra_rotate)
+        D = read_data_file(dfile, "patchy", 0, cosmology, ra_rotate)
+        R = read_data_file(rfile, "patchy", 51*len(D['w']), cosmology, ra_rotate)
     else:
         dfile = os.path.join(BOSSpath, 'galaxy_DR12v5_CMASS_%s.fits.gz' % hemisphere)
         rfile = os.path.join(BOSSpath, 'random0_DR12v5_CMASS_%s.fits.gz' % hemisphere)
-        D = read_boss_file(dfile, 0, cosmology, ra_rotate)
-        R = read_boss_file(rfile, 51*len(D['w']), cosmology, ra_rotate)
+        D = read_data_file(dfile, "boss", 0, cosmology, ra_rotate)
+        R = read_data_file(rfile, "boss", 51*len(D['w']), cosmology, ra_rotate)
     print()
     lapsed_time('io')
     return D, R
@@ -621,7 +610,7 @@ def make_patchy(hemisphere, file_range):
     # We will use mock 0001 to set the box size
     filename = 'untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_0001.dat' % (
         hemisphere)
-    D = read_patchy_file(Mockpath+filename, 0, cosmology, ra_rotate)
+    D = read_data_file(Mockpath+filename, "patchy", 0, cosmology, ra_rotate)
     N, grid = setup_grid(D, D, max_sep)
 
     # Could have had this, but it's annoying to reload the randoms
@@ -631,13 +620,13 @@ def make_patchy(hemisphere, file_range):
         # Get file %f
         filename = 'untar/Patchy-Mocks-DR12CMASS-%s-V6C-Portsmouth-mass_%04d.dat' % (
             hemisphere[0], f)
-        D = read_patchy_file(Mockpath+filename, 0, cosmology, ra_rotate)
+        D = read_data_file(Mockpath+filename, "patchy", 0, cosmology, ra_rotate)
         out = 'binary/patchy-DR12CMASS-%s-V6C-%04d.dat' % (hemisphere[0], f)
         setupCPP(D['pos'], D['w'], grid, Mockpath+out)
 
     if (len(file_range) == 0):
         filename = 'Random-DR12CMASS-%s-V6C-x50.dat.gz' % hemisphere[0]
-        R = read_patchy_file(Mockpath+filename, 100*len(D['w']), cosmology, ra_rotate)
+        R = read_data_file(Mockpath+filename, "patchy", 100*len(D['w']), cosmology, ra_rotate)
         # Need to renormalize the weights
         # Set the randoms to have negative weight
         R['w'] *= np.sum(D['w'])/np.sum(R['w'])
