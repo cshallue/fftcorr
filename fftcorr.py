@@ -174,9 +174,9 @@ class Grid(object):
 def coord2pos(ra, dec, rz, ra_rotate):
     # Convert angular positions to our Cartesian basis
     return np.array([
-        rz*np.cos(dec*np.pi/180.0)*np.cos((ra+ra_rotate)*np.pi/180.0),
-        rz*np.cos(dec*np.pi/180.0)*np.sin((ra+ra_rotate)*np.pi/180.0),
-        rz*np.sin(dec*np.pi/180.0)
+        rz*np.cos(dec*np.pi/180)*np.cos((ra+ra_rotate)*np.pi/180),
+        rz*np.cos(dec*np.pi/180)*np.sin((ra+ra_rotate)*np.pi/180),
+        rz*np.sin(dec*np.pi/180)
     ]).T
 
 
@@ -193,8 +193,8 @@ def read_data_file(filename, fmt, Nrandom, cosmology, ra_rotate, minz=0.43, maxz
         data = data[np.where((data["z"] > minz) & (data["z"] < maxz))]
         w = np.float64(data["weight_fkp"])
         if not Nrandom:
-            w *= data["weight_systot"] * \
-                (data["weight_cp"]+data["weight_noz"]-1.0)
+            w *= (data["weight_systot"] *
+                  (data["weight_cp"]+data["weight_noz"]-1))
     elif fmt == "patchy":
         if Nrandom > 0:
             dtypes = [
@@ -213,7 +213,7 @@ def read_data_file(filename, fmt, Nrandom, cosmology, ra_rotate, minz=0.43, maxz
         raise ValueError("Unrecognized fmt: %s" % fmt)
 
     # Convert (ra, dec, Z) to (x, y, z).
-    redshifts = np.linspace(0.0, maxz+0.1, 1000)
+    redshifts = np.linspace(0, maxz+0.1, 1000)
     rz = interpolate.InterpolatedUnivariateSpline(
         redshifts, 2997.92*wcdm.coorddist(redshifts, cosmology["omega"], -1, 0))
     print("Done computing cosmological distances.")
@@ -232,9 +232,9 @@ def makeYlm(ell, m, xcell, ycell, zcell):
     # These are not including common minus signs, since we're only
     # using them in matched squares.
     # Input xcell, ycell, zcell are the x,y,z centers of the bins
-    isqpi = np.sqrt(1.0/np.pi)
+    isqpi = np.sqrt(1/np.pi)
     if (m != 0):
-        isqpi *= np.sqrt(2.0)    # Do this up-front, so we don't forget
+        isqpi *= np.sqrt(2)    # Do this up-front, so we don't forget
     tiny = 1e-20
     ngrid = len(xcell)
     # TODO: If we could align these arrays, it would be better!
@@ -252,53 +252,47 @@ def makeYlm(ell, m, xcell, ycell, zcell):
         x = xcell[j]     # A scalar, just to make the code more symmetric
         x2 = x*x
         if (ell == 0) & (m == 0):
-            Ylm[j, :, :] = isqpi/2.0
+            Ylm[j, :, :] = isqpi/2
 
         # Here's the ell=2 set
         elif (ell == 2) & (m == 2):
-            Ylm[j, :, :] = isqpi*np.sqrt(15./32.)*(x2-y2) \
-                / (x2+y2+z2+tiny)
+            Ylm[j, :, :] = isqpi*np.sqrt(15/32)*(x2-y2) / (x2+y2+z2+tiny)
         elif (ell == 2) & (m == 1):
-            Ylm[j, :, :] = isqpi*np.sqrt(15./8.)*x*z \
-                / (x2+y2+z2+tiny)
+            Ylm[j, :, :] = isqpi*np.sqrt(15/8)*x*z / (x2+y2+z2+tiny)
         elif (ell == 2) & (m == 0):
-            Ylm[j, :, :] = isqpi*np.sqrt(5./16.)*(2*z2-x2-y2) \
-                / (x2+y2+z2+tiny)
+            Ylm[j, :, :] = isqpi*np.sqrt(5/16)*(2*z2-x2-y2) / (x2+y2+z2+tiny)
         elif (ell == 2) & (m == -1):
-            Ylm[j, :, :] = isqpi*np.sqrt(15./8.)*y*z \
-                / (x2+y2+z2+tiny)
+            Ylm[j, :, :] = isqpi*np.sqrt(15/8)*y*z / (x2+y2+z2+tiny)
         elif (ell == 2) & (m == -2):
-            Ylm[j, :, :] = isqpi*np.sqrt(15./32.)*x*y*2 \
-                / (x2+y2+z2+tiny)
-        #
+            Ylm[j, :, :] = isqpi*np.sqrt(15/32)*x*y*2 / (x2+y2+z2+tiny)
         elif (ell == 4) & (m == 4):
-            Ylm[j, :, :] = isqpi*3.0/16.0*np.sqrt(35./2.)*(x2*x2-6.0*x2*y2+y4) \
-                / (x2+y2+z2+tiny)**2
+            Ylm[j, :, :] = isqpi*3/16 * \
+                np.sqrt(35/2)*(x2*x2-6*x2*y2+y4) / (x2+y2+z2+tiny)**2
         elif (ell == 4) & (m == 3):
-            Ylm[j, :, :] = isqpi*3.0/8.0*np.sqrt(35.)*(x2-3.0*y2)*z*x \
-                / (x2+y2+z2+tiny)**2
+            Ylm[j, :, :] = isqpi*3/8 * \
+                np.sqrt(35)*(x2-3*y2)*z*x / (x2+y2+z2+tiny)**2
         elif (ell == 4) & (m == 2):
-            Ylm[j, :, :] = isqpi*3.0/8.0*np.sqrt(5./2.)*(6.0*z2*(x2-y2)-x2*x2+y4) \
-                / (x2+y2+z2+tiny)**2
+            Ylm[j, :, :] = isqpi*3/8 * \
+                np.sqrt(5/2)*(6*z2*(x2-y2)-x2*x2+y4) / (x2+y2+z2+tiny)**2
         elif (ell == 4) & (m == 1):
-            Ylm[j, :, :] = isqpi*3.0/8.0*np.sqrt(5.)*3.0*(4.0/3.0*z2-x2-y2)*x*z \
-                / (x2+y2+z2+tiny)**2
+            Ylm[j, :, :] = isqpi*3/8 * \
+                np.sqrt(5)*3*(4/3*z2-x2-y2)*x*z / (x2+y2+z2+tiny)**2
         elif (ell == 4) & (m == 0):
-            Ylm[j, :, :] = isqpi*3.0/16.0*np.sqrt(1.)*8.0*(z4-3.0*z2*(x2+y2)+3.0/8.0*(x2*x2+2*x2*y2+y4)) \
-                / (x2+y2+z2+tiny)**2
+            Ylm[j, :, :] = isqpi*3/16 * \
+                np.sqrt(1)*8*(z4-3*z2*(x2+y2)+3/8 *
+                              (x2*x2+2*x2*y2+y4)) / (x2+y2+z2+tiny)**2
         elif (ell == 4) & (m == -1):
-            Ylm[j, :, :] = isqpi*3.0/8.0*np.sqrt(5.)*3.0*(4.0/3.0*z2-x2-y2)*y*z \
-                / (x2+y2+z2+tiny)**2
+            Ylm[j, :, :] = isqpi*3/8 * \
+                np.sqrt(5)*3*(4/3*z2-x2-y2)*y*z / (x2+y2+z2+tiny)**2
         elif (ell == 4) & (m == -2):
-            Ylm[j, :, :] = isqpi*3.0/8.0*np.sqrt(5./2.)*(2.0*x*y*(6.0*z2-x2-y2)) \
-                / (x2+y2+z2+tiny)**2
+            Ylm[j, :, :] = isqpi*3/8 * \
+                np.sqrt(5/2)*(2*x*y*(6*z2-x2-y2)) / (x2+y2+z2+tiny)**2
         elif (ell == 4) & (m == -3):
-            Ylm[j, :, :] = isqpi*3.0/8.0*np.sqrt(35.)*(3.0*x2*y-y3)*z \
-                / (x2+y2+z2+tiny)**2
+            Ylm[j, :, :] = isqpi*3/8 * \
+                np.sqrt(35)*(3*x2*y-y3)*z / (x2+y2+z2+tiny)**2
         elif (ell == 4) & (m == -4):
-            Ylm[j, :, :] = isqpi*3.0/16.0*np.sqrt(35./2.)*(4.0*x*(x2*y-y3)) \
-                / (x2+y2+z2+tiny)**2
-        #
+            Ylm[j, :, :] = isqpi*3/16 * \
+                np.sqrt(35/2)*(4*x*(x2*y-y3)) / (x2+y2+z2+tiny)**2
         else:
             print("Illegal Ylm arguments: ", ell, m)
             exit()
@@ -337,7 +331,7 @@ def compute_one_ell(dens_N, Nfft_star, ell, grid):
         total += corr
         print(" Sub=%6.4f" % float(timer()-t))
     # Multiplying by 4*pi, to match SE15 equation 13
-    total *= 4.0*np.pi
+    total *= 4*np.pi
     print(total[msc-1:msc+2, msc-1:msc+2, msc-1:msc+2])
     return total
 
@@ -387,7 +381,7 @@ def correlate(pos, w, grid, bins):
 def linear_binning(max_sep, dsep):
     # Return the edges of separation binning
     # Here we produce linearly space bins
-    max_use = dsep*np.floor(1.0*max_sep/dsep)  # Round down
+    max_use = dsep*np.floor(max_sep/dsep)  # Round down
     return np.arange(0, max_use+dsep/2, dsep)
 
 
@@ -447,7 +441,7 @@ def compute_xi(hist_corrNN, hist_corrRR):
     """Computes the anisotropic 2PCF from multipole moments of NN and RR.
 
     NN(s, mu) and RR(s, mu) are as defined in SE15, eq. 5.
-    
+
     Args:
       hist_corrNN: Array [num_ell, num_s] of multipole moments of NN(s, mu)
       hist_corrRR: Array [num_ell, num_s] of multipole moments of RR(s, mu)
@@ -465,7 +459,7 @@ def setupCPP(pos, w, g, filename):
         print(g.boxsize)
         print(g.max_sep)
         binfile.write(struct.pack(
-            "dddddddd", *g.posmin, *g.posmax, g.max_sep, 0.0))
+            "dddddddd", *g.posmin, *g.posmax, g.max_sep, 0))
         posw = np.empty([len(pos), 4], dtype=np.float64)
         posw[:, 0:3] = pos
         posw[:, 3] = w
@@ -476,16 +470,16 @@ def setupCPP(pos, w, g, filename):
 def write_periodic_random(n, boxsize, filename):
     with open(filename, "wb") as binfile:
         binfile.write(struct.pack("dddddddd",
-                                  0.0, 0.0, 0.0,
+                                  0, 0, 0,
                                   boxsize, boxsize, boxsize,
-                                  0.0, 0.0))
+                                  0, 0))
         posw = np.empty([n, 4], dtype=np.float64)
         posw[:, 0:3] = boxsize*np.random.uniform(size=(n, 3))
         posw[:, 3] = np.ones(n)
         posw.tofile(binfile)
 
 
-#write_periodic_random(100000, 1000.0, "random1e5.box1e3.dat")
+#write_periodic_random(100000, 1000, "random1e5.box1e3.dat")
 
 
 def correlateCPP(filename, dsep, ngrid, max_ell, qperiodic, file2=""):
@@ -549,7 +543,7 @@ def readCPPfast(filename):
     # Just the tables; skip the I and Pshot parsing
     data = np.loadtxt(filename)
     f = np.min(np.where(data[:, 0]) == 0)
-    return data[f:, 3:], data[f:, 2], data[f:, 1], data[:f, 3:], data[:f, 2], data[:f, 1], -1.0, -1.0
+    return (data[f:, 3:], data[f:, 2], data[f:, 1], data[:f, 3:], data[:f, 2], data[:f, 1], -1, -1)
 
 
 #####################  Main Code #############
@@ -693,7 +687,7 @@ def analyze_set():
     P[:, 0] = (P[:, 0]-Pshot)/I
     P[:, 1:] = (P[:, 1:])/I
     P = P.T
-    Del = P*kcen/2.0/np.pi**2
+    Del = P*kcen/2/np.pi**2
     xi = analyze(corr.T, corrRR.T, rcen)
     for j in range(len(kcen)):
         print("%6.4f " % kcen[j],)
@@ -714,7 +708,7 @@ def run(run_cpp, setup_cpp):
     if (not run_cpp or setup_cpp):
         ####  Read in the data ####
         D, R = read_galaxies("South", COSMOLOGY)
-        max_sep = 0.0 if QPERIODIC else MAX_SEP
+        max_sep = 0 if QPERIODIC else MAX_SEP
         N, grid = setup_grid(D, R, NGRID, max_sep)
 
         # Write out the CPP files
@@ -744,7 +738,7 @@ def run(run_cpp, setup_cpp):
             R.pos, R.w, grid, bins)
         lapsed_time("corrRR")
 
-        rcen = (hist_edges[0:-1]+hist_edges[1:])/2.0
+        rcen = (hist_edges[0:-1]+hist_edges[1:])/2
 
     if "io" in times:
         print("\nTime to read the data files: ", times["io"])
