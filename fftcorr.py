@@ -73,7 +73,7 @@ NGRID = 256         # The grid size for the main FFTs
 MAX_SEP = 200.0	    # The maximum separation for correlation computation
 DSEP = 10.0         # The binning of the separations
 MAX_ELL = 2         # How many multipoles we'll compute (ell must be even!)
-QPERIODIC = 1	    # If ==1, use periodic boundary conditions
+QPERIODIC = 0	    # If ==1, use periodic boundary conditions
 
 # The best choices for BOSS.
 RA_ROTATE = {
@@ -391,52 +391,54 @@ def linear_binning(max_sep, dsep):
 
 
 def triplefact(j1, j2, j3):
-    jhalf = (j1+j2+j3)/2.0
+    """Returns g!/((g - j1)!(g - j2)!(g - j3!)), where g = (j1 + j2 + j3)/2."""
+    jhalf = (j1 + j2 + j3) / 2
     return (
         scipy.special.factorial(jhalf) / 
-        scipy.special.factorial(jhalf-j1) / 
-        scipy.special.factorial(jhalf-j2) / 
-        scipy.special.factorial(jhalf-j3))
+        scipy.special.factorial(jhalf - j1) / 
+        scipy.special.factorial(jhalf - j2) / 
+        scipy.special.factorial(jhalf - j3))
 
 
 def threej(j1, j2, j3):
-    # Compute {j1,j2,j3; 0,0,0} 3j symbol
-    j = j1+j2+j3
-    if (j % 2 > 0):
-        return 0     # Must be even
-    if (j1+j2 < j3):
-        return 0  # Check legal triangle
-    if (j2+j3 < j1):
-        return 0  # Check legal triangle
-    if (j3+j1 < j2):
-        return 0  # Check legal triangle
-    return (-1)**(j/2.0) * triplefact(j1, j2, j3) / (triplefact(2*j1, 2*j2, 2*j3)*(j+1))**0.5
+    """Returns the {j1,j2,j3; 0,0,0} Wigner 3j symbol.
+
+    See https://mathworld.wolfram.com/Wigner3j-Symbol.html.
+    """
+    j = j1 + j2 + j3
+    if j % 2:
+        return 0  # Must be even
+    if (j1 + j2 < j3) or (j2 + j3 < j1) or (j3 + j1 < j2):
+      return 0  # Check legel triangle
+    return (-1)**(j / 2) * triplefact(j1, j2, j3) / (
+        triplefact(2 * j1, 2 * j2, 2 * j3) * (j + 1))**0.5
     # DJE did check this against Wolfram
 
 
 def Mkl_calc(k, ell, flist):
+    """Computes the matrix element from SE15, eq. 9."""
     # This is the matrix element from SE15, eq 9
-    s = 0.
-    for j in np.arange(1, len(flist)):
-        # Recall that the f list is ell=0,2,4,...
-        s += (threej(ell, 2*j, k))**2*flist[j]
-    s *= (2.*k+1.)
-    return s
+    jlist = 2 * np.arange(len(flist))  # The f list is j=0,2,4,...
+    return (2 * k + 1) * np.sum([
+      threej(ell, j, k)**2 * fj for j, fj in zip(jlist[1:], flist[1:])])
 
 
 def boundary_correct(xi_raw, fRR):
-    xi = np.zeros(xi_raw.shape)
-    for r in range(len(fRR[0])):
-        Mkl = np.identity(len(fRR))
-        for k in range(len(fRR)):
-            for l in range(len(fRR)):
-                # Remember that the ell's are indexed 0,2,4...
-                Mkl[k][l] += Mkl_calc(2*k, 2*l, fRR[:, r])
-        if (r == len(fRR[0])-1):
-            print(r, Mkl)
-        Minv = np.linalg.inv(Mkl)
-        xi[:, r] = np.dot(Minv, xi_raw[:, r])
-        # TODO: Need to check whether this matrix should have been transposed
+    """Performs the boundary correction from SE15, eq. 10."""
+    # In eq. 10, N[k] = 0 for odd k (by eq. 5, since NN is even in mu)
+    # and A[k][l] = 0 when k+l is odd (by eq. 8, since f[j] = 0 for odd j and
+    # the Wigner symbol is zero for l+j+k odd). Thus, we can replace eq. 10 with
+    # a matrix equation of the same form but where all odd indexes of N are
+    # removed and all odd rows and columns of A are removed.
+    num_ell, num_s = fRR.shape
+    xi = np.zeros_like(xi_raw)
+    for s in range(num_s):
+        A = np.identity(num_ell)
+        for k in range(num_ell):
+            for l in range(num_ell):
+                # Remember that the k's and ell's are indexed 0,2,4...
+                A[k][l] += Mkl_calc(2 * k, 2 * l, fRR[:, s])
+        xi[:, s] = np.linalg.solve(A, xi_raw[:, s])
     return xi
 
 
@@ -652,8 +654,8 @@ def run_patchy():
 def analyze_set():
     corrRR, xinum, rcen, PRR, Pnum, kcen, I, _Pshot = \
         readCPPoutput("Output/patchy-DR12CMASS-N-V6C-ran-c3r300.dat")
-    corr = np.zeros(corrRR.shape)
-    P = np.zeros(PRR.shape)
+    corr = np.zeros_like(corrRR)
+    P = np.zeros_like(PRR)
     cnt = 0
     for n in range(1, 5):
         if (n == 10):
