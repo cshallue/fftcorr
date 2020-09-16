@@ -694,10 +694,6 @@ class Grid {
   void correlate(int maxell, Histogram &h, Histogram &kh,
                  int wide_angle_exponent) {
     // Here's where most of the work occurs.
-    // This computes the correlations for each ell, summing over m,
-    // and then histograms the result.
-    void makeYlm(Float * work_, int ell, int m, int n[3], int n1, Float *xcell_,
-                 Float *ycell_, Float *zcell_, Float *dens_, int exponent);
 
     // Multiply total by 4*pi, to match SE15 normalization
     // Include the FFTW normalization
