@@ -1,3 +1,9 @@
+#ifndef MERGE_SORT_OMP
+#define MERGE_SORT_OMP
+
+#include "STimer.cc"
+#include "galaxy.h"
+
 typedef Galaxy Merge;
 STimer Sorting, Merging;
 
@@ -58,3 +64,5 @@ void mergesort_parallel_omp(Merge a[], const int size, Merge temp[],
   Merging.Stop();
   return;
 }
+
+#endif  // MERGE_SORT_OMP
