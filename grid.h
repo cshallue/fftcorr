@@ -266,11 +266,11 @@ class Grid {
       // We're asked to set the mean to zero
       Float mean = totw / ngrid_[0] / ngrid_[1] / ngrid_[2];
       addscalarto_matrix(dens_, -mean, ngrid3_, ngrid_[0]);
-      fprintf(stdout, "# Subtracting mean cell dens_ity %10.4e\n", mean);
+      fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
     }
 
     Float sumsq_dens_ = sumsq_matrix(dens_, ngrid3_, ngrid_[0]);
-    fprintf(stdout, "# Sum of squares of dens_ity = %14.7e\n", sumsq_dens_);
+    fprintf(stdout, "# Sum of squares of density = %14.7e\n", sumsq_dens_);
     Pshot_ = totwsq;
     fprintf(stdout,
             "# Sum of squares of weights (divide by I for Pshot_) = %14.7e\n",
@@ -298,7 +298,7 @@ class Grid {
 
     // In the limit of infinite homogeneous particles in a periodic box:
     // If W=sum(w), then each particle has w = W/N.  totwsq = N*(W/N)^2 = W^2/N.
-    // Meanwhile, each cell has dens_ity (W/N)*(N/Ncell) = W/Ncell.
+    // Meanwhile, each cell has density (W/N)*(N/Ncell) = W/Ncell.
     // sumsq_dens_/Vcell = W^2/(Ncell*Vcell) = W^2/V.
     // Hence the real shot noise is V/N = 1/n.
     return;
@@ -377,7 +377,7 @@ class Grid {
   }
 
   void add_particle_to_grid(Galaxy g) {
-    // Add one particle to the dens_ity grid.
+    // Add one particle to the density grid.
     // This does a 27-point triangular cloud-in-cell, unless one invokes
     // NEAREST_CELL.
     uint64 index;  // Trying not to assume that ngrid**3 won't spill 32-bits.
@@ -689,141 +689,7 @@ class Grid {
     return;
   }
 
-  /* ------------------------------------------------------------------- */
-
-  void correlate(int maxell, Histogram &h, Histogram &kh,
-                 int wide_angle_exponent) {
-    // Here's where most of the work occurs.
-
-    // Multiply total by 4*pi, to match SE15 normalization
-    // Include the FFTW normalization
-    Float norm = 4.0 * M_PI / ngrid_[0] / ngrid_[1] / ngrid_[2];
-    Float Pnorm = 4.0 * M_PI;
-    assert(sep_ > 0);  // This is a check that the submatrix got set up.
-
-    // Allocate the work_ matrix and load it with the dens_ity
-    // We do this here so that the array is touched before FFT planning
-    initialize_matrix_by_copy(work_, ngrid3_, ngrid_[0], dens_);
-
-    // Allocate total[csize_**3] and corr[csize_**3]
-    Float *total = NULL;
-    initialize_matrix(total, csize3_, csize_[0]);
-    Float *corr = NULL;
-    initialize_matrix(corr, csize3_, csize_[0]);
-    Float *ktotal = NULL;
-    initialize_matrix(ktotal, ksize3_, ksize_[0]);
-    Float *kcorr = NULL;
-    initialize_matrix(kcorr, ksize3_, ksize_[0]);
-
-    /* Setup FFTW */
-    fftw_plan fft, fftYZ, fftX, ifft, ifftYZ, ifftX;
-    setup_FFTW(fft, fftYZ, fftX, ifft, ifftYZ, ifftX, ngrid_, ngrid2_, work_);
-
-    // FFTW might have destroyed the contents of work_; need to restore
-    // work_[]==dens_[] So far, I haven't seen this happen.
-    if (dens_[1] != work_[1] || dens_[1 + ngrid_[2]] != work_[1 + ngrid_[2]] ||
-        dens_[ngrid3_ - 1] != work_[ngrid3_ - 1]) {
-      fprintf(stdout, "Restoring work_ matrix\n");
-      // Init.Start();
-      copy_matrix(work_, dens_, ngrid3_, ngrid_[0]);
-      // Init.Stop();
-    }
-
-    // Correlate .Start();  // Starting the main work_
-    // Now compute the FFT of the dens_ity field and conjugate it
-    // FFT(work_) in place and conjugate it, storing in densFFT_
-    fprintf(stdout, "# Computing the dens_ity FFT...");
-    fflush(NULL);
-    FFT_Execute(fft, fftYZ, fftX, ngrid_, ngrid2_, work_);
-
-    // Correlate.Stop();  // We're tracking initialization separately
-    initialize_matrix_by_copy(densFFT_, ngrid3_, ngrid_[0], work_);
-    fprintf(stdout, "Done!\n");
-    fflush(NULL);
-    // Correlate.Start();
-
-    // Let's try a check as well -- convert with the 3D code and compare
-    /* copy_matrix(work_, dens_, ngrid3_, ngrid_[0]);
-fftw_execute(fft);
-for (uint64 j=0; j<ngrid3_; j++)
-if (densFFT_[j]!=work_[j]) {
-    int z = j%ngrid2_;
-    int y = j/ngrid2_; y=y%ngrid2_;
-    int x = j/ngrid_[1]/ngrid2_;
-    printf("%d %d %d  %f  %f\n", x, y, z, densFFT_[j], work_[j]);
-}
-*/
-
-    /* ------------ Loop over ell & m --------------- */
-    // Loop over each ell to compute the anisotropic correlations
-    for (int ell = 0; ell <= maxell; ell += 2) {
-      // Initialize the submatrix
-      set_matrix(total, 0.0, csize3_, csize_[0]);
-      set_matrix(ktotal, 0.0, ksize3_, ksize_[0]);
-      // Loop over m
-      for (int m = -ell; m <= ell; m++) {
-        fprintf(stdout, "# Computing %d %2d...", ell, m);
-        // Create the Ylm matrix times dens_
-        makeYlm(work_, ell, m, ngrid_, ngrid2_, xcell_, ycell_, zcell_, dens_,
-                -wide_angle_exponent);
-        fprintf(stdout, "Ylm...");
-
-        // FFT in place
-        FFT_Execute(fft, fftYZ, fftX, ngrid_, ngrid2_, work_);
-
-        // Multiply by conj(densFFT_), as complex numbers
-        // AtimesB.Start();
-        multiply_matrix_with_conjugation((Complex *)work_, (Complex *)densFFT_,
-                                         ngrid3_ / 2, ngrid_[0]);
-        // AtimesB.Stop();
-
-        // Extract the anisotropic power spectrum
-        // Load the Ylm's and include the CICwindow_ correction
-        makeYlm(kcorr, ell, m, ksize_, ksize_[2], kx_cell_, ky_cell_, kz_cell_,
-                CICwindow_, wide_angle_exponent);
-        // Multiply these Ylm by the power result, and then add to total.
-        extract_submatrix_C2R(ktotal, kcorr, ksize_, (Complex *)work_, ngrid_,
-                              ngrid2_);
-
-        // iFFT the result, in place
-        IFFT_Execute(ifft, ifftYZ, ifftX, ngrid_, ngrid2_, work_);
-        fprintf(stdout, "FFT...");
-
-        // Create Ylm for the submatrix that we'll extract for histogramming
-        // The extra multiplication by one here is of negligible cost, since
-        // this array is so much smaller than the FFT grid.
-        makeYlm(corr, ell, m, csize_, csize_[2], cx_cell_, cy_cell_, cz_cell_,
-                NULL, wide_angle_exponent);
-
-        // Multiply these Ylm by the correlation result, and then add to total.
-        extract_submatrix(total, corr, csize_, work_, ngrid_, ngrid2_);
-
-        fprintf(stdout, "Done!\n");
-      }
-
-      // Extract.Start();
-      scale_matrix(total, norm, csize3_, csize_[0]);
-      scale_matrix(ktotal, Pnorm, ksize3_, ksize_[0]);
-      // Extract.Stop();
-      // Histogram total by rnorm_
-      // Hist.Start();
-      h.histcorr(ell, csize3_, rnorm_, total);
-      kh.histcorr(ell, ksize3_, knorm_, ktotal);
-      // Hist.Stop();
-    }
-
-    /* ------------------- Clean up -------------------*/
-    // Free densFFT_ and Ylm
-    free(corr);
-    free(total);
-    free(kcorr);
-    free(ktotal);
-    free_FFTW(fft, fftYZ, fftX, ifft, ifftYZ, ifftX);
-
-    // Correlate.Stop();
-  }
-
- private:
+  // private:
   // Inputs
   int ngrid_[3];     // We might prefer a non-cubic box.  The cells are always
                      // cubic!
@@ -863,8 +729,8 @@ if (densFFT_[j]!=work_[j]) {
   // The big grids
   int ngrid2_;      // ngrid_[2] padded out for the FFT work
   uint64 ngrid3_;   // The total number of FFT grid cells
-  Float *dens_;     // The dens_ity field, in a flattened grid
-  Float *densFFT_;  // The FFT of the dens_ity field, in a flattened grid.
+  Float *dens_;     // The density field, in a flattened grid
+  Float *densFFT_;  // The FFT of the density field, in a flattened grid.
   Float *work_;     // work space for each (ell,m), in a flattened grid.
 
   int cnt_;      // The number of galaxies read in.

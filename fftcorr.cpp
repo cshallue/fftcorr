@@ -101,6 +101,7 @@ int omp_get_thread_num() { return 0; }
 #endif
 
 #include "STimer.cc"
+#include "correlate.h"
 #include "grid.h"
 #include "types.h"
 
@@ -325,7 +326,7 @@ int main(int argc, char *argv[]) {
   sep = g.setup_corr(sep, kmax);
   Histogram h(maxell, sep, dsep);
   Histogram kh(maxell, kmax, dk);
-  g.correlate(maxell, h, kh, wide_angle_exponent);
+  correlate(g, maxell, h, kh, wide_angle_exponent);
 
   Ylm_count.print(stdout);
   fprintf(stdout, "# Anisotropic power spectrum:\n");
