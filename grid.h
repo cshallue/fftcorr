@@ -41,7 +41,7 @@ class Grid {
     // will skip that one. sep is used here simply to adjust the box size if
     // needed. qperiodic flag will configure for periodic BC
 
-    // Have to set these to null so that the initialization will work_.
+    // Have to set these to null so that the initialization will work.
     dens_ = densFFT_ = work_ = NULL;
     rnorm_ = knorm_ = CICwindow_ = NULL;
 
@@ -143,7 +143,7 @@ class Grid {
     // The default 3d FFTW format must have the following:
     ngrid2_ = (ngrid_[2] / 2 + 1) * 2;  // For the in-place FFT
 #ifdef FFTSLAB
-// That said, the rest of the code should work_ even extra space is used.
+// That said, the rest of the code should work even if extra space is used.
 // Some operations will blindly apply to the pad cells, but that's ok.
 // In particular, we might consider having ngrid2_ be evenly divisible by
 // the critical alignment stride (32 bytes for AVX, but might be more for cache
@@ -312,7 +312,7 @@ class Grid {
     const int galsize = gal.size();
 
 #ifdef DEPRICATED
-    // This work_s, but appears to be slower
+    // This works, but appears to be slower
     for (int j = 0; j < galsize; j++) add_particle_to_grid(gal[j]);
 #else
     // If we're parallelizing this, then we need to keep the threads from
@@ -693,7 +693,7 @@ class Grid {
 
   void correlate(int maxell, Histogram &h, Histogram &kh,
                  int wide_angle_exponent) {
-    // Here's where most of the work_ occurs.
+    // Here's where most of the work occurs.
     // This computes the correlations for each ell, summing over m,
     // and then histograms the result.
     void makeYlm(Float * work_, int ell, int m, int n[3], int n1, Float *xcell_,
@@ -865,11 +865,11 @@ if (densFFT_[j]!=work_[j]) {
                       // assignment
 
   // The big grids
-  int ngrid2_;      // ngrid_[2] padded out for the FFT work_
+  int ngrid2_;      // ngrid_[2] padded out for the FFT work
   uint64 ngrid3_;   // The total number of FFT grid cells
   Float *dens_;     // The dens_ity field, in a flattened grid
   Float *densFFT_;  // The FFT of the dens_ity field, in a flattened grid.
-  Float *work_;     // work_ space for each (ell,m), in a flattened grid.
+  Float *work_;     // work space for each (ell,m), in a flattened grid.
 
   int cnt_;      // The number of galaxies read in.
   Float Pshot_;  // The sum of squares of the weights, which is the shot noise
