@@ -7,190 +7,145 @@
 #include "histogram.h"
 #include "matrix_utils.h"
 #include "merge_sort_omp.cpp"
+#include "spherical_harmonics.h"
 #include "types.h"
 
 class Grid {
  public:
-  // Inputs
-  int ngrid[3];     // We might prefer a non-cubic box.  The cells are always
-                    // cubic!
-  Float max_sep;    // How much separation has already been built in.
-  Float posmin[3];  // Including the border; we don't support periodic wrapping
-                    // in CIC
-  Float posmax[3];  // Including the border; we don't support periodic wrapping
-                    // in CIC
-
-  // Items to be computed
-  Float posrange[3];             // The range of the padded box
-  Float cell_size;               // The size of the cubic cells
-  Float origin[3];               // The location of the origin in grid units.
-  Float *xcell, *ycell, *zcell;  // The cell centers, relative to the origin
-
-  // Storage for the r-space submatrices
-  Float sep;     // The range of separations we'll be histogramming
-  int csize[3];  // How many cells we must extract as a submatrix to do the
-                 // histogramming.
-  int csize3;    // The number of submatrix cells
-  Float *cx_cell, *cy_cell,
-      *cz_cell;  // The cell centers, relative to zero lag.
-  Float *rnorm;  // The radius of each cell, in a flattened submatrix.
-
-  // Storage for the k-space submatrices
-  Float k_Nyq;   // The Nyquist frequency for our grid.
-  Float kmax;    // The maximum wavenumber we'll use
-  int ksize[3];  // How many cells we must extract as a submatrix to do the
-                 // histogramming.
-  int ksize3;    // The number of submatrix cells
-  Float *kx_cell, *ky_cell,
-      *kz_cell;      // The cell centers, relative to zero lag.
-  Float *knorm;      // The wavenumber of each cell, in a flattened submatrix.
-  Float *CICwindow;  // The inverse of the window function for the CIC cell
-                     // assignment
-
-  // The big grids
-  int ngrid2;      // ngrid[2] padded out for the FFT work
-  uint64 ngrid3;   // The total number of FFT grid cells
-  Float *dens;     // The density field, in a flattened grid
-  Float *densFFT;  // The FFT of the density field, in a flattened grid.
-  Float *work;     // Work space for each (ell,m), in a flattened grid.
-
-  int cnt;      // The number of galaxies read in.
-  Float Pshot;  // The sum of squares of the weights, which is the shot noise
-                // for P_0.
-
   // Positions need to arrive in a coordinate system that has the observer at
-  // the origin
+  // the origin_
 
   ~Grid() {
-    if (dens != NULL) free(dens);
-    if (densFFT != NULL) free(densFFT);
-    if (work != NULL) free(work);
-    free(zcell);
-    free(ycell);
-    free(xcell);
-    free(rnorm);
-    free(cx_cell);
-    free(cy_cell);
-    free(cz_cell);
-    free(knorm);
-    free(kx_cell);
-    free(ky_cell);
-    free(kz_cell);
-    free(CICwindow);
-    // *densFFT and *work are freed in the correlate() routine.
+    if (dens_ != NULL) free(dens_);
+    if (densFFT_ != NULL) free(densFFT_);
+    if (work_ != NULL) free(work_);
+    free(zcell_);
+    free(ycell_);
+    free(xcell_);
+    free(rnorm_);
+    free(cx_cell_);
+    free(cy_cell_);
+    free(cz_cell_);
+    free(knorm_);
+    free(kx_cell_);
+    free(ky_cell_);
+    free(kz_cell_);
+    free(CICwindow_);
+    // *densFFT_ and *work_ are freed in the correlate() routine.
   }
 
-  Grid(const char filename[], int _ngrid[3], Float _cell, Float _sep,
+  Grid(const char filename[], int ngrid[3], Float cell, Float sep,
        int qperiodic) {
     // This constructor is rather elaborate, but we're going to do most of the
     // setup. filename and filename2 are the input particles. filename2==NULL
-    // will skip that one. _sep is used here simply to adjust the box size if
+    // will skip that one. sep is used here simply to adjust the box size if
     // needed. qperiodic flag will configure for periodic BC
 
-    // Have to set these to null so that the initialization will work.
-    dens = densFFT = work = NULL;
-    rnorm = knorm = CICwindow = NULL;
+    // Have to set these to null so that the initialization will work_.
+    dens_ = densFFT_ = work_ = NULL;
+    rnorm_ = knorm_ = CICwindow_ = NULL;
 
     // Open a binary input file
     // Setup.Start();
     FILE *fp = fopen(filename, "rb");
     assert(fp != NULL);
 
-    for (int j = 0; j < 3; j++) ngrid[j] = _ngrid[j];
-    assert(ngrid[0] > 0 && ngrid[0] < 1e4);
-    assert(ngrid[1] > 0 && ngrid[1] < 1e4);
-    assert(ngrid[2] > 0 && ngrid[2] < 1e4);
+    for (int j = 0; j < 3; j++) ngrid_[j] = ngrid[j];
+    assert(ngrid_[0] > 0 && ngrid_[0] < 1e4);
+    assert(ngrid_[1] > 0 && ngrid_[1] < 1e4);
+    assert(ngrid_[2] > 0 && ngrid_[2] < 1e4);
 
     Float TOOBIG = 1e10;
     // This header is 64 bytes long.
-    // Read posmin[3], posmax[3], max_sep, blank8;
+    // Read posmin_[3], posmax_[3], max_sep_, blank8;
     double tmp[4];
     int nread;
     nread = fread(tmp, sizeof(double), 3, fp);
     assert(nread == 3);
     for (int j = 0; j < 3; j++) {
-      posmin[j] = tmp[j];
-      assert(fabs(posmin[j]) < TOOBIG);
-      fprintf(stderr, "posmin[%d] = %f\n", j, posmin[j]);
+      posmin_[j] = tmp[j];
+      assert(fabs(posmin_[j]) < TOOBIG);
+      fprintf(stderr, "posmin_[%d] = %f\n", j, posmin_[j]);
     }
     nread = fread(tmp, sizeof(double), 3, fp);
     assert(nread == 3);
     for (int j = 0; j < 3; j++) {
-      posmax[j] = tmp[j];
-      assert(fabs(posmax[j]) < TOOBIG);
-      fprintf(stderr, "posmax[%d] = %f\n", j, posmax[j]);
+      posmax_[j] = tmp[j];
+      assert(fabs(posmax_[j]) < TOOBIG);
+      fprintf(stderr, "posmax_[%d] = %f\n", j, posmax_[j]);
     }
     nread = fread(tmp, sizeof(double), 1, fp);
     assert(nread == 1);
-    max_sep = tmp[0];
-    assert(max_sep >= 0 && max_sep < TOOBIG);
-    fprintf(stderr, "max_sep = %f\n", max_sep);
+    max_sep_ = tmp[0];
+    assert(max_sep_ >= 0 && max_sep_ < TOOBIG);
+    fprintf(stderr, "max_sep_ = %f\n", max_sep_);
     nread = fread(tmp, sizeof(double), 1, fp);
     assert(nread == 1);  // Not used, just for alignment
     fclose(fp);
 
     // If we're going to permute the axes, change here and in
     // add_particles_to_grid(). The answers should be unchanged under
-    // permutation std::swap(posmin[0], posmin[1]); std::swap(posmax[0],
-    // posmax[1]); std::swap(posmin[2], posmin[1]); std::swap(posmax[2],
-    // posmax[1]);
+    // permutation std::swap(posmin_[0], posmin_[1]); std::swap(posmax_[0],
+    // posmax_[1]); std::swap(posmin_[2], posmin_[1]); std::swap(posmax_[2],
+    // posmax_[1]);
 
     // If the user wants periodic BC, then we can ignore separation issues.
-    if (qperiodic) max_sep = (posmax[0] - posmin[0]) * 100.0;
-    fprintf(stderr, "max_sep = %f\n", max_sep);
+    if (qperiodic) max_sep_ = (posmax_[0] - posmin_[0]) * 100.0;
+    fprintf(stderr, "max_sep_ = %f\n", max_sep_);
 
     // If the user asked for a larger separation than what was planned in the
     // input positions, then we can accomodate.  Add the extra padding to
-    // posrange; don't change posmin, since that changes grid registration.
+    // posrange_; don't change posmin_, since that changes grid registration.
     Float extra_pad = 0.0;
-    if (_sep > max_sep) {
-      extra_pad = _sep - max_sep;
-      max_sep = _sep;
+    if (sep > max_sep_) {
+      extra_pad = sep - max_sep_;
+      max_sep_ = sep;
     }
-    sep = -1;  // Just as a test that setup() got run
+    sep_ = -1;  // Just as a test that setup() got run
 
     // Compute the box size required in each direction
     for (int j = 0; j < 3; j++) {
-      posmax[j] += extra_pad;
-      posrange[j] = posmax[j] - posmin[j];
-      assert(posrange[j] > 0.0);
+      posmax_[j] += extra_pad;
+      posrange_[j] = posmax_[j] - posmin_[j];
+      assert(posrange_[j] > 0.0);
     }
 
-    if (qperiodic || _cell <= 0) {
+    if (qperiodic || cell <= 0) {
       // We need to compute the cell size
       // We've been given 3 ngrid and we have the bounding box.
       // Need to pick the most conservative choice
       // This is always required in the periodic case
-      cell_size =
-          std::max(posrange[0] / ngrid[0],
-                   std::max(posrange[1] / ngrid[1], posrange[2] / ngrid[2]));
+      cell_size_ = std::max(
+          posrange_[0] / ngrid_[0],
+          std::max(posrange_[1] / ngrid_[1], posrange_[2] / ngrid_[2]));
     } else {
       // We've been given a cell size and a grid.  Need to assure it is ok.
-      cell_size = _cell;
-      assert(cell_size * ngrid[0] > posrange[0]);
-      assert(cell_size * ngrid[1] > posrange[1]);
-      assert(cell_size * ngrid[2] > posrange[2]);
+      cell_size_ = cell;
+      assert(cell_size_ * ngrid_[0] > posrange_[0]);
+      assert(cell_size_ * ngrid_[1] > posrange_[1]);
+      assert(cell_size_ * ngrid_[2] > posrange_[2]);
     }
 
-    fprintf(stdout, "# Reading file %s.  max_sep=%f\n", filename, max_sep);
-    fprintf(stdout, "# Adopting cell_size=%f for ngrid=%d, %d, %d\n", cell_size,
-            ngrid[0], ngrid[1], ngrid[2]);
+    fprintf(stdout, "# Reading file %s.  max_sep_=%f\n", filename, max_sep_);
+    fprintf(stdout, "# Adopting cell_size_=%f for ngrid=%d, %d, %d\n",
+            cell_size_, ngrid_[0], ngrid_[1], ngrid_[2]);
     fprintf(stdout, "# Adopted boxsize: %6.1f %6.1f %6.1f\n",
-            cell_size * ngrid[0], cell_size * ngrid[1], cell_size * ngrid[2]);
-    fprintf(stdout, "# Input pos range: %6.1f %6.1f %6.1f\n", posrange[0],
-            posrange[1], posrange[2]);
+            cell_size_ * ngrid_[0], cell_size_ * ngrid_[1],
+            cell_size_ * ngrid_[2]);
+    fprintf(stdout, "# Input pos range: %6.1f %6.1f %6.1f\n", posrange_[0],
+            posrange_[1], posrange_[2]);
     fprintf(stdout, "# Minimum ngrid=%d, %d, %d\n",
-            int(ceil(posrange[0] / cell_size)),
-            int(ceil(posrange[1] / cell_size)),
-            int(ceil(posrange[2] / cell_size)));
+            int(ceil(posrange_[0] / cell_size_)),
+            int(ceil(posrange_[1] / cell_size_)),
+            int(ceil(posrange_[2] / cell_size_)));
 
-    // ngrid2 pads out the array for the in-place FFT.
+    // ngrid2_ pads out the array for the in-place FFT.
     // The default 3d FFTW format must have the following:
-    ngrid2 = (ngrid[2] / 2 + 1) * 2;  // For the in-place FFT
+    ngrid2_ = (ngrid_[2] / 2 + 1) * 2;  // For the in-place FFT
 #ifdef FFTSLAB
-// That said, the rest of the code should work even extra space is used.
+// That said, the rest of the code should work_ even extra space is used.
 // Some operations will blindly apply to the pad cells, but that's ok.
-// In particular, we might consider having ngrid2 be evenly divisible by
+// In particular, we might consider having ngrid2_ be evenly divisible by
 // the critical alignment stride (32 bytes for AVX, but might be more for cache
 // lines) or even by a full PAGE for NUMA memory.  Doing this *will* force a
 // more complicated FFT, but at least for the NUMA case this is desired: we want
@@ -199,46 +154,50 @@ class Grid {
 // alignment.
 #define FFT_ALIGN 16
     // This is in units of Floats.  16 doubles is 1024 bits.
-    ngrid2 = FFT_ALIGN * (ngrid2 / FFT_ALIGN + 1);
+    ngrid2_ = FFT_ALIGN * (ngrid2_ / FFT_ALIGN + 1);
 #endif
-    assert(ngrid2 % 2 == 0);
-    fprintf(stdout, "# Using ngrid2=%d for FFT r2c padding\n", ngrid2);
-    ngrid3 = (uint64)ngrid[0] * ngrid[1] * ngrid2;
+    assert(ngrid2_ % 2 == 0);
+    fprintf(stdout, "# Using ngrid2_=%d for FFT r2c padding\n", ngrid2_);
+    ngrid3_ = (uint64)ngrid_[0] * ngrid_[1] * ngrid2_;
 
-    // Convert origin to grid units
+    // Convert origin_ to grid units
     if (qperiodic) {
       // In this case, we'll place the observer centered in the grid, but
       // then displaced far away in the -x direction
-      for (int j = 0; j < 3; j++) origin[j] = ngrid[j] / 2.0;
-      origin[0] -= ngrid[0] * 1e6;  // Observer far away!
+      for (int j = 0; j < 3; j++) origin_[j] = ngrid_[j] / 2.0;
+      origin_[0] -= ngrid_[0] * 1e6;  // Observer far away!
     } else {
-      for (int j = 0; j < 3; j++) origin[j] = (0.0 - posmin[j]) / cell_size;
+      for (int j = 0; j < 3; j++) origin_[j] = (0.0 - posmin_[j]) / cell_size_;
     }
 
-    // Allocate xcell, ycell, zcell to [ngrid]
+    // Allocate xcell_, ycell_, zcell_ to [ngrid]
     int err;
-    err =
-        posix_memalign((void **)&xcell, PAGE, sizeof(Float) * ngrid[0] + PAGE);
+    err = posix_memalign((void **)&xcell_, PAGE,
+                         sizeof(Float) * ngrid_[0] + PAGE);
     assert(err == 0);
-    err =
-        posix_memalign((void **)&ycell, PAGE, sizeof(Float) * ngrid[1] + PAGE);
+    err = posix_memalign((void **)&ycell_, PAGE,
+                         sizeof(Float) * ngrid_[1] + PAGE);
     assert(err == 0);
-    err =
-        posix_memalign((void **)&zcell, PAGE, sizeof(Float) * ngrid[2] + PAGE);
+    err = posix_memalign((void **)&zcell_, PAGE,
+                         sizeof(Float) * ngrid_[2] + PAGE);
     assert(err == 0);
-    assert(xcell != NULL);
-    assert(ycell != NULL);
-    assert(zcell != NULL);
-    // Now set up the cell centers relative to the origin, in grid units
-    for (int j = 0; j < ngrid[0]; j++) xcell[j] = 0.5 + j - origin[0];
-    for (int j = 0; j < ngrid[1]; j++) ycell[j] = 0.5 + j - origin[1];
-    for (int j = 0; j < ngrid[2]; j++) zcell[j] = 0.5 + j - origin[2];
+    assert(xcell_ != NULL);
+    assert(ycell_ != NULL);
+    assert(zcell_ != NULL);
+    // Now set up the cell centers relative to the origin_, in grid units
+    for (int j = 0; j < ngrid_[0]; j++) xcell_[j] = 0.5 + j - origin_[0];
+    for (int j = 0; j < ngrid_[1]; j++) ycell_[j] = 0.5 + j - origin_[1];
+    for (int j = 0; j < ngrid_[2]; j++) zcell_[j] = 0.5 + j - origin_[2];
     // Setup.Stop();
 
-    // Allocate dens to [ngrid**2*ngrid2] and set it to zero
-    initialize_matrix(dens, ngrid3, ngrid[0]);
+    // Allocate dens_ to [ngrid**2*ngrid2_] and set it to zero
+    initialize_matrix(dens_, ngrid3_, ngrid_[0]);
     return;
   }
+
+  Float cell_size() { return cell_size_; }
+  Float ngrid3() { return ngrid3_; }
+  Float cnt() { return cnt_; }
 
   /* ------------------------------------------------------------------- */
 
@@ -249,7 +208,7 @@ class Grid {
     // We're setting up a large buffer to read in the galaxies.
     // Will reset the buffer periodically, just to limit the size.
     double tmp[8];
-    cnt = 0;
+    cnt_ = 0;
     uint64 index;
     Float totw = 0.0, totwsq = 0.0;
 // Set up a small buffer, just to reduce the calls to fread, which seem to be
@@ -264,7 +223,7 @@ class Grid {
     // IO.Start();
     for (int file = 0; file < 2; file++) {
       char *fn;
-      int thiscnt = 0;
+      int thiscnt_ = 0;
       if (file == 0)
         fn = (char *)filename;
       else
@@ -280,7 +239,7 @@ class Grid {
         for (int j = 0; j < nread; j += 4, b += 4) {
           index = change_to_grid_coords(b);
           gal.push_back(Galaxy(b, index));
-          thiscnt++;
+          thiscnt_++;
           totw += b[3];
           totwsq += b[3] * b[3];
           if (gal.size() >= MAXGAL) {
@@ -291,31 +250,31 @@ class Grid {
         }
         if (nread != BUFFERSIZE) break;
       }
-      cnt += thiscnt;
-      fprintf(stdout, "# Found %d galaxies in this file\n", thiscnt);
+      cnt_ += thiscnt_;
+      fprintf(stdout, "# Found %d galaxies in this file\n", thiscnt_);
       fclose(fp);
     }
     // IO.Stop();
     // Add the remaining galaxies to the grid
     add_to_grid(gal);
 
-    fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n", cnt, totw);
-    Float totw2 = sum_matrix(dens, ngrid3, ngrid[0]);
+    fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n", cnt_, totw);
+    Float totw2 = sum_matrix(dens_, ngrid3_, ngrid_[0]);
     fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
             totw2 - totw);
     if (qperiodic == 2) {
       // We're asked to set the mean to zero
-      Float mean = totw / ngrid[0] / ngrid[1] / ngrid[2];
-      addscalarto_matrix(dens, -mean, ngrid3, ngrid[0]);
-      fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
+      Float mean = totw / ngrid_[0] / ngrid_[1] / ngrid_[2];
+      addscalarto_matrix(dens_, -mean, ngrid3_, ngrid_[0]);
+      fprintf(stdout, "# Subtracting mean cell dens_ity %10.4e\n", mean);
     }
 
-    Float sumsq_dens = sumsq_matrix(dens, ngrid3, ngrid[0]);
-    fprintf(stdout, "# Sum of squares of density = %14.7e\n", sumsq_dens);
-    Pshot = totwsq;
+    Float sumsq_dens_ = sumsq_matrix(dens_, ngrid3_, ngrid_[0]);
+    fprintf(stdout, "# Sum of squares of dens_ity = %14.7e\n", sumsq_dens_);
+    Pshot_ = totwsq;
     fprintf(stdout,
-            "# Sum of squares of weights (divide by I for Pshot) = %14.7e\n",
-            Pshot);
+            "# Sum of squares of weights (divide by I for Pshot_) = %14.7e\n",
+            Pshot_);
 // When run with N=D-R, this divided by I would be the shot noise.
 
 // Meanwhile, an estimate of I when running with only R is
@@ -332,15 +291,15 @@ class Grid {
 #else
     fprintf(stdout, "# Using nearest cell method\n");
 #endif
-    Float Vcell = cell_size * cell_size * cell_size;
-    fprintf(stdout,
-            "# Estimate of I (denominator) = %14.7e - %14.7e = %14.7e\n",
-            sumsq_dens / Vcell, totwsq / Vcell, (sumsq_dens - totwsq) / Vcell);
+    Float Vcell = cell_size_ * cell_size_ * cell_size_;
+    fprintf(
+        stdout, "# Estimate of I (denominator) = %14.7e - %14.7e = %14.7e\n",
+        sumsq_dens_ / Vcell, totwsq / Vcell, (sumsq_dens_ - totwsq) / Vcell);
 
     // In the limit of infinite homogeneous particles in a periodic box:
     // If W=sum(w), then each particle has w = W/N.  totwsq = N*(W/N)^2 = W^2/N.
-    // Meanwhile, each cell has density (W/N)*(N/Ncell) = W/Ncell.
-    // sumsq_dens/Vcell = W^2/(Ncell*Vcell) = W^2/V.
+    // Meanwhile, each cell has dens_ity (W/N)*(N/Ncell) = W/Ncell.
+    // sumsq_dens_/Vcell = W^2/(Ncell*Vcell) = W^2/V.
     // Hence the real shot noise is V/N = 1/n.
     return;
   }
@@ -353,7 +312,7 @@ class Grid {
     const int galsize = gal.size();
 
 #ifdef DEPRICATED
-    // This works, but appears to be slower
+    // This work_s, but appears to be slower
     for (int j = 0; j < galsize; j++) add_particle_to_grid(gal[j]);
 #else
     // If we're parallelizing this, then we need to keep the threads from
@@ -373,10 +332,10 @@ class Grid {
     // Galaxies between N and N+1 should be in indices [first[N], first[N+1]).
     // That means that first[N] should be the index of the first galaxy to
     // exceed N.
-    int first[ngrid[0] + 1], ptr = 0;
+    int first[ngrid_[0] + 1], ptr = 0;
     for (int j = 0; j < galsize; j++)
       while (gal[j].x > ptr) first[ptr++] = j;
-    for (; ptr <= ngrid[0]; ptr++) first[ptr] = galsize;
+    for (; ptr <= ngrid_[0]; ptr++) first[ptr] = galsize;
 
     // Now, we'll loop, with each thread in charge of slab x.
     // Not bothering with NUMA issues.  a) Most of the time is spent waiting for
@@ -388,7 +347,7 @@ class Grid {
 #endif
     for (int mod = 0; mod < slabset; mod++) {
 #pragma omp parallel for schedule(dynamic, 1)
-      for (int x = mod; x < ngrid[0]; x += slabset) {
+      for (int x = mod; x < ngrid_[0]; x += slabset) {
         // For each slab, insert these particles
         for (int j = first[x]; j < first[x + 1]; j++)
           add_particle_to_grid(gal[j]);
@@ -406,19 +365,19 @@ class Grid {
   inline uint64 change_to_grid_coords(Float tmp[4]) {
     // Given tmp[4] = x,y,z,w,
     // Modify to put them in box coordinates.
-    // We'll have no use for the original coordinates!
+    // We'll have no use for the origin_al coordinates!
     // tmp[3] (w) is unchanged
-    tmp[0] = (tmp[0] - posmin[0]) / cell_size;
-    tmp[1] = (tmp[1] - posmin[1]) / cell_size;
-    tmp[2] = (tmp[2] - posmin[2]) / cell_size;
+    tmp[0] = (tmp[0] - posmin_[0]) / cell_size_;
+    tmp[1] = (tmp[1] - posmin_[1]) / cell_size_;
+    tmp[2] = (tmp[2] - posmin_[2]) / cell_size_;
     uint64 ix = floor(tmp[0]);
     uint64 iy = floor(tmp[1]);
     uint64 iz = floor(tmp[2]);
-    return (iz) + ngrid2 * ((iy) + (ix)*ngrid[1]);
+    return (iz) + ngrid2_ * ((iy) + (ix)*ngrid_[1]);
   }
 
   void add_particle_to_grid(Galaxy g) {
-    // Add one particle to the density grid.
+    // Add one particle to the dens_ity grid.
     // This does a 27-point triangular cloud-in-cell, unless one invokes
     // NEAREST_CELL.
     uint64 index;  // Trying not to assume that ngrid**3 won't spill 32-bits.
@@ -428,8 +387,8 @@ class Grid {
 
 // If we're just doing nearest cell.
 #ifdef NEAREST_CELL
-    index = (iz) + ngrid2 * ((iy) + (ix)*ngrid[1]);
-    dens[index] += g.w;
+    index = (iz) + ngrid2_ * ((iy) + (ix)*ngrid_[1]);
+    dens_[index] += g.w;
     return;
 #endif
 
@@ -445,20 +404,20 @@ class Grid {
     const Float *ywave = wave + sy * WCELLS;
     const Float *zwave = wave + sz * WCELLS;
     // This code does periodic wrapping
-    const uint64 ng0 = ngrid[0];
-    const uint64 ng1 = ngrid[1];
-    const uint64 ng2 = ngrid[2];
+    const uint64 ng0 = ngrid_[0];
+    const uint64 ng1 = ngrid_[1];
+    const uint64 ng2 = ngrid_[2];
     // Offset to the lower-most cell, taking care to handle unsigned int
     ix = (ix + ng0 + WMIN) % ng0;
     iy = (iy + ng1 + WMIN) % ng1;
     iz = (iz + ng2 + WMIN) % ng2;
-    Float *px = dens + ngrid2 * ng1 * ix;
-    for (int ox = 0; ox < WCELLS; ox++, px += ngrid2 * ng1) {
-      if (ix + ox == ng0) px -= ng0 * ng1 * ngrid2;  // Periodic wrap in X
+    Float *px = dens_ + ngrid2_ * ng1 * ix;
+    for (int ox = 0; ox < WCELLS; ox++, px += ngrid2_ * ng1) {
+      if (ix + ox == ng0) px -= ng0 * ng1 * ngrid2_;  // Periodic wrap in X
       Float Dx = xwave[ox] * g.w;
-      Float *py = px + iy * ngrid2;
-      for (int oy = 0; oy < WCELLS; oy++, py += ngrid2) {
-        if (iy + oy == ng1) py -= ng1 * ngrid2;  // Periodic wrap in Y
+      Float *py = px + iy * ngrid2_;
+      for (int oy = 0; oy < WCELLS; oy++, py += ngrid2_) {
+        if (iy + oy == ng1) py -= ng1 * ngrid2_;  // Periodic wrap in Y
         Float *pz = py + iz;
         Float Dxy = Dx * ywave[oy];
         if (iz + WCELLS > ng2) {  // Z Wrap is needed
@@ -489,199 +448,202 @@ class Grid {
     Float zp = 0.5 * rz * rz;
     Float z0 = 0.5 + rz - rz * rz;
     //
-    if (ix == 0 || ix == ngrid[0] - 1 || iy == 0 || iy == ngrid[1] - 1 ||
-        iz == 0 || iz == ngrid[2] - 1) {
+    if (ix == 0 || ix == ngrid_[0] - 1 || iy == 0 || iy == ngrid_[1] - 1 ||
+        iz == 0 || iz == ngrid_[2] - 1) {
       // This code does periodic wrapping
-      const uint64 ng0 = ngrid[0];
-      const uint64 ng1 = ngrid[1];
-      const uint64 ng2 = ngrid[2];
-      ix += ngrid[0];  // Just to put away any fears of negative mods
-      iy += ngrid[1];
-      iz += ngrid[2];
+      const uint64 ng0 = ngrid_[0];
+      const uint64 ng1 = ngrid_[1];
+      const uint64 ng2 = ngrid_[2];
+      ix += ngrid_[0];  // Just to put away any fears of negative mods
+      iy += ngrid_[1];
+      iz += ngrid_[2];
       const uint64 izm = (iz - 1) % ng2;
       const uint64 iz0 = (iz) % ng2;
       const uint64 izp = (iz + 1) % ng2;
       //
-      index = ngrid2 * (((iy - 1) % ng1) + ((ix - 1) % ng0) * ng1);
-      dens[index + izm] += xm * ym * zm;
-      dens[index + iz0] += xm * ym * z0;
-      dens[index + izp] += xm * ym * zp;
-      index = ngrid2 * (((iy) % ng1) + ((ix - 1) % ng0) * ng1);
-      dens[index + izm] += xm * y0 * zm;
-      dens[index + iz0] += xm * y0 * z0;
-      dens[index + izp] += xm * y0 * zp;
-      index = ngrid2 * (((iy + 1) % ng1) + ((ix - 1) % ng0) * ng1);
-      dens[index + izm] += xm * yp * zm;
-      dens[index + iz0] += xm * yp * z0;
-      dens[index + izp] += xm * yp * zp;
+      index = ngrid2_ * (((iy - 1) % ng1) + ((ix - 1) % ng0) * ng1);
+      dens_[index + izm] += xm * ym * zm;
+      dens_[index + iz0] += xm * ym * z0;
+      dens_[index + izp] += xm * ym * zp;
+      index = ngrid2_ * (((iy) % ng1) + ((ix - 1) % ng0) * ng1);
+      dens_[index + izm] += xm * y0 * zm;
+      dens_[index + iz0] += xm * y0 * z0;
+      dens_[index + izp] += xm * y0 * zp;
+      index = ngrid2_ * (((iy + 1) % ng1) + ((ix - 1) % ng0) * ng1);
+      dens_[index + izm] += xm * yp * zm;
+      dens_[index + iz0] += xm * yp * z0;
+      dens_[index + izp] += xm * yp * zp;
       //
-      index = ngrid2 * (((iy - 1) % ng1) + ((ix) % ng0) * ng1);
-      dens[index + izm] += x0 * ym * zm;
-      dens[index + iz0] += x0 * ym * z0;
-      dens[index + izp] += x0 * ym * zp;
-      index = ngrid2 * (((iy) % ng1) + ((ix) % ng0) * ng1);
-      dens[index + izm] += x0 * y0 * zm;
-      dens[index + iz0] += x0 * y0 * z0;
-      dens[index + izp] += x0 * y0 * zp;
-      index = ngrid2 * (((iy + 1) % ng1) + ((ix) % ng0) * ng1);
-      dens[index + izm] += x0 * yp * zm;
-      dens[index + iz0] += x0 * yp * z0;
-      dens[index + izp] += x0 * yp * zp;
+      index = ngrid2_ * (((iy - 1) % ng1) + ((ix) % ng0) * ng1);
+      dens_[index + izm] += x0 * ym * zm;
+      dens_[index + iz0] += x0 * ym * z0;
+      dens_[index + izp] += x0 * ym * zp;
+      index = ngrid2_ * (((iy) % ng1) + ((ix) % ng0) * ng1);
+      dens_[index + izm] += x0 * y0 * zm;
+      dens_[index + iz0] += x0 * y0 * z0;
+      dens_[index + izp] += x0 * y0 * zp;
+      index = ngrid2_ * (((iy + 1) % ng1) + ((ix) % ng0) * ng1);
+      dens_[index + izm] += x0 * yp * zm;
+      dens_[index + iz0] += x0 * yp * z0;
+      dens_[index + izp] += x0 * yp * zp;
       //
-      index = ngrid2 * (((iy - 1) % ng1) + ((ix + 1) % ng0) * ng1);
-      dens[index + izm] += xp * ym * zm;
-      dens[index + iz0] += xp * ym * z0;
-      dens[index + izp] += xp * ym * zp;
-      index = ngrid2 * (((iy) % ng1) + ((ix + 1) % ng0) * ng1);
-      dens[index + izm] += xp * y0 * zm;
-      dens[index + iz0] += xp * y0 * z0;
-      dens[index + izp] += xp * y0 * zp;
-      index = ngrid2 * (((iy + 1) % ng1) + ((ix + 1) % ng0) * ng1);
-      dens[index + izm] += xp * yp * zm;
-      dens[index + iz0] += xp * yp * z0;
-      dens[index + izp] += xp * yp * zp;
+      index = ngrid2_ * (((iy - 1) % ng1) + ((ix + 1) % ng0) * ng1);
+      dens_[index + izm] += xp * ym * zm;
+      dens_[index + iz0] += xp * ym * z0;
+      dens_[index + izp] += xp * ym * zp;
+      index = ngrid2_ * (((iy) % ng1) + ((ix + 1) % ng0) * ng1);
+      dens_[index + izm] += xp * y0 * zm;
+      dens_[index + iz0] += xp * y0 * z0;
+      dens_[index + izp] += xp * y0 * zp;
+      index = ngrid2_ * (((iy + 1) % ng1) + ((ix + 1) % ng0) * ng1);
+      dens_[index + izm] += xp * yp * zm;
+      dens_[index + iz0] += xp * yp * z0;
+      dens_[index + izp] += xp * yp * zp;
     } else {
       // This code is faster, but doesn't do periodic wrapping
-      index = (iz - 1) + ngrid2 * ((iy - 1) + (ix - 1) * ngrid[1]);
-      dens[index++] += xm * ym * zm;
-      dens[index++] += xm * ym * z0;
-      dens[index] += xm * ym * zp;
-      index += ngrid2 - 2;  // Step to the next row in y
-      dens[index++] += xm * y0 * zm;
-      dens[index++] += xm * y0 * z0;
-      dens[index] += xm * y0 * zp;
-      index += ngrid2 - 2;  // Step to the next row in y
-      dens[index++] += xm * yp * zm;
-      dens[index++] += xm * yp * z0;
-      dens[index] += xm * yp * zp;
-      index = (iz - 1) + ngrid2 * ((iy - 1) + ix * ngrid[1]);
-      dens[index++] += x0 * ym * zm;
-      dens[index++] += x0 * ym * z0;
-      dens[index] += x0 * ym * zp;
-      index += ngrid2 - 2;  // Step to the next row in y
-      dens[index++] += x0 * y0 * zm;
-      dens[index++] += x0 * y0 * z0;
-      dens[index] += x0 * y0 * zp;
-      index += ngrid2 - 2;  // Step to the next row in y
-      dens[index++] += x0 * yp * zm;
-      dens[index++] += x0 * yp * z0;
-      dens[index] += x0 * yp * zp;
-      index = (iz - 1) + ngrid2 * ((iy - 1) + (ix + 1) * ngrid[1]);
-      dens[index++] += xp * ym * zm;
-      dens[index++] += xp * ym * z0;
-      dens[index] += xp * ym * zp;
-      index += ngrid2 - 2;  // Step to the next row in y
-      dens[index++] += xp * y0 * zm;
-      dens[index++] += xp * y0 * z0;
-      dens[index] += xp * y0 * zp;
-      index += ngrid2 - 2;  // Step to the next row in y
-      dens[index++] += xp * yp * zm;
-      dens[index++] += xp * yp * z0;
-      dens[index] += xp * yp * zp;
+      index = (iz - 1) + ngrid2_ * ((iy - 1) + (ix - 1) * ngrid_[1]);
+      dens_[index++] += xm * ym * zm;
+      dens_[index++] += xm * ym * z0;
+      dens_[index] += xm * ym * zp;
+      index += ngrid2_ - 2;  // Step to the next row in y
+      dens_[index++] += xm * y0 * zm;
+      dens_[index++] += xm * y0 * z0;
+      dens_[index] += xm * y0 * zp;
+      index += ngrid2_ - 2;  // Step to the next row in y
+      dens_[index++] += xm * yp * zm;
+      dens_[index++] += xm * yp * z0;
+      dens_[index] += xm * yp * zp;
+      index = (iz - 1) + ngrid2_ * ((iy - 1) + ix * ngrid_[1]);
+      dens_[index++] += x0 * ym * zm;
+      dens_[index++] += x0 * ym * z0;
+      dens_[index] += x0 * ym * zp;
+      index += ngrid2_ - 2;  // Step to the next row in y
+      dens_[index++] += x0 * y0 * zm;
+      dens_[index++] += x0 * y0 * z0;
+      dens_[index] += x0 * y0 * zp;
+      index += ngrid2_ - 2;  // Step to the next row in y
+      dens_[index++] += x0 * yp * zm;
+      dens_[index++] += x0 * yp * z0;
+      dens_[index] += x0 * yp * zp;
+      index = (iz - 1) + ngrid2_ * ((iy - 1) + (ix + 1) * ngrid_[1]);
+      dens_[index++] += xp * ym * zm;
+      dens_[index++] += xp * ym * z0;
+      dens_[index] += xp * ym * zp;
+      index += ngrid2_ - 2;  // Step to the next row in y
+      dens_[index++] += xp * y0 * zm;
+      dens_[index++] += xp * y0 * z0;
+      dens_[index] += xp * y0 * zp;
+      index += ngrid2_ - 2;  // Step to the next row in y
+      dens_[index++] += xp * yp * zm;
+      dens_[index++] += xp * yp * z0;
+      dens_[index] += xp * yp * zp;
     }
   }
 
   /* ------------------------------------------------------------------- */
 
-  Float setup_corr(Float _sep, Float _kmax) {
+  Float setup_corr(Float sep, Float kmax) {
     // Set up the sub-matrix information, assuming that we'll extract
     // -sep..+sep cells around zero-lag.
-    // _sep<0 causes a default to the value in the file.
+    // sep<0 causes a default to the value in the file.
     // Setup.Start();
-    if (_sep < 0)
-      sep = max_sep;
+    if (sep < 0)
+      sep_ = max_sep_;
     else
-      sep = _sep;
-    fprintf(stdout, "# Chosen separation %f vs max %f\n", sep, max_sep);
-    assert(sep <= max_sep);
+      sep_ = sep;
+    fprintf(stdout, "# Chosen separation %f vs max %f\n", sep_, max_sep_);
+    assert(sep_ <= max_sep_);
 
-    int sep_cell = ceil(sep / cell_size);
-    csize[0] = 2 * sep_cell + 1;
-    csize[1] = csize[2] = csize[0];
-    assert(csize[0] % 2 == 1);
-    assert(csize[1] % 2 == 1);
-    assert(csize[2] % 2 == 1);
-    csize3 = csize[0] * csize[1] * csize[2];
-    // Allocate corr_cell to [csize] and rnorm to [csize**3]
+    int sep_cell = ceil(sep_ / cell_size_);
+    csize_[0] = 2 * sep_cell + 1;
+    csize_[1] = csize_[2] = csize_[0];
+    assert(csize_[0] % 2 == 1);
+    assert(csize_[1] % 2 == 1);
+    assert(csize_[2] % 2 == 1);
+    csize3_ = csize_[0] * csize_[1] * csize_[2];
+    // Allocate corr_cell to [csize_] and rnorm_ to [csize_**3]
     int err;
-    err = posix_memalign((void **)&cx_cell, PAGE,
-                         sizeof(Float) * csize[0] + PAGE);
+    err = posix_memalign((void **)&cx_cell_, PAGE,
+                         sizeof(Float) * csize_[0] + PAGE);
     assert(err == 0);
-    err = posix_memalign((void **)&cy_cell, PAGE,
-                         sizeof(Float) * csize[1] + PAGE);
+    err = posix_memalign((void **)&cy_cell_, PAGE,
+                         sizeof(Float) * csize_[1] + PAGE);
     assert(err == 0);
-    err = posix_memalign((void **)&cz_cell, PAGE,
-                         sizeof(Float) * csize[2] + PAGE);
+    err = posix_memalign((void **)&cz_cell_, PAGE,
+                         sizeof(Float) * csize_[2] + PAGE);
     assert(err == 0);
-    initialize_matrix(rnorm, csize3, csize[0]);
+    initialize_matrix(rnorm_, csize3_, csize_[0]);
 
-    // Normalizing by cell_size just so that the Ylm code can do the wide-angle
+    // Normalizing by cell_size_ just so that the Ylm code can do the wide-angle
     // corrections in the same units.
-    for (int i = 0; i < csize[0]; i++) cx_cell[i] = cell_size * (i - sep_cell);
-    for (int i = 0; i < csize[1]; i++) cy_cell[i] = cell_size * (i - sep_cell);
-    for (int i = 0; i < csize[2]; i++) cz_cell[i] = cell_size * (i - sep_cell);
+    for (int i = 0; i < csize_[0]; i++)
+      cx_cell_[i] = cell_size_ * (i - sep_cell);
+    for (int i = 0; i < csize_[1]; i++)
+      cy_cell_[i] = cell_size_ * (i - sep_cell);
+    for (int i = 0; i < csize_[2]; i++)
+      cz_cell_[i] = cell_size_ * (i - sep_cell);
 
-    for (uint64 i = 0; i < csize[0]; i++)
-      for (int j = 0; j < csize[1]; j++)
-        for (int k = 0; k < csize[2]; k++)
-          rnorm[k + csize[2] * (j + i * csize[1])] =
-              cell_size * sqrt((i - sep_cell) * (i - sep_cell) +
-                               (j - sep_cell) * (j - sep_cell) +
-                               (k - sep_cell) * (k - sep_cell));
+    for (uint64 i = 0; i < csize_[0]; i++)
+      for (int j = 0; j < csize_[1]; j++)
+        for (int k = 0; k < csize_[2]; k++)
+          rnorm_[k + csize_[2] * (j + i * csize_[1])] =
+              cell_size_ * sqrt((i - sep_cell) * (i - sep_cell) +
+                                (j - sep_cell) * (j - sep_cell) +
+                                (k - sep_cell) * (k - sep_cell));
     fprintf(stdout, "# Done setting up the separation submatrix of size +-%d\n",
             sep_cell);
 
-    // Our box has cubic-sized cells, so k_Nyquist is the same in all directions
-    // The spacing of modes is therefore 2*k_Nyq/ngrid
-    k_Nyq = M_PI / cell_size;
-    kmax = _kmax;
-    fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq = %6.4f\n",
-            kmax, k_Nyq);
+    // Our box has cubic-sized cells, so k_Nyq_uist is the same in all
+    // directions The spacing of modes is therefore 2*k_Nyq_/ngrid
+    k_Nyq_ = M_PI / cell_size_;
+    kmax_ = kmax;
+    fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq_ = %6.4f\n",
+            kmax_, k_Nyq_);
     for (int i = 0; i < 3; i++)
-      ksize[i] = 2 * ceil(kmax / (2.0 * k_Nyq / ngrid[i])) + 1;
-    assert(ksize[0] % 2 == 1);
-    assert(ksize[1] % 2 == 1);
-    assert(ksize[2] % 2 == 1);
+      ksize_[i] = 2 * ceil(kmax_ / (2.0 * k_Nyq_ / ngrid_[i])) + 1;
+    assert(ksize_[0] % 2 == 1);
+    assert(ksize_[1] % 2 == 1);
+    assert(ksize_[2] % 2 == 1);
     for (int i = 0; i < 3; i++)
-      if (ksize[i] > ngrid[i]) {
-        ksize[i] = 2 * floor(ngrid[i] / 2) + 1;
+      if (ksize_[i] > ngrid_[i]) {
+        ksize_[i] = 2 * floor(ngrid_[i] / 2) + 1;
         fprintf(stdout,
                 "# WARNING: Requested wavenumber is too big.  Truncating "
-                "ksize[%d] to %d\n",
-                i, ksize[i]);
+                "ksize_[%d] to %d\n",
+                i, ksize_[i]);
       }
 
-    ksize3 = ksize[0] * ksize[1] * ksize[2];
-    // Allocate kX_cell to [ksize] and knorm to [ksize**3]
-    err = posix_memalign((void **)&kx_cell, PAGE,
-                         sizeof(Float) * ksize[0] + PAGE);
+    ksize3_ = ksize_[0] * ksize_[1] * ksize_[2];
+    // Allocate kX_cell_ to [ksize_] and knorm_ to [ksize_**3]
+    err = posix_memalign((void **)&kx_cell_, PAGE,
+                         sizeof(Float) * ksize_[0] + PAGE);
     assert(err == 0);
-    err = posix_memalign((void **)&ky_cell, PAGE,
-                         sizeof(Float) * ksize[1] + PAGE);
+    err = posix_memalign((void **)&ky_cell_, PAGE,
+                         sizeof(Float) * ksize_[1] + PAGE);
     assert(err == 0);
-    err = posix_memalign((void **)&kz_cell, PAGE,
-                         sizeof(Float) * ksize[2] + PAGE);
+    err = posix_memalign((void **)&kz_cell_, PAGE,
+                         sizeof(Float) * ksize_[2] + PAGE);
     assert(err == 0);
-    initialize_matrix(knorm, ksize3, ksize[0]);
-    initialize_matrix(CICwindow, ksize3, ksize[0]);
+    initialize_matrix(knorm_, ksize3_, ksize_[0]);
+    initialize_matrix(CICwindow_, ksize3_, ksize_[0]);
 
-    for (int i = 0; i < ksize[0]; i++)
-      kx_cell[i] = (i - ksize[0] / 2) * 2.0 * k_Nyq / ngrid[0];
-    for (int i = 0; i < ksize[1]; i++)
-      ky_cell[i] = (i - ksize[1] / 2) * 2.0 * k_Nyq / ngrid[1];
-    for (int i = 0; i < ksize[2]; i++)
-      kz_cell[i] = (i - ksize[2] / 2) * 2.0 * k_Nyq / ngrid[2];
+    for (int i = 0; i < ksize_[0]; i++)
+      kx_cell_[i] = (i - ksize_[0] / 2) * 2.0 * k_Nyq_ / ngrid_[0];
+    for (int i = 0; i < ksize_[1]; i++)
+      ky_cell_[i] = (i - ksize_[1] / 2) * 2.0 * k_Nyq_ / ngrid_[1];
+    for (int i = 0; i < ksize_[2]; i++)
+      kz_cell_[i] = (i - ksize_[2] / 2) * 2.0 * k_Nyq_ / ngrid_[2];
 
-    for (uint64 i = 0; i < ksize[0]; i++)
-      for (int j = 0; j < ksize[1]; j++)
-        for (int k = 0; k < ksize[2]; k++) {
-          knorm[k + ksize[2] * (j + i * ksize[1])] =
-              sqrt(kx_cell[i] * kx_cell[i] + ky_cell[j] * ky_cell[j] +
-                   kz_cell[k] * kz_cell[k]);
+    for (uint64 i = 0; i < ksize_[0]; i++)
+      for (int j = 0; j < ksize_[1]; j++)
+        for (int k = 0; k < ksize_[2]; k++) {
+          knorm_[k + ksize_[2] * (j + i * ksize_[1])] =
+              sqrt(kx_cell_[i] * kx_cell_[i] + ky_cell_[j] * ky_cell_[j] +
+                   kz_cell_[k] * kz_cell_[k]);
           // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
-          Float sinkxL = sin(kx_cell[i] * cell_size / 2.0);
-          Float sinkyL = sin(ky_cell[j] * cell_size / 2.0);
-          Float sinkzL = sin(kz_cell[k] * cell_size / 2.0);
+          Float sinkxL = sin(kx_cell_[i] * cell_size_ / 2.0);
+          Float sinkyL = sin(ky_cell_[j] * cell_size_ / 2.0);
+          Float sinkzL = sin(kz_cell_[k] * cell_size_ / 2.0);
           sinkxL *= sinkxL;
           sinkyL *= sinkyL;
           sinkzL *= sinkzL;
@@ -698,16 +660,16 @@ class Grid {
           // For this case, the window is unity
           window = 1.0;
 #endif
-          CICwindow[k + ksize[2] * (j + i * ksize[1])] = 1.0 / window;
+          CICwindow_[k + ksize_[2] * (j + i * ksize_[1])] = 1.0 / window;
           // We will divide the power spectrum by the square of the window
         }
 
     fprintf(stdout,
             "# Done setting up the wavevector submatrix of size +-%d, %d, %d\n",
-            ksize[0] / 2, ksize[1] / 2, ksize[2] / 2);
+            ksize_[0] / 2, ksize_[1] / 2, ksize_[2] / 2);
 
     // Setup.Stop();
-    return sep;
+    return sep_;
   }
 
   void print_submatrix(Float *m, int n, int p, FILE *fp, Float norm) {
@@ -731,68 +693,68 @@ class Grid {
 
   void correlate(int maxell, Histogram &h, Histogram &kh,
                  int wide_angle_exponent) {
-    // Here's where most of the work occurs.
+    // Here's where most of the work_ occurs.
     // This computes the correlations for each ell, summing over m,
     // and then histograms the result.
-    void makeYlm(Float * work, int ell, int m, int n[3], int n1, Float *xcell,
-                 Float *ycell, Float *zcell, Float *dens, int exponent);
+    void makeYlm(Float * work_, int ell, int m, int n[3], int n1, Float *xcell_,
+                 Float *ycell_, Float *zcell_, Float *dens_, int exponent);
 
     // Multiply total by 4*pi, to match SE15 normalization
     // Include the FFTW normalization
-    Float norm = 4.0 * M_PI / ngrid[0] / ngrid[1] / ngrid[2];
+    Float norm = 4.0 * M_PI / ngrid_[0] / ngrid_[1] / ngrid_[2];
     Float Pnorm = 4.0 * M_PI;
-    assert(sep > 0);  // This is a check that the submatrix got set up.
+    assert(sep_ > 0);  // This is a check that the submatrix got set up.
 
-    // Allocate the work matrix and load it with the density
+    // Allocate the work_ matrix and load it with the dens_ity
     // We do this here so that the array is touched before FFT planning
-    initialize_matrix_by_copy(work, ngrid3, ngrid[0], dens);
+    initialize_matrix_by_copy(work_, ngrid3_, ngrid_[0], dens_);
 
-    // Allocate total[csize**3] and corr[csize**3]
+    // Allocate total[csize_**3] and corr[csize_**3]
     Float *total = NULL;
-    initialize_matrix(total, csize3, csize[0]);
+    initialize_matrix(total, csize3_, csize_[0]);
     Float *corr = NULL;
-    initialize_matrix(corr, csize3, csize[0]);
+    initialize_matrix(corr, csize3_, csize_[0]);
     Float *ktotal = NULL;
-    initialize_matrix(ktotal, ksize3, ksize[0]);
+    initialize_matrix(ktotal, ksize3_, ksize_[0]);
     Float *kcorr = NULL;
-    initialize_matrix(kcorr, ksize3, ksize[0]);
+    initialize_matrix(kcorr, ksize3_, ksize_[0]);
 
     /* Setup FFTW */
     fftw_plan fft, fftYZ, fftX, ifft, ifftYZ, ifftX;
-    setup_FFTW(fft, fftYZ, fftX, ifft, ifftYZ, ifftX, ngrid, ngrid2, work);
+    setup_FFTW(fft, fftYZ, fftX, ifft, ifftYZ, ifftX, ngrid_, ngrid2_, work_);
 
-    // FFTW might have destroyed the contents of work; need to restore
-    // work[]==dens[] So far, I haven't seen this happen.
-    if (dens[1] != work[1] || dens[1 + ngrid[2]] != work[1 + ngrid[2]] ||
-        dens[ngrid3 - 1] != work[ngrid3 - 1]) {
-      fprintf(stdout, "Restoring work matrix\n");
+    // FFTW might have destroyed the contents of work_; need to restore
+    // work_[]==dens_[] So far, I haven't seen this happen.
+    if (dens_[1] != work_[1] || dens_[1 + ngrid_[2]] != work_[1 + ngrid_[2]] ||
+        dens_[ngrid3_ - 1] != work_[ngrid3_ - 1]) {
+      fprintf(stdout, "Restoring work_ matrix\n");
       // Init.Start();
-      copy_matrix(work, dens, ngrid3, ngrid[0]);
+      copy_matrix(work_, dens_, ngrid3_, ngrid_[0]);
       // Init.Stop();
     }
 
-    // Correlate .Start();  // Starting the main work
-    // Now compute the FFT of the density field and conjugate it
-    // FFT(work) in place and conjugate it, storing in densFFT
-    fprintf(stdout, "# Computing the density FFT...");
+    // Correlate .Start();  // Starting the main work_
+    // Now compute the FFT of the dens_ity field and conjugate it
+    // FFT(work_) in place and conjugate it, storing in densFFT_
+    fprintf(stdout, "# Computing the dens_ity FFT...");
     fflush(NULL);
-    FFT_Execute(fft, fftYZ, fftX, ngrid, ngrid2, work);
+    FFT_Execute(fft, fftYZ, fftX, ngrid_, ngrid2_, work_);
 
     // Correlate.Stop();  // We're tracking initialization separately
-    initialize_matrix_by_copy(densFFT, ngrid3, ngrid[0], work);
+    initialize_matrix_by_copy(densFFT_, ngrid3_, ngrid_[0], work_);
     fprintf(stdout, "Done!\n");
     fflush(NULL);
     // Correlate.Start();
 
     // Let's try a check as well -- convert with the 3D code and compare
-    /* copy_matrix(work, dens, ngrid3, ngrid[0]);
+    /* copy_matrix(work_, dens_, ngrid3_, ngrid_[0]);
 fftw_execute(fft);
-for (uint64 j=0; j<ngrid3; j++)
-if (densFFT[j]!=work[j]) {
-    int z = j%ngrid2;
-    int y = j/ngrid2; y=y%ngrid2;
-    int x = j/ngrid[1]/ngrid2;
-    printf("%d %d %d  %f  %f\n", x, y, z, densFFT[j], work[j]);
+for (uint64 j=0; j<ngrid3_; j++)
+if (densFFT_[j]!=work_[j]) {
+    int z = j%ngrid2_;
+    int y = j/ngrid2_; y=y%ngrid2_;
+    int x = j/ngrid_[1]/ngrid2_;
+    printf("%d %d %d  %f  %f\n", x, y, z, densFFT_[j], work_[j]);
 }
 */
 
@@ -800,62 +762,62 @@ if (densFFT[j]!=work[j]) {
     // Loop over each ell to compute the anisotropic correlations
     for (int ell = 0; ell <= maxell; ell += 2) {
       // Initialize the submatrix
-      set_matrix(total, 0.0, csize3, csize[0]);
-      set_matrix(ktotal, 0.0, ksize3, ksize[0]);
+      set_matrix(total, 0.0, csize3_, csize_[0]);
+      set_matrix(ktotal, 0.0, ksize3_, ksize_[0]);
       // Loop over m
       for (int m = -ell; m <= ell; m++) {
         fprintf(stdout, "# Computing %d %2d...", ell, m);
-        // Create the Ylm matrix times dens
-        makeYlm(work, ell, m, ngrid, ngrid2, xcell, ycell, zcell, dens,
+        // Create the Ylm matrix times dens_
+        makeYlm(work_, ell, m, ngrid_, ngrid2_, xcell_, ycell_, zcell_, dens_,
                 -wide_angle_exponent);
         fprintf(stdout, "Ylm...");
 
         // FFT in place
-        FFT_Execute(fft, fftYZ, fftX, ngrid, ngrid2, work);
+        FFT_Execute(fft, fftYZ, fftX, ngrid_, ngrid2_, work_);
 
-        // Multiply by conj(densFFT), as complex numbers
+        // Multiply by conj(densFFT_), as complex numbers
         // AtimesB.Start();
-        multiply_matrix_with_conjugation((Complex *)work, (Complex *)densFFT,
-                                         ngrid3 / 2, ngrid[0]);
+        multiply_matrix_with_conjugation((Complex *)work_, (Complex *)densFFT_,
+                                         ngrid3_ / 2, ngrid_[0]);
         // AtimesB.Stop();
 
         // Extract the anisotropic power spectrum
-        // Load the Ylm's and include the CICwindow correction
-        makeYlm(kcorr, ell, m, ksize, ksize[2], kx_cell, ky_cell, kz_cell,
-                CICwindow, wide_angle_exponent);
+        // Load the Ylm's and include the CICwindow_ correction
+        makeYlm(kcorr, ell, m, ksize_, ksize_[2], kx_cell_, ky_cell_, kz_cell_,
+                CICwindow_, wide_angle_exponent);
         // Multiply these Ylm by the power result, and then add to total.
-        extract_submatrix_C2R(ktotal, kcorr, ksize, (Complex *)work, ngrid,
-                              ngrid2);
+        extract_submatrix_C2R(ktotal, kcorr, ksize_, (Complex *)work_, ngrid_,
+                              ngrid2_);
 
         // iFFT the result, in place
-        IFFT_Execute(ifft, ifftYZ, ifftX, ngrid, ngrid2, work);
+        IFFT_Execute(ifft, ifftYZ, ifftX, ngrid_, ngrid2_, work_);
         fprintf(stdout, "FFT...");
 
         // Create Ylm for the submatrix that we'll extract for histogramming
         // The extra multiplication by one here is of negligible cost, since
         // this array is so much smaller than the FFT grid.
-        makeYlm(corr, ell, m, csize, csize[2], cx_cell, cy_cell, cz_cell, NULL,
-                wide_angle_exponent);
+        makeYlm(corr, ell, m, csize_, csize_[2], cx_cell_, cy_cell_, cz_cell_,
+                NULL, wide_angle_exponent);
 
         // Multiply these Ylm by the correlation result, and then add to total.
-        extract_submatrix(total, corr, csize, work, ngrid, ngrid2);
+        extract_submatrix(total, corr, csize_, work_, ngrid_, ngrid2_);
 
         fprintf(stdout, "Done!\n");
       }
 
       // Extract.Start();
-      scale_matrix(total, norm, csize3, csize[0]);
-      scale_matrix(ktotal, Pnorm, ksize3, ksize[0]);
+      scale_matrix(total, norm, csize3_, csize_[0]);
+      scale_matrix(ktotal, Pnorm, ksize3_, ksize_[0]);
       // Extract.Stop();
-      // Histogram total by rnorm
+      // Histogram total by rnorm_
       // Hist.Start();
-      h.histcorr(ell, csize3, rnorm, total);
-      kh.histcorr(ell, ksize3, knorm, ktotal);
+      h.histcorr(ell, csize3_, rnorm_, total);
+      kh.histcorr(ell, ksize3_, knorm_, ktotal);
       // Hist.Stop();
     }
 
     /* ------------------- Clean up -------------------*/
-    // Free densFFT and Ylm
+    // Free densFFT_ and Ylm
     free(corr);
     free(total);
     free(kcorr);
@@ -864,6 +826,54 @@ if (densFFT[j]!=work[j]) {
 
     // Correlate.Stop();
   }
-};  // end Grid
+
+ private:
+  // Inputs
+  int ngrid_[3];     // We might prefer a non-cubic box.  The cells are always
+                     // cubic!
+  Float max_sep_;    // How much separation has already been built in.
+  Float posmin_[3];  // Including the border; we don't support periodic wrapping
+                     // in CIC
+  Float posmax_[3];  // Including the border; we don't support periodic wrapping
+                     // in CIC
+
+  // Items to be computed
+  Float posrange_[3];  // The range of the padded box
+  Float cell_size_;    // The size of the cubic cells
+  Float origin_[3];    // The location of the origin_ in grid units.
+  Float *xcell_, *ycell_, *zcell_;  // The cell centers, relative to the origin_
+
+  // Storage for the r-space submatrices
+  Float sep_;     // The range of separations we'll be histogramming
+  int csize_[3];  // How many cells we must extract as a submatrix to do the
+                  // histogramming.
+  int csize3_;    // The number of submatrix cells
+  // The cell centers, relative to zero lag.
+  Float *cx_cell_, *cy_cell_, *cz_cell_;
+  Float *rnorm_;  // The radius of each cell, in a flattened submatrix.
+
+  // Storage for the k-space submatrices
+  Float k_Nyq_;   // The Nyquist frequency for our grid.
+  Float kmax_;    // The maximum wavenumber we'll use
+  int ksize_[3];  // How many cells we must extract as a submatrix to do the
+                  // histogramming.
+  int ksize3_;    // The number of submatrix cells
+  // The cell centers, relative to zero lag.
+  Float *kx_cell_, *ky_cell_, *kz_cell_;
+  Float *knorm_;      // The wavenumber of each cell, in a flattened submatrix.
+  Float *CICwindow_;  // The inverse of the window function for the CIC cell
+                      // assignment
+
+  // The big grids
+  int ngrid2_;      // ngrid_[2] padded out for the FFT work_
+  uint64 ngrid3_;   // The total number of FFT grid cells
+  Float *dens_;     // The dens_ity field, in a flattened grid
+  Float *densFFT_;  // The FFT of the dens_ity field, in a flattened grid.
+  Float *work_;     // work_ space for each (ell,m), in a flattened grid.
+
+  int cnt_;      // The number of galaxies read in.
+  Float Pshot_;  // The sum of squares of the weights, which is the shot noise
+                 // for P_0.
+};               // end Grid
 
 #endif  // GRID_H

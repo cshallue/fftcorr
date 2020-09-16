@@ -3,6 +3,8 @@
 
 #include <assert.h>
 
+#include "types.h"
+
 /* ===============================  FFTW wrapper routines =====================
  */
 
