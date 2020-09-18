@@ -3,6 +3,7 @@
 
 #include <assert.h>
 
+#include "fft_utils.h"
 #include "grid.h"
 #include "types.h"
 
@@ -16,9 +17,10 @@ void correlate(Grid &g, int maxell, Histogram &h, Histogram &kh,
   Float Pnorm = 4.0 * M_PI;
   assert(g.sep_ > 0);  // This is a check that the submatrix got set up.
 
-  // Allocate the work_ matrix and load it with the dens_ity
+  // Allocate the work matrix and load it with the density
   // We do this here so that the array is touched before FFT planning
-  initialize_matrix_by_copy(g.work_, g.ngrid3_, g.ngrid_[0], g.dens_);
+  Float *work = NULL;  // work space for each (ell,m), in a flattened grid.
+  initialize_matrix_by_copy(work, g.ngrid3_, g.ngrid_[0], g.dens_);
 
   // Allocate total[csize_**3] and corr[csize_**3]
   Float *total = NULL;
@@ -32,42 +34,41 @@ void correlate(Grid &g, int maxell, Histogram &h, Histogram &kh,
 
   /* Setup FFTW */
   fftw_plan fft, fftYZ, fftX, ifft, ifftYZ, ifftX;
-  setup_FFTW(fft, fftYZ, fftX, ifft, ifftYZ, ifftX, g.ngrid_, g.ngrid2_,
-             g.work_);
+  setup_FFTW(fft, fftYZ, fftX, ifft, ifftYZ, ifftX, g.ngrid_, g.ngrid2_, work);
 
-  // FFTW might have destroyed the contents of work_; need to restore
-  // work_[]==dens_[] So far, I haven't seen this happen.
-  if (g.dens_[1] != g.work_[1] ||
-      g.dens_[1 + g.ngrid_[2]] != g.work_[1 + g.ngrid_[2]] ||
-      g.dens_[g.ngrid3_ - 1] != g.work_[g.ngrid3_ - 1]) {
-    fprintf(stdout, "Restoring work_ matrix\n");
+  // FFTW might have destroyed the contents of work; need to restore
+  // work[]==dens_[] So far, I haven't seen this happen.
+  if (g.dens_[1] != work[1] ||
+      g.dens_[1 + g.ngrid_[2]] != work[1 + g.ngrid_[2]] ||
+      g.dens_[g.ngrid3_ - 1] != work[g.ngrid3_ - 1]) {
+    fprintf(stdout, "Restoring work matrix\n");
     // Init.Start();
-    copy_matrix(g.work_, g.dens_, g.ngrid3_, g.ngrid_[0]);
+    copy_matrix(work, g.dens_, g.ngrid3_, g.ngrid_[0]);
     // Init.Stop();
   }
 
-  // Correlate .Start();  // Starting the main work_
-  // Now compute the FFT of the dens_ity field and conjugate it
-  // FFT(work_) in place and conjugate it, storing in densFFT_
-  fprintf(stdout, "# Computing the dens_ity FFT...");
+  // Correlate .Start();  // Starting the main work
+  // Now compute the FFT of the density field and conjugate it
+  // FFT(work) in place and conjugate it, storing in densFFT_
+  fprintf(stdout, "# Computing the density FFT...");
   fflush(NULL);
-  FFT_Execute(fft, fftYZ, fftX, g.ngrid_, g.ngrid2_, g.work_);
+  FFT_Execute(fft, fftYZ, fftX, g.ngrid_, g.ngrid2_, work);
 
   // Correlate.Stop();  // We're tracking initialization separately
-  initialize_matrix_by_copy(g.densFFT_, g.ngrid3_, g.ngrid_[0], g.work_);
+  initialize_matrix_by_copy(g.densFFT_, g.ngrid3_, g.ngrid_[0], work);
   fprintf(stdout, "Done!\n");
   fflush(NULL);
   // Correlate.Start();
 
   // Let's try a check as well -- convert with the 3D code and compare
-  /* copy_matrix(work_, dens_, ngrid3_, ngrid_[0]);
+  /* copy_matrix(work, dens_, ngrid3_, ngrid_[0]);
 fftw_execute(fft);
 for (uint64 j=0; j<ngrid3_; j++)
-if (densFFT_[j]!=work_[j]) {
+if (densFFT_[j]!=work[j]) {
   int z = j%ngrid2_;
   int y = j/ngrid2_; y=y%ngrid2_;
   int x = j/ngrid_[1]/ngrid2_;
-  printf("%d %d %d  %f  %f\n", x, y, z, densFFT_[j], work_[j]);
+  printf("%d %d %d  %f  %f\n", x, y, z, densFFT_[j], work[j]);
 }
 */
 
@@ -81,18 +82,17 @@ if (densFFT_[j]!=work_[j]) {
     for (int m = -ell; m <= ell; m++) {
       fprintf(stdout, "# Computing %d %2d...", ell, m);
       // Create the Ylm matrix times dens_
-      makeYlm(g.work_, ell, m, g.ngrid_, g.ngrid2_, g.xcell_, g.ycell_,
-              g.zcell_, g.dens_, -wide_angle_exponent);
+      makeYlm(work, ell, m, g.ngrid_, g.ngrid2_, g.xcell_, g.ycell_, g.zcell_,
+              g.dens_, -wide_angle_exponent);
       fprintf(stdout, "Ylm...");
 
       // FFT in place
-      FFT_Execute(fft, fftYZ, fftX, g.ngrid_, g.ngrid2_, g.work_);
+      FFT_Execute(fft, fftYZ, fftX, g.ngrid_, g.ngrid2_, work);
 
       // Multiply by conj(densFFT_), as complex numbers
       // AtimesB.Start();
-      multiply_matrix_with_conjugation((Complex *)g.work_,
-                                       (Complex *)g.densFFT_, g.ngrid3_ / 2,
-                                       g.ngrid_[0]);
+      multiply_matrix_with_conjugation((Complex *)work, (Complex *)g.densFFT_,
+                                       g.ngrid3_ / 2, g.ngrid_[0]);
       // AtimesB.Stop();
 
       // Extract the anisotropic power spectrum
@@ -100,11 +100,11 @@ if (densFFT_[j]!=work_[j]) {
       makeYlm(kcorr, ell, m, g.ksize_, g.ksize_[2], g.kx_cell_, g.ky_cell_,
               g.kz_cell_, g.CICwindow_, wide_angle_exponent);
       // Multiply these Ylm by the power result, and then add to total.
-      extract_submatrix_C2R(ktotal, kcorr, g.ksize_, (Complex *)g.work_,
-                            g.ngrid_, g.ngrid2_);
+      extract_submatrix_C2R(ktotal, kcorr, g.ksize_, (Complex *)work, g.ngrid_,
+                            g.ngrid2_);
 
       // iFFT the result, in place
-      IFFT_Execute(ifft, ifftYZ, ifftX, g.ngrid_, g.ngrid2_, g.work_);
+      IFFT_Execute(ifft, ifftYZ, ifftX, g.ngrid_, g.ngrid2_, work);
       fprintf(stdout, "FFT...");
 
       // Create Ylm for the submatrix that we'll extract for histogramming
@@ -114,7 +114,7 @@ if (densFFT_[j]!=work_[j]) {
               g.cz_cell_, NULL, wide_angle_exponent);
 
       // Multiply these Ylm by the correlation result, and then add to total.
-      extract_submatrix(total, corr, g.csize_, g.work_, g.ngrid_, g.ngrid2_);
+      extract_submatrix(total, corr, g.csize_, work, g.ngrid_, g.ngrid2_);
 
       fprintf(stdout, "Done!\n");
     }
@@ -131,6 +131,7 @@ if (densFFT_[j]!=work_[j]) {
   }
 
   /* ------------------- Clean up -------------------*/
+  free(work);
   // Free densFFT_ and Ylm
   free(corr);
   free(total);
