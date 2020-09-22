@@ -16,7 +16,6 @@ class Grid {
 
   ~Grid() {
     if (dens_ != NULL) free(dens_);
-    if (densFFT_ != NULL) free(densFFT_);
     free(zcell_);
     free(ycell_);
     free(xcell_);
@@ -29,7 +28,6 @@ class Grid {
     free(ky_cell_);
     free(kz_cell_);
     free(CICwindow_);
-    // *densFFT_ is freed in the correlate() routine.
   }
 
   Grid(const char filename[], int ngrid[3], Float cell, Float sep,
@@ -40,7 +38,7 @@ class Grid {
     // needed. qperiodic flag will configure for periodic BC
 
     // Have to set these to null so that the initialization will work.
-    dens_ = densFFT_ = NULL;
+    dens_ = NULL;
     rnorm_ = knorm_ = CICwindow_ = NULL;
 
     // Open a binary input file
@@ -578,10 +576,9 @@ class Grid {
                       // assignment
 
   // The big grids
-  int ngrid2_;      // ngrid_[2] padded out for the FFT work
-  uint64 ngrid3_;   // The total number of FFT grid cells
-  Float *dens_;     // The density field, in a flattened grid
-  Float *densFFT_;  // The FFT of the density field, in a flattened grid.
+  int ngrid2_;     // ngrid_[2] padded out for the FFT work
+  uint64 ngrid3_;  // The total number of FFT grid cells
+  Float *dens_;    // The density field, in a flattened grid
 
   int cnt_;      // The number of galaxies read in.
   Float Pshot_;  // The sum of squares of the weights, which is the shot noise

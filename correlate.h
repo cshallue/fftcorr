@@ -149,7 +149,8 @@ void correlate(Grid &g, int maxell, Histogram &h, Histogram &kh,
 
   // Allocate the work matrix and load it with the density
   // We do this here so that the array is touched before FFT planning
-  Float *work = NULL;  // work space for each (ell,m), in a flattened grid.
+  Float *densFFT = NULL;  // The FFT of the density field, in a flattened grid.
+  Float *work = NULL;     // work space for each (ell,m), in a flattened grid.
   initialize_matrix_by_copy(work, g.ngrid3_, g.ngrid_[0], g.dens_);
 
   // Allocate total[g.csize_**3] and corr[g.csize_**3]
@@ -179,13 +180,13 @@ void correlate(Grid &g, int maxell, Histogram &h, Histogram &kh,
 
   // Correlate .Start();  // Starting the main work
   // Now compute the FFT of the density field and conjugate it
-  // FFT(work) in place and conjugate it, storing in densFFT_
+  // FFT(work) in place and conjugate it, storing in densFFT
   fprintf(stdout, "# Computing the density FFT...");
   fflush(NULL);
   FFT_Execute(fft, fftYZ, fftX, g.ngrid_, g.ngrid2_, work);
 
   // Correlate.Stop();  // We're tracking initialization separately
-  initialize_matrix_by_copy(g.densFFT_, g.ngrid3_, g.ngrid_[0], work);
+  initialize_matrix_by_copy(densFFT, g.ngrid3_, g.ngrid_[0], work);
   fprintf(stdout, "Done!\n");
   fflush(NULL);
   // Correlate.Start();
@@ -194,11 +195,11 @@ void correlate(Grid &g, int maxell, Histogram &h, Histogram &kh,
   /* copy_matrix(work, dens_, ngrid3_, g.ngrid_[0]);
 fftw_execute(fft);
 for (uint64 j=0; j<ngrid3_; j++)
-if (densFFT_[j]!=work[j]) {
+if (densFFT[j]!=work[j]) {
   int z = j%ngrid2_;
   int y = j/ngrid2_; y=y%ngrid2_;
   int x = j/ngrid_[1]/ngrid2_;
-  printf("%d %d %d  %f  %f\n", x, y, z, densFFT_[j], work[j]);
+  printf("%d %d %d  %f  %f\n", x, y, z, densFFT[j], work[j]);
 }
 */
 
@@ -219,9 +220,9 @@ if (densFFT_[j]!=work[j]) {
       // FFT in place
       FFT_Execute(fft, fftYZ, fftX, g.ngrid_, g.ngrid2_, work);
 
-      // Multiply by conj(densFFT_), as complex numbers
+      // Multiply by conj(densFFT), as complex numbers
       // AtimesB.Start();
-      multiply_matrix_with_conjugation((Complex *)work, (Complex *)g.densFFT_,
+      multiply_matrix_with_conjugation((Complex *)work, (Complex *)densFFT,
                                        g.ngrid3_ / 2, g.ngrid_[0]);
       // AtimesB.Stop();
 
@@ -262,7 +263,7 @@ if (densFFT_[j]!=work[j]) {
 
   /* ------------------- Clean up -------------------*/
   free(work);
-  // Free densFFT_ and Ylm
+  free(densFFT);
   free(corr);
   free(total);
   free(kcorr);
