@@ -46,14 +46,19 @@ void setup_FFTW(fftw_plan &fft, fftw_plan &fftYZ, fftw_plan &fftX,
   int nfft[3], nfftc[3];
   nfft[0] = nfftc[0] = ngrid[0];
   nfft[1] = nfftc[1] = ngrid[1];
-  nfft[2] = ngrid2;  // Since ngrid2 is always even, this will trick
-  nfftc[2] = nfft[2] / 2;
+  // Since ngrid2 is always even, this will trick
   // FFTW to assume ngrid2/2 Complex numbers in the result, while
   // fulfilling that nfft[2]>=ngrid[2].
-  fft = fftw_plan_many_dft_r2c(3, ngrid, 1, work, nfft, 1, 0,
-                               (fftw_complex *)work, nfftc, 1, 0, FFTW_MEASURE);
-  ifft = fftw_plan_many_dft_c2r(3, ngrid, 1, (fftw_complex *)work, nfftc, 1, 0,
-                                work, nfft, 1, 0, FFTW_MEASURE);
+  nfft[2] = ngrid2;
+  nfftc[2] = nfft[2] / 2;
+  fftw_complex *cwork = (fftw_complex *)work;  // Interpret work as complex.
+  int howmany = 1;  // Only one forward and inverse FFT.
+  int dist = 0;     // Unused because howmany = 1.
+  int stride = 1;   // Array is continuous in memory.
+  fft = fftw_plan_many_dft_r2c(3, ngrid, howmany, work, nfft, stride, dist,
+                               cwork, nfftc, stride, dist, FFTW_MEASURE);
+  ifft = fftw_plan_many_dft_c2r(3, ngrid, howmany, cwork, nfftc, stride, dist,
+                                work, nfft, stride, dist, FFTW_MEASURE);
 
   /*	// The original interface, which only works if ngrid2 is tightly packed.
   fft = fftw_plan_dft_r2c_3d(ngrid[0], ngrid[1], ngrid[2],
