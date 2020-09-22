@@ -670,23 +670,6 @@ class Grid {
     return sep_;
   }
 
-  void print_submatrix(Float *m, int n, int p, FILE *fp, Float norm) {
-    // Print the inner part of a matrix(n,n,n) for debugging
-    int mid = n / 2;
-    assert(p <= mid);
-    for (int i = -p; i <= p; i++)
-      for (int j = -p; j <= p; j++) {
-        fprintf(fp, "%2d %2d", i, j);
-        for (int k = -p; k <= p; k++) {
-          // We want to print mid+i, mid+j, mid+k
-          fprintf(fp, " %12.8g",
-                  m[((mid + i) * n + (mid + j)) * n + mid + k] * norm);
-        }
-        fprintf(fp, "\n");
-      }
-    return;
-  }
-
   // private:
   // Inputs
   int ngrid_[3];     // We might prefer a non-cubic box.  The cells are always
