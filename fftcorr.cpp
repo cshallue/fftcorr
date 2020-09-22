@@ -323,7 +323,7 @@ int main(int argc, char *argv[]) {
   fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
   g.read_galaxies(infile, infile2, qperiodic);
   // The input grid is now in g.dens
-  sep = g.setup_corr(sep, kmax);
+  sep = setup_corr(g, sep, kmax);
   Histogram h(maxell, sep, dsep);
   Histogram kh(maxell, kmax, dk);
   correlate(g, maxell, h, kh, wide_angle_exponent);
