@@ -249,7 +249,7 @@ int main(int argc, char *argv[]) {
   int ngridCube = 256;
   int qperiodic = 0;
   int ngrid[3] = {-1, -1, -1};
-  Float cell = -123.0;  // Default to what's implied by the file
+  Float cell_size = -123.0;  // Default to what's implied by the file
   const char default_fname[] = "/tmp/corrRR.dat";
   char *infile = NULL;
   char *infile2 = NULL;
@@ -276,7 +276,7 @@ int main(int argc, char *argv[]) {
     else if (!strcmp(argv[i], "-dk") || !strcmp(argv[i], "-dk"))
       dk = atof(argv[++i]);
     else if (!strcmp(argv[i], "-cell") || !strcmp(argv[i], "-c"))
-      cell = atof(argv[++i]);
+      cell_size = atof(argv[++i]);
     else if (!strcmp(argv[i], "-in") || !strcmp(argv[i], "-i"))
       infile = argv[++i];
     else if (!strcmp(argv[i], "-in2") || !strcmp(argv[i], "-i2"))
@@ -353,7 +353,7 @@ int main(int argc, char *argv[]) {
     posmax[j] = header.posmax_[j] + extra_pad;
   }
 
-  Grid g(posmin, posmax, ngrid, cell, sep, qperiodic);
+  Grid g(posmin, posmax, ngrid, cell_size, sep, qperiodic);
   fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
   g.read_galaxies(infile, infile2, qperiodic);
   // The input grid is now in g.dens

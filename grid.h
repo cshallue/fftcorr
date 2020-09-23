@@ -21,8 +21,8 @@ class Grid {
     free(xcell_);
   }
 
-  Grid(Float posmin[3], Float posmax[3], int ngrid[3], Float cell, Float sep,
-       int qperiodic) {
+  Grid(Float posmin[3], Float posmax[3], int ngrid[3], Float cell_size,
+       Float sep, int qperiodic) {
     // This constructor is rather elaborate, but we're going to do most of the
     // setup. sep is used here simply to adjust the box size if
     // needed. qperiodic flag will configure for periodic BC
@@ -40,7 +40,7 @@ class Grid {
     // Have to set these to null so that the initialization will work.
     dens_ = NULL;
 
-    if (qperiodic || cell <= 0) {
+    if (qperiodic || cell_size <= 0) {
       // We need to compute the cell size
       // We've been given 3 ngrid and we have the bounding box.
       // Need to pick the most conservative choice
@@ -50,7 +50,7 @@ class Grid {
           std::max(posrange_[1] / ngrid_[1], posrange_[2] / ngrid_[2]));
     } else {
       // We've been given a cell size and a grid.  Need to assure it is ok.
-      cell_size_ = cell;
+      cell_size_ = cell_size;
       assert(cell_size_ * ngrid_[0] > posrange_[0]);
       assert(cell_size_ * ngrid_[1] > posrange_[1]);
       assert(cell_size_ * ngrid_[2] > posrange_[2]);
