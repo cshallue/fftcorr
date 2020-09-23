@@ -60,56 +60,63 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
           sep_cell);
 
   // Our box has cubic-sized cells, so k_Nyquist is the same in all
-  // directions. The spacing of modes is therefore 2*g.k_Nyq_/ngrid
-  g.k_Nyq_ = M_PI / g.cell_size_;
-  g.kmax_ = kmax;
-  fprintf(stdout, "# Storing wavenumbers up to %6.4f, with g.k_Nyq_ = %6.4f\n",
-          g.kmax_, g.k_Nyq_);
+  // directions. The spacing of modes is therefore 2*k_Nyq/ngrid
+  Float k_Nyq = M_PI / g.cell_size_;  // The Nyquist frequency for our grid.
+  fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq = %6.4f\n",
+          kmax, k_Nyq);
+  // How many cells we must extract as a submatrix to do the histogramming.
+  int ksize[3];
   for (int i = 0; i < 3; i++)
-    g.ksize_[i] = 2 * ceil(g.kmax_ / (2.0 * g.k_Nyq_ / g.ngrid_[i])) + 1;
-  assert(g.ksize_[0] % 2 == 1);
-  assert(g.ksize_[1] % 2 == 1);
-  assert(g.ksize_[2] % 2 == 1);
+    ksize[i] = 2 * ceil(kmax / (2.0 * k_Nyq / g.ngrid_[i])) + 1;
+  assert(ksize[0] % 2 == 1);
+  assert(ksize[1] % 2 == 1);
+  assert(ksize[2] % 2 == 1);
   for (int i = 0; i < 3; i++)
-    if (g.ksize_[i] > g.ngrid_[i]) {
-      g.ksize_[i] = 2 * floor(g.ngrid_[i] / 2) + 1;
+    if (ksize[i] > g.ngrid_[i]) {
+      ksize[i] = 2 * floor(g.ngrid_[i] / 2) + 1;
       fprintf(stdout,
               "# WARNING: Requested wavenumber is too big.  Truncating "
               "ksize_[%d] to %d\n",
-              i, g.ksize_[i]);
+              i, ksize[i]);
     }
-
-  g.ksize3_ = g.ksize_[0] * g.ksize_[1] * g.ksize_[2];
-  // Allocate g.kx_cell_ to [ksize_] and knorm_ to [ksize_**3]
-  err = posix_memalign((void **)&g.kx_cell_, PAGE,
-                       sizeof(Float) * g.ksize_[0] + PAGE);
+  // The number of submatrix cells.
+  int ksize3 = ksize[0] * ksize[1] * ksize[2];
+  // The cell centers, relative to zero lag.
+  // Allocate kx_cell to [ksize_] and knorm_ to [ksize_**3]
+  Float *kx_cell, *ky_cell, *kz_cell;
+  err =
+      posix_memalign((void **)&kx_cell, PAGE, sizeof(Float) * ksize[0] + PAGE);
   assert(err == 0);
-  err = posix_memalign((void **)&g.ky_cell_, PAGE,
-                       sizeof(Float) * g.ksize_[1] + PAGE);
+  err =
+      posix_memalign((void **)&ky_cell, PAGE, sizeof(Float) * ksize[1] + PAGE);
   assert(err == 0);
-  err = posix_memalign((void **)&g.kz_cell_, PAGE,
-                       sizeof(Float) * g.ksize_[2] + PAGE);
+  err =
+      posix_memalign((void **)&kz_cell, PAGE, sizeof(Float) * ksize[2] + PAGE);
   assert(err == 0);
-  initialize_matrix(g.knorm_, g.ksize3_, g.ksize_[0]);
-  initialize_matrix(g.CICwindow_, g.ksize3_, g.ksize_[0]);
+  // The wavenumber of each cell, in a flattened submatrix.
+  Float *knorm = NULL;
+  initialize_matrix(knorm, ksize3, ksize[0]);
+  // The inverse of the window function for the CIC cell assignment.
+  Float *CICwindow = NULL;
+  initialize_matrix(CICwindow, ksize3, ksize[0]);
 
-  for (int i = 0; i < g.ksize_[0]; i++)
-    g.kx_cell_[i] = (i - g.ksize_[0] / 2) * 2.0 * g.k_Nyq_ / g.ngrid_[0];
-  for (int i = 0; i < g.ksize_[1]; i++)
-    g.ky_cell_[i] = (i - g.ksize_[1] / 2) * 2.0 * g.k_Nyq_ / g.ngrid_[1];
-  for (int i = 0; i < g.ksize_[2]; i++)
-    g.kz_cell_[i] = (i - g.ksize_[2] / 2) * 2.0 * g.k_Nyq_ / g.ngrid_[2];
+  for (int i = 0; i < ksize[0]; i++)
+    kx_cell[i] = (i - ksize[0] / 2) * 2.0 * k_Nyq / g.ngrid_[0];
+  for (int i = 0; i < ksize[1]; i++)
+    ky_cell[i] = (i - ksize[1] / 2) * 2.0 * k_Nyq / g.ngrid_[1];
+  for (int i = 0; i < ksize[2]; i++)
+    kz_cell[i] = (i - ksize[2] / 2) * 2.0 * k_Nyq / g.ngrid_[2];
 
-  for (uint64 i = 0; i < g.ksize_[0]; i++)
-    for (int j = 0; j < g.ksize_[1]; j++)
-      for (int k = 0; k < g.ksize_[2]; k++) {
-        g.knorm_[k + g.ksize_[2] * (j + i * g.ksize_[1])] =
-            sqrt(g.kx_cell_[i] * g.kx_cell_[i] + g.ky_cell_[j] * g.ky_cell_[j] +
-                 g.kz_cell_[k] * g.kz_cell_[k]);
+  for (uint64 i = 0; i < ksize[0]; i++)
+    for (int j = 0; j < ksize[1]; j++)
+      for (int k = 0; k < ksize[2]; k++) {
+        knorm[k + ksize[2] * (j + i * ksize[1])] =
+            sqrt(kx_cell[i] * kx_cell[i] + ky_cell[j] * ky_cell[j] +
+                 kz_cell[k] * kz_cell[k]);
         // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
-        Float sinkxL = sin(g.kx_cell_[i] * g.cell_size_ / 2.0);
-        Float sinkyL = sin(g.ky_cell_[j] * g.cell_size_ / 2.0);
-        Float sinkzL = sin(g.kz_cell_[k] * g.cell_size_ / 2.0);
+        Float sinkxL = sin(kx_cell[i] * g.cell_size_ / 2.0);
+        Float sinkyL = sin(ky_cell[j] * g.cell_size_ / 2.0);
+        Float sinkzL = sin(kz_cell[k] * g.cell_size_ / 2.0);
         sinkxL *= sinkxL;
         sinkyL *= sinkyL;
         sinkzL *= sinkzL;
@@ -126,13 +133,13 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
         // For this case, the window is unity
         window = 1.0;
 #endif
-        g.CICwindow_[k + g.ksize_[2] * (j + i * g.ksize_[1])] = 1.0 / window;
+        CICwindow[k + ksize[2] * (j + i * ksize[1])] = 1.0 / window;
         // We will divide the power spectrum by the square of the window
       }
 
   fprintf(stdout,
           "# Done setting up the wavevector submatrix of size +-%d, %d, %d\n",
-          g.ksize_[0] / 2, g.ksize_[1] / 2, g.ksize_[2] / 2);
+          ksize[0] / 2, ksize[1] / 2, ksize[2] / 2);
 
   // Setup.Stop();
 
@@ -154,9 +161,9 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   Float *corr = NULL;
   initialize_matrix(corr, csize3, csize[0]);
   Float *ktotal = NULL;
-  initialize_matrix(ktotal, g.ksize3_, g.ksize_[0]);
+  initialize_matrix(ktotal, ksize3, ksize[0]);
   Float *kcorr = NULL;
-  initialize_matrix(kcorr, g.ksize3_, g.ksize_[0]);
+  initialize_matrix(kcorr, ksize3, ksize[0]);
 
   /* Setup FFTW */
   fftw_plan fft, fftYZ, fftX, ifft, ifftYZ, ifftX;
@@ -204,7 +211,7 @@ if (densFFT[j]!=work[j]) {
   for (int ell = 0; ell <= maxell; ell += 2) {
     // Initialize the submatrix
     set_matrix(total, 0.0, csize3, csize[0]);
-    set_matrix(ktotal, 0.0, g.ksize3_, g.ksize_[0]);
+    set_matrix(ktotal, 0.0, ksize3, ksize[0]);
     // Loop over m
     for (int m = -ell; m <= ell; m++) {
       fprintf(stdout, "# Computing %d %2d...", ell, m);
@@ -223,11 +230,11 @@ if (densFFT[j]!=work[j]) {
       // AtimesB.Stop();
 
       // Extract the anisotropic power spectrum
-      // Load the Ylm's and include the CICwindow_ correction
-      makeYlm(kcorr, ell, m, g.ksize_, g.ksize_[2], g.kx_cell_, g.ky_cell_,
-              g.kz_cell_, g.CICwindow_, wide_angle_exponent);
+      // Load the Ylm's and include the CICwindow correction
+      makeYlm(kcorr, ell, m, ksize, ksize[2], kx_cell, ky_cell, kz_cell,
+              CICwindow, wide_angle_exponent);
       // Multiply these Ylm by the power result, and then add to total.
-      extract_submatrix_C2R(ktotal, kcorr, g.ksize_, (Complex *)work, g.ngrid_,
+      extract_submatrix_C2R(ktotal, kcorr, ksize, (Complex *)work, g.ngrid_,
                             g.ngrid2_);
 
       // iFFT the result, in place
@@ -248,12 +255,12 @@ if (densFFT[j]!=work[j]) {
 
     // Extract.Start();
     scale_matrix(total, norm, csize3, csize[0]);
-    scale_matrix(ktotal, Pnorm, g.ksize3_, g.ksize_[0]);
+    scale_matrix(ktotal, Pnorm, ksize3, ksize[0]);
     // Extract.Stop();
     // Histogram total by rnorm
     // Hist.Start();
     h.histcorr(ell, csize3, rnorm, total);
-    kh.histcorr(ell, g.ksize3_, g.knorm_, ktotal);
+    kh.histcorr(ell, ksize3, knorm, ktotal);
     // Hist.Stop();
   }
 
@@ -262,6 +269,11 @@ if (densFFT[j]!=work[j]) {
   free(cx_cell);
   free(cy_cell);
   free(cz_cell);
+  free(knorm);
+  free(kx_cell);
+  free(ky_cell);
+  free(kz_cell);
+  free(CICwindow);
   free(work);
   free(densFFT);
   free(corr);

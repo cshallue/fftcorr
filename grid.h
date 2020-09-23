@@ -19,11 +19,6 @@ class Grid {
     free(zcell_);
     free(ycell_);
     free(xcell_);
-    free(knorm_);
-    free(kx_cell_);
-    free(ky_cell_);
-    free(kz_cell_);
-    free(CICwindow_);
   }
 
   Grid(const char filename[], int ngrid[3], Float cell, Float sep,
@@ -35,7 +30,6 @@ class Grid {
 
     // Have to set these to null so that the initialization will work.
     dens_ = NULL;
-    knorm_ = CICwindow_ = NULL;
 
     // Open a binary input file
     // Setup.Start();
@@ -548,18 +542,6 @@ class Grid {
   Float cell_size_;    // The size of the cubic cells
   Float origin_[3];    // The location of the origin_ in grid units.
   Float *xcell_, *ycell_, *zcell_;  // The cell centers, relative to the origin_
-
-  // Storage for the k-space submatrices
-  Float k_Nyq_;   // The Nyquist frequency for our grid.
-  Float kmax_;    // The maximum wavenumber we'll use
-  int ksize_[3];  // How many cells we must extract as a submatrix to do the
-                  // histogramming.
-  int ksize3_;    // The number of submatrix cells
-  // The cell centers, relative to zero lag.
-  Float *kx_cell_, *ky_cell_, *kz_cell_;
-  Float *knorm_;      // The wavenumber of each cell, in a flattened submatrix.
-  Float *CICwindow_;  // The inverse of the window function for the CIC cell
-                      // assignment
 
   // The big grids
   int ngrid2_;     // ngrid_[2] padded out for the FFT work
