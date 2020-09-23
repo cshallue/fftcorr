@@ -156,8 +156,9 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
 
   // Allocate the work matrix and load it with the density
   // We do this here so that the array is touched before FFT planning
+  Float *dens = g.dens();
   Float *work = NULL;  // work space for each (ell,m), in a flattened grid.
-  initialize_matrix_by_copy(work, ngrid3, ngrid[0], g.dens_);
+  initialize_matrix_by_copy(work, ngrid3, ngrid[0], dens);
 
   // Allocate total[csize**3] and corr[csize**3]
   Float *total = NULL;
@@ -175,11 +176,11 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
 
   // FFTW might have destroyed the contents of work; need to restore
   // work[]==dens_[] So far, I haven't seen this happen.
-  if (g.dens_[1] != work[1] || g.dens_[1 + ngrid[2]] != work[1 + ngrid[2]] ||
-      g.dens_[ngrid3 - 1] != work[ngrid3 - 1]) {
+  if (dens[1] != work[1] || dens[1 + ngrid[2]] != work[1 + ngrid[2]] ||
+      dens[ngrid3 - 1] != work[ngrid3 - 1]) {
     fprintf(stdout, "Restoring work matrix\n");
     // Init.Start();
-    copy_matrix(work, g.dens_, ngrid3, ngrid[0]);
+    copy_matrix(work, dens, ngrid3, ngrid[0]);
     // Init.Stop();
   }
 
@@ -219,8 +220,8 @@ if (densFFT[j]!=work[j]) {
     for (int m = -ell; m <= ell; m++) {
       fprintf(stdout, "# Computing %d %2d...", ell, m);
       // Create the Ylm matrix times dens_
-      makeYlm(work, ell, m, ngrid, ngrid2, g.xcell_, g.ycell_, g.zcell_,
-              g.dens_, -wide_angle_exponent);
+      makeYlm(work, ell, m, ngrid, ngrid2, g.xcell_, g.ycell_, g.zcell_, dens,
+              -wide_angle_exponent);
       fprintf(stdout, "Ylm...");
 
       // FFT in place
