@@ -220,8 +220,8 @@ if (densFFT[j]!=work[j]) {
     for (int m = -ell; m <= ell; m++) {
       fprintf(stdout, "# Computing %d %2d...", ell, m);
       // Create the Ylm matrix times dens_
-      makeYlm(work, ell, m, ngrid, ngrid2, g.xcell_, g.ycell_, g.zcell_, dens,
-              -wide_angle_exponent);
+      makeYlm(work, ell, m, ngrid, ngrid2, g.xcell(), g.ycell(), g.zcell(),
+              dens, -wide_angle_exponent);
       fprintf(stdout, "Ylm...");
 
       // FFT in place
