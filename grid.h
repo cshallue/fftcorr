@@ -97,7 +97,6 @@ class Grid {
       extra_pad = sep - max_sep_;
       max_sep_ = sep;
     }
-    sep_ = -1;  // Just as a test that setup() got run
 
     // Compute the box size required in each direction
     for (int j = 0; j < 3; j++) {
@@ -555,7 +554,6 @@ class Grid {
   Float *xcell_, *ycell_, *zcell_;  // The cell centers, relative to the origin_
 
   // Storage for the r-space submatrices
-  Float sep_;     // The range of separations we'll be histogramming
   int csize_[3];  // How many cells we must extract as a submatrix to do the
                   // histogramming.
   int csize3_;    // The number of submatrix cells

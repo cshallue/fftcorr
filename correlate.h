@@ -7,19 +7,15 @@
 #include "grid.h"
 #include "types.h"
 
-Float setup_corr(Grid &g, Float sep, Float kmax) {
+void setup_corr(Grid &g, Float sep, Float kmax) {
   // Set up the sub-matrix information, assuming that we'll extract
   // -sep..+sep cells around zero-lag.
   // sep<0 causes a default to the value in the file.
   // Setup.Start();
-  if (sep < 0)
-    g.sep_ = g.max_sep_;
-  else
-    g.sep_ = sep;
-  fprintf(stdout, "# Chosen separation %f vs max %f\n", g.sep_, g.max_sep_);
-  assert(g.sep_ <= g.max_sep_);
+  fprintf(stdout, "# Chosen separation %f vs max %f\n", sep, g.max_sep_);
+  assert(sep <= g.max_sep_);
 
-  int sep_cell = ceil(g.sep_ / g.cell_size_);
+  int sep_cell = ceil(sep / g.cell_size_);
   g.csize_[0] = 2 * sep_cell + 1;
   g.csize_[1] = g.csize_[2] = g.csize_[0];
   assert(g.csize_[0] % 2 == 1);
@@ -58,8 +54,8 @@ Float setup_corr(Grid &g, Float sep, Float kmax) {
   fprintf(stdout, "# Done setting up the separation submatrix of size +-%d\n",
           sep_cell);
 
-  // Our box has cubic-sized cells, so g.k_Nyq_uist is the same in all
-  // directions The spacing of modes is therefore 2*g.k_Nyq_/ngrid
+  // Our box has cubic-sized cells, so k_Nyquist is the same in all
+  // directions. The spacing of modes is therefore 2*g.k_Nyq_/ngrid
   g.k_Nyq_ = M_PI / g.cell_size_;
   g.kmax_ = kmax;
   fprintf(stdout, "# Storing wavenumbers up to %6.4f, with g.k_Nyq_ = %6.4f\n",
@@ -134,7 +130,6 @@ Float setup_corr(Grid &g, Float sep, Float kmax) {
           g.ksize_[0] / 2, g.ksize_[1] / 2, g.ksize_[2] / 2);
 
   // Setup.Stop();
-  return g.sep_;
 }
 
 void correlate(Grid &g, int maxell, Histogram &h, Histogram &kh,
@@ -145,12 +140,10 @@ void correlate(Grid &g, int maxell, Histogram &h, Histogram &kh,
   // Include the FFTW normalization
   Float norm = 4.0 * M_PI / g.ngrid_[0] / g.ngrid_[1] / g.ngrid_[2];
   Float Pnorm = 4.0 * M_PI;
-  assert(g.sep_ > 0);  // This is a check that the submatrix got set up.
 
   // Allocate the work matrix and load it with the density
   // We do this here so that the array is touched before FFT planning
-  Float *densFFT = NULL;  // The FFT of the density field, in a flattened grid.
-  Float *work = NULL;     // work space for each (ell,m), in a flattened grid.
+  Float *work = NULL;  // work space for each (ell,m), in a flattened grid.
   initialize_matrix_by_copy(work, g.ngrid3_, g.ngrid_[0], g.dens_);
 
   // Allocate total[g.csize_**3] and corr[g.csize_**3]
@@ -186,6 +179,7 @@ void correlate(Grid &g, int maxell, Histogram &h, Histogram &kh,
   FFT_Execute(fft, fftYZ, fftX, g.ngrid_, g.ngrid2_, work);
 
   // Correlate.Stop();  // We're tracking initialization separately
+  Float *densFFT = NULL;  // The FFT of the density field, in a flattened grid.
   initialize_matrix_by_copy(densFFT, g.ngrid3_, g.ngrid_[0], work);
   fprintf(stdout, "Done!\n");
   fflush(NULL);

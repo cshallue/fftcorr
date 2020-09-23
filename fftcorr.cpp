@@ -298,8 +298,8 @@ int main(int argc, char *argv[]) {
   assert(dsep > 0.0);
   assert(kmax != 0.0);
   assert(dk > 0.0);
-  assert(qperiodic == 0 ||
-         sep > 0);  // If qperiodic is set, user must supply a sep
+  // If qperiodic is set, user must supply a sep
+  assert(qperiodic == 0 || sep > 0);
   if (infile == NULL) infile = (char *)default_fname;
   if (outfile != NULL) {
     printf("%s", outfile);
@@ -323,7 +323,8 @@ int main(int argc, char *argv[]) {
   fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
   g.read_galaxies(infile, infile2, qperiodic);
   // The input grid is now in g.dens
-  sep = setup_corr(g, sep, kmax);
+  if (sep < 0) sep = g.max_sep_;
+  setup_corr(g, sep, kmax);
   Histogram h(maxell, sep, dsep);
   Histogram kh(maxell, kmax, dk);
   correlate(g, maxell, h, kh, wide_angle_exponent);
