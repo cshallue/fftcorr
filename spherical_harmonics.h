@@ -9,7 +9,7 @@
 /* ============== Spherical Harmonic routine ============== */
 
 void makeYlm(Float *Ylm, int ell, int m, int n[3], int n1, Float *xcell,
-             Float *ycell, Float *z, Float *dens, int exponent) {
+             Float *ycell, Float *z, const Float *dens, int exponent) {
   // We're not actually returning Ylm here.
   // m>0 will return Re(Y_lm)*sqrt(2)
   // m<0 will return Im(Y_l|m|)*sqrt(2)
@@ -74,7 +74,7 @@ void makeYlm(Float *Ylm, int ell, int m, int n[3], int n1, Float *xcell,
     assert(err == 0);
     Float x = xcell[i], x2 = x * x;
     Float *Y = Ylm + i * n[1] * n1;
-    Float *D = dens + i * n[1] * n1;
+    const Float *D = dens + i * n[1] * n1;
     Float *R;
     for (int j = 0; j < n[1]; j++, Y += n1, D += n1) {
       if (dens == NULL) D = ones;

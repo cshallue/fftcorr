@@ -69,7 +69,7 @@ void initialize_matrix(Float *&m, const uint64 size, const int nx) {
 }
 
 void initialize_matrix_by_copy(Float *&m, const uint64 size, const int nx,
-                               Float *copy) {
+                               const Float *copy) {
   // Initialize a matrix m and set it to copy[size].
   // nx will be our slab decomposition; it must divide into size evenly
   // Warning: This will only allocate new space if m==NULL.  This allows
@@ -154,7 +154,7 @@ void addscalarto_matrix(Float *a, const Float b, const uint64 size,
 #endif
 }
 
-void copy_matrix(Float *a, Float *b, const uint64 size, const int nx) {
+void copy_matrix(Float *a, const Float *b, const uint64 size, const int nx) {
   // Set a equal to a vector b
   // nx will be our slab decomposition; it must divide into size evenly
   assert(size % nx == 0);
@@ -172,7 +172,7 @@ void copy_matrix(Float *a, Float *b, const uint64 size, const int nx) {
 #endif
 }
 
-void copy_matrix(Float *a, Float *b, const Float c, const uint64 size,
+void copy_matrix(Float *a, const Float *b, const Float c, const uint64 size,
                  const int nx) {
   // Set a equal to a vector b times a scalar c
   // nx will be our slab decomposition; it must divide into size evenly

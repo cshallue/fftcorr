@@ -528,7 +528,7 @@ class Grid {
   int *ngrid() { return ngrid_; }
   int ngrid2() { return ngrid2_; }
   Float ngrid3() { return ngrid3_; }
-  Float *dens() { return dens_; };
+  const Float *dens() { return dens_; };
   Float *xcell() { return xcell_; }
   Float *ycell() { return ycell_; }
   Float *zcell() { return zcell_; }

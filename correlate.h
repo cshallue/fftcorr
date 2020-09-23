@@ -156,7 +156,7 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
 
   // Allocate the work matrix and load it with the density
   // We do this here so that the array is touched before FFT planning
-  Float *dens = g.dens();
+  const Float *dens = g.dens();
   Float *work = NULL;  // work space for each (ell,m), in a flattened grid.
   initialize_matrix_by_copy(work, ngrid3, ngrid[0], dens);
 
