@@ -37,11 +37,11 @@ class CatalogHeader {
 
     assert(max_sep_ >= 0);
 
-    fprintf(stderr, "posmin = [%.4f, %.4f, %.4f]", posmin_[0], posmin_[1],
+    fprintf(stderr, "posmin = [%.4f, %.4f, %.4f]\n", posmin_[0], posmin_[1],
             posmin_[2]);
-    fprintf(stderr, "posmax = [%.4f, %.4f, %.4f]", posmax_[0], posmax_[1],
+    fprintf(stderr, "posmax = [%.4f, %.4f, %.4f]\n", posmax_[0], posmax_[1],
             posmax_[2]);
-    fprintf(stderr, "max_sep_ = %f\n", max_sep_);
+    fprintf(stderr, "max_sep = %f\n", max_sep_);
   }
 };
 

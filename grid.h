@@ -12,7 +12,7 @@
 class Grid {
  public:
   // Positions need to arrive in a coordinate system that has the observer at
-  // the origin_
+  // the origin
 
   ~Grid() {
     if (dens_ != NULL) free(dens_);
@@ -21,52 +21,16 @@ class Grid {
     free(xcell_);
   }
 
-  Grid(Float posmin[3], Float posmax[3], int ngrid[3], Float cell_size,
-       Float sep, int qperiodic) {
-    // This constructor is rather elaborate, but we're going to do most of the
-    // setup. sep is used here simply to adjust the box size if
-    // needed. qperiodic flag will configure for periodic BC
-
+  Grid(Float posmin[3], int ngrid[3], Float cell_size, int qperiodic) {
     for (int j = 0; j < 3; j++) {
+      posmin_[j] = posmin[j];
       ngrid_[j] = ngrid[j];
       assert(ngrid_[j] > 0 && ngrid_[j] < 1e4);
-
-      posmin_[j] = posmin[j];
-      posmax_[j] = posmax[j];
-      posrange_[j] = posmax_[j] - posmin_[j];
-      assert(posrange_[j] > 0.0);
     }
+    cell_size_ = cell_size;
 
     // Have to set these to null so that the initialization will work.
     dens_ = NULL;
-
-    if (qperiodic || cell_size <= 0) {
-      // We need to compute the cell size
-      // We've been given 3 ngrid and we have the bounding box.
-      // Need to pick the most conservative choice
-      // This is always required in the periodic case
-      cell_size_ = std::max(
-          posrange_[0] / ngrid_[0],
-          std::max(posrange_[1] / ngrid_[1], posrange_[2] / ngrid_[2]));
-    } else {
-      // We've been given a cell size and a grid.  Need to assure it is ok.
-      cell_size_ = cell_size;
-      assert(cell_size_ * ngrid_[0] > posrange_[0]);
-      assert(cell_size_ * ngrid_[1] > posrange_[1]);
-      assert(cell_size_ * ngrid_[2] > posrange_[2]);
-    }
-
-    fprintf(stdout, "# Adopting cell_size_=%f for ngrid=%d, %d, %d\n",
-            cell_size_, ngrid_[0], ngrid_[1], ngrid_[2]);
-    fprintf(stdout, "# Adopted boxsize: %6.1f %6.1f %6.1f\n",
-            cell_size_ * ngrid_[0], cell_size_ * ngrid_[1],
-            cell_size_ * ngrid_[2]);
-    fprintf(stdout, "# Input pos range: %6.1f %6.1f %6.1f\n", posrange_[0],
-            posrange_[1], posrange_[2]);
-    fprintf(stdout, "# Minimum ngrid=%d, %d, %d\n",
-            int(ceil(posrange_[0] / cell_size_)),
-            int(ceil(posrange_[1] / cell_size_)),
-            int(ceil(posrange_[2] / cell_size_)));
 
     // ngrid2_ pads out the array for the in-place FFT.
     // The default 3d FFTW format must have the following:
@@ -89,7 +53,7 @@ class Grid {
     fprintf(stdout, "# Using ngrid2_=%d for FFT r2c padding\n", ngrid2_);
     ngrid3_ = (uint64)ngrid_[0] * ngrid_[1] * ngrid2_;
 
-    // Convert origin_ to grid units
+    // Convert origin to grid units
     if (qperiodic) {
       // In this case, we'll place the observer centered in the grid, but
       // then displaced far away in the -x direction
@@ -113,7 +77,7 @@ class Grid {
     assert(xcell_ != NULL);
     assert(ycell_ != NULL);
     assert(zcell_ != NULL);
-    // Now set up the cell centers relative to the origin_, in grid units
+    // Now set up the cell centers relative to the origin, in grid units
     for (int j = 0; j < ngrid_[0]; j++) xcell_[j] = 0.5 + j - origin_[0];
     for (int j = 0; j < ngrid_[1]; j++) ycell_[j] = 0.5 + j - origin_[1];
     for (int j = 0; j < ngrid_[2]; j++) zcell_[j] = 0.5 + j - origin_[2];
@@ -292,7 +256,7 @@ class Grid {
   inline uint64 change_to_grid_coords(Float tmp[4]) {
     // Given tmp[4] = x,y,z,w,
     // Modify to put them in box coordinates.
-    // We'll have no use for the origin_al coordinates!
+    // We'll have no use for the original coordinates!
     // tmp[3] (w) is unchanged
     tmp[0] = (tmp[0] - posmin_[0]) / cell_size_;
     tmp[1] = (tmp[1] - posmin_[1]) / cell_size_;
@@ -485,14 +449,9 @@ class Grid {
                      // cubic!
   Float posmin_[3];  // Including the border; we don't support periodic wrapping
                      // in CIC
-  Float posmax_[3];  // Including the border; we don't support periodic wrapping
-                     // in CIC
-
-  // Items to be computed
-  Float posrange_[3];  // The range of the padded box
-  Float cell_size_;    // The size of the cubic cells
-  Float origin_[3];    // The location of the origin_ in grid units.
-  Float *xcell_, *ycell_, *zcell_;  // The cell centers, relative to the origin_
+  Float cell_size_;  // The size of the cubic cells
+  Float origin_[3];  // The location of the origin in grid units.
+  Float *xcell_, *ycell_, *zcell_;  // The cell centers, relative to the origin
 
   // The big grids
   int ngrid2_;     // ngrid_[2] padded out for the FFT work

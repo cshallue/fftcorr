@@ -299,11 +299,12 @@ int main(int argc, char *argv[]) {
   assert(dsep > 0.0);
   assert(kmax != 0.0);
   assert(dk > 0.0);
-  // If qperiodic is set, user must supply a sep
+  // If qperiodic is set, user must supply a sep, and cannot supply a cell_size
   assert(qperiodic == 0 || sep > 0);
+  assert(qperiodic == 0 || cell_size < 0);
   if (infile == NULL) infile = (char *)default_fname;
   if (outfile != NULL) {
-    printf("%s", outfile);
+    // printf("%s\n", outfile);
     FILE *discard = freopen(outfile, "w", stdout);
     assert(discard != NULL && stdout != NULL);
   }
@@ -325,6 +326,8 @@ int main(int argc, char *argv[]) {
   CatalogHeader header;
   header.read(infile);
 
+  /* Setup Grid ========================================================= */
+
   Float max_sep;
   if (qperiodic) {
     // If the user wants periodic BC, then we can ignore separation issues.
@@ -343,22 +346,48 @@ int main(int argc, char *argv[]) {
     max_sep = sep;
   }
   fprintf(stderr, "max_sep = %f\n", max_sep);
-  // Compute the box size required in each direction.
-  // Add the extra padding to posmax; don't change posmin, since that changes
-  // grid registration.
+  // Add the extra padding to posmax.
   Float posmin[3];
   Float posmax[3];
+  Float posrange[3];
   for (int j = 0; j < 3; j++) {
     posmin[j] = header.posmin_[j];
     posmax[j] = header.posmax_[j] + extra_pad;
+    posrange[j] = posmax[j] - posmin[j];
+    assert(posrange[j] > 0.0);
   }
+  // Compute the box size required in each direction.
+  if (cell_size <= 0) {
+    // We've been given 3 ngrid and we have the bounding box.
+    // Need to pick the most conservative choice
+    cell_size =
+        std::max(posrange[0] / ngrid[0],
+                 std::max(posrange[1] / ngrid[1], posrange[2] / ngrid[2]));
+  }
+  assert(cell_size * ngrid[0] >= posrange[0]);
+  assert(cell_size * ngrid[1] >= posrange[1]);
+  assert(cell_size * ngrid[2] >= posrange[2]);
+  fprintf(stdout, "# Adopting cell_size_=%f for ngrid=%d, %d, %d\n", cell_size,
+          ngrid[0], ngrid[1], ngrid[2]);
+  fprintf(stdout, "# Adopted boxsize: %6.1f %6.1f %6.1f\n",
+          cell_size * ngrid[0], cell_size * ngrid[1], cell_size * ngrid[2]);
+  fprintf(stdout, "# Input pos range: %6.1f %6.1f %6.1f\n", posrange[0],
+          posrange[1], posrange[2]);
+  fprintf(stdout, "# Minimum ngrid=%d, %d, %d\n",
+          int(ceil(posrange[0] / cell_size)),
+          int(ceil(posrange[1] / cell_size)),
+          int(ceil(posrange[2] / cell_size)));
 
-  Grid g(posmin, posmax, ngrid, cell_size, sep, qperiodic);
-  fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
+  Grid g(posmin, ngrid, cell_size, qperiodic);
   g.read_galaxies(infile, infile2, qperiodic);
+
+  /* Done setup Grid ======================================================= */
+
   // The input grid is now in g.dens
+
   Histogram h(maxell, sep, dsep);
   Histogram kh(maxell, kmax, dk);
+  fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
   correlate(g, sep, kmax, maxell, h, kh, wide_angle_exponent);
 
   Ylm_count.print(stdout);
