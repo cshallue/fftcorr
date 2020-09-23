@@ -21,79 +21,24 @@ class Grid {
     free(xcell_);
   }
 
-  Grid(const char filename[], int ngrid[3], Float cell, Float sep,
+  Grid(Float posmin[3], Float posmax[3], int ngrid[3], Float cell, Float sep,
        int qperiodic) {
     // This constructor is rather elaborate, but we're going to do most of the
-    // setup. filename and filename2 are the input particles. filename2==NULL
-    // will skip that one. sep is used here simply to adjust the box size if
+    // setup. sep is used here simply to adjust the box size if
     // needed. qperiodic flag will configure for periodic BC
 
-    // Have to set these to null so that the initialization will work.
-    dens_ = NULL;
-
-    // Open a binary input file
-    // Setup.Start();
-    FILE *fp = fopen(filename, "rb");
-    assert(fp != NULL);
-
-    for (int j = 0; j < 3; j++) ngrid_[j] = ngrid[j];
-    assert(ngrid_[0] > 0 && ngrid_[0] < 1e4);
-    assert(ngrid_[1] > 0 && ngrid_[1] < 1e4);
-    assert(ngrid_[2] > 0 && ngrid_[2] < 1e4);
-
-    Float TOOBIG = 1e10;
-    // This header is 64 bytes long.
-    // Read posmin_[3], posmax_[3], max_sep_, blank8;
-    double tmp[4];
-    int nread;
-    nread = fread(tmp, sizeof(double), 3, fp);
-    assert(nread == 3);
     for (int j = 0; j < 3; j++) {
-      posmin_[j] = tmp[j];
-      assert(fabs(posmin_[j]) < TOOBIG);
-      fprintf(stderr, "posmin_[%d] = %f\n", j, posmin_[j]);
-    }
-    nread = fread(tmp, sizeof(double), 3, fp);
-    assert(nread == 3);
-    for (int j = 0; j < 3; j++) {
-      posmax_[j] = tmp[j];
-      assert(fabs(posmax_[j]) < TOOBIG);
-      fprintf(stderr, "posmax_[%d] = %f\n", j, posmax_[j]);
-    }
-    nread = fread(tmp, sizeof(double), 1, fp);
-    assert(nread == 1);
-    max_sep_ = tmp[0];
-    assert(max_sep_ >= 0 && max_sep_ < TOOBIG);
-    fprintf(stderr, "max_sep_ = %f\n", max_sep_);
-    nread = fread(tmp, sizeof(double), 1, fp);
-    assert(nread == 1);  // Not used, just for alignment
-    fclose(fp);
+      ngrid_[j] = ngrid[j];
+      assert(ngrid_[j] > 0 && ngrid_[j] < 1e4);
 
-    // If we're going to permute the axes, change here and in
-    // add_particles_to_grid(). The answers should be unchanged under
-    // permutation std::swap(posmin_[0], posmin_[1]); std::swap(posmax_[0],
-    // posmax_[1]); std::swap(posmin_[2], posmin_[1]); std::swap(posmax_[2],
-    // posmax_[1]);
-
-    // If the user wants periodic BC, then we can ignore separation issues.
-    if (qperiodic) max_sep_ = (posmax_[0] - posmin_[0]) * 100.0;
-    fprintf(stderr, "max_sep_ = %f\n", max_sep_);
-
-    // If the user asked for a larger separation than what was planned in the
-    // input positions, then we can accomodate.  Add the extra padding to
-    // posrange_; don't change posmin_, since that changes grid registration.
-    Float extra_pad = 0.0;
-    if (sep > max_sep_) {
-      extra_pad = sep - max_sep_;
-      max_sep_ = sep;
-    }
-
-    // Compute the box size required in each direction
-    for (int j = 0; j < 3; j++) {
-      posmax_[j] += extra_pad;
+      posmin_[j] = posmin[j];
+      posmax_[j] = posmax[j];
       posrange_[j] = posmax_[j] - posmin_[j];
       assert(posrange_[j] > 0.0);
     }
+
+    // Have to set these to null so that the initialization will work.
+    dens_ = NULL;
 
     if (qperiodic || cell <= 0) {
       // We need to compute the cell size
@@ -111,7 +56,6 @@ class Grid {
       assert(cell_size_ * ngrid_[2] > posrange_[2]);
     }
 
-    fprintf(stdout, "# Reading file %s.  max_sep_=%f\n", filename, max_sep_);
     fprintf(stdout, "# Adopting cell_size_=%f for ngrid=%d, %d, %d\n",
             cell_size_, ngrid_[0], ngrid_[1], ngrid_[2]);
     fprintf(stdout, "# Adopted boxsize: %6.1f %6.1f %6.1f\n",
@@ -184,6 +128,8 @@ class Grid {
 
   void read_galaxies(const char filename[], const char filename2[],
                      int qperiodic) {
+    // filename and filename2 are the input particles. filename2==NULL
+    // will skip that one
     // Read to the end of the file, bringing in x,y,z,w points.
     // Bin them onto the grid.
     // We're setting up a large buffer to read in the galaxies.
@@ -524,7 +470,6 @@ class Grid {
   /* ------------------------------------------------------------------- */
 
   Float cell_size() { return cell_size_; }
-  Float max_sep() { return max_sep_; }
   const int *ngrid() { return ngrid_; }
   int ngrid2() { return ngrid2_; }
   Float ngrid3() { return ngrid3_; }
@@ -538,7 +483,6 @@ class Grid {
   // Inputs
   int ngrid_[3];     // We might prefer a non-cubic box.  The cells are always
                      // cubic!
-  Float max_sep_;    // How much separation has already been built in.
   Float posmin_[3];  // Including the border; we don't support periodic wrapping
                      // in CIC
   Float posmax_[3];  // Including the border; we don't support periodic wrapping

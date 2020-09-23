@@ -103,6 +103,7 @@ int omp_get_thread_num() { return 0; }
 #include "STimer.cc"
 #include "correlate.h"
 #include "grid.h"
+#include "read_catalog.h"
 #include "types.h"
 
 STimer IO, Setup, FFTW, Correlate, YlmTime, Total, CIC, Misc, FFTonly, Hist,
@@ -239,7 +240,7 @@ int main(int argc, char *argv[]) {
   // Need to get this information.
   Total.Start();
   // Here are some defaults
-  Float sep = -123.0;  // Default to max_sep from the file
+  Float sep = -123.0;  // Requested separation; defaults to max_sep from file
   Float dsep = 10.0;
   Float kmax = 0.03;
   Float dk = 0.01;
@@ -319,8 +320,40 @@ int main(int argc, char *argv[]) {
 #endif
 
   setup_wavelet();
-  Grid g(infile, ngrid, cell, sep, qperiodic);
-  if (sep < 0) sep = g.max_sep();
+
+  // Read box dimensions from catalog header.
+  CatalogHeader header;
+  header.read(infile);
+
+  Float max_sep;
+  if (qperiodic) {
+    // If the user wants periodic BC, then we can ignore separation issues.
+    max_sep = (header.posmax_[0] - header.posmin_[0]) * 100.0;
+  } else {
+    max_sep = header.max_sep_;
+  }
+  fprintf(stderr, "max_sep = %f\n", max_sep);
+
+  // If the user asked for a larger separation than what was planned in the
+  // input positions, then we can accomodate.
+  Float extra_pad = 0.0;
+  if (sep < 0) sep = max_sep;
+  if (sep > max_sep) {
+    extra_pad = sep - max_sep;
+    max_sep = sep;
+  }
+  fprintf(stderr, "max_sep = %f\n", max_sep);
+  // Compute the box size required in each direction.
+  // Add the extra padding to posmax; don't change posmin, since that changes
+  // grid registration.
+  Float posmin[3];
+  Float posmax[3];
+  for (int j = 0; j < 3; j++) {
+    posmin[j] = header.posmin_[j];
+    posmax[j] = header.posmax_[j] + extra_pad;
+  }
+
+  Grid g(posmin, posmax, ngrid, cell, sep, qperiodic);
   fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
   g.read_galaxies(infile, infile2, qperiodic);
   // The input grid is now in g.dens
