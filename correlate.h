@@ -16,39 +16,43 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   fprintf(stdout, "# Chosen separation %f vs max %f\n", sep, g.max_sep_);
   assert(sep <= g.max_sep_);
 
+  // Storage for the r-space submatrices
   int sep_cell = ceil(sep / g.cell_size_);
-  g.csize_[0] = 2 * sep_cell + 1;
-  g.csize_[1] = g.csize_[2] = g.csize_[0];
-  assert(g.csize_[0] % 2 == 1);
-  assert(g.csize_[1] % 2 == 1);
-  assert(g.csize_[2] % 2 == 1);
-  g.csize3_ = g.csize_[0] * g.csize_[1] * g.csize_[2];
-  // Allocate corr_cell to [g.csize_] and g.rnorm_ to [g.csize_**3]
+  // How many cells we must extract as a submatrix to do the histogramming.
+  int csize[3];
+  csize[0] = 2 * sep_cell + 1;
+  csize[1] = csize[2] = csize[0];
+  assert(csize[0] % 2 == 1);
+  assert(csize[1] % 2 == 1);
+  assert(csize[2] % 2 == 1);
+  // The number of submatrix cells
+  int csize3 = csize[0] * csize[1] * csize[2];
+  // Allocate corr_cell to [csize] and rnorm to [csize**3]
+  // The cell centers, relative to zero lag.
+  Float *cx_cell, *cy_cell, *cz_cell;
+  Float *rnorm = NULL;  // The radius of each cell, in a flattened submatrix.
   int err;
-  err = posix_memalign((void **)&g.cx_cell_, PAGE,
-                       sizeof(Float) * g.csize_[0] + PAGE);
+  err =
+      posix_memalign((void **)&cx_cell, PAGE, sizeof(Float) * csize[0] + PAGE);
   assert(err == 0);
-  err = posix_memalign((void **)&g.cy_cell_, PAGE,
-                       sizeof(Float) * g.csize_[1] + PAGE);
+  err =
+      posix_memalign((void **)&cy_cell, PAGE, sizeof(Float) * csize[1] + PAGE);
   assert(err == 0);
-  err = posix_memalign((void **)&g.cz_cell_, PAGE,
-                       sizeof(Float) * g.csize_[2] + PAGE);
+  err =
+      posix_memalign((void **)&cz_cell, PAGE, sizeof(Float) * csize[2] + PAGE);
   assert(err == 0);
-  initialize_matrix(g.rnorm_, g.csize3_, g.csize_[0]);
+  initialize_matrix(rnorm, csize3, csize[0]);
 
   // Normalizing by g.cell_size_ just so that the Ylm code can do the wide-angle
   // corrections in the same units.
-  for (int i = 0; i < g.csize_[0]; i++)
-    g.cx_cell_[i] = g.cell_size_ * (i - sep_cell);
-  for (int i = 0; i < g.csize_[1]; i++)
-    g.cy_cell_[i] = g.cell_size_ * (i - sep_cell);
-  for (int i = 0; i < g.csize_[2]; i++)
-    g.cz_cell_[i] = g.cell_size_ * (i - sep_cell);
+  for (int i = 0; i < csize[0]; i++) cx_cell[i] = g.cell_size_ * (i - sep_cell);
+  for (int i = 0; i < csize[1]; i++) cy_cell[i] = g.cell_size_ * (i - sep_cell);
+  for (int i = 0; i < csize[2]; i++) cz_cell[i] = g.cell_size_ * (i - sep_cell);
 
-  for (uint64 i = 0; i < g.csize_[0]; i++)
-    for (int j = 0; j < g.csize_[1]; j++)
-      for (int k = 0; k < g.csize_[2]; k++)
-        g.rnorm_[k + g.csize_[2] * (j + i * g.csize_[1])] =
+  for (uint64 i = 0; i < csize[0]; i++)
+    for (int j = 0; j < csize[1]; j++)
+      for (int k = 0; k < csize[2]; k++)
+        rnorm[k + csize[2] * (j + i * csize[1])] =
             g.cell_size_ * sqrt((i - sep_cell) * (i - sep_cell) +
                                 (j - sep_cell) * (j - sep_cell) +
                                 (k - sep_cell) * (k - sep_cell));
@@ -144,11 +148,11 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   Float *work = NULL;  // work space for each (ell,m), in a flattened grid.
   initialize_matrix_by_copy(work, g.ngrid3_, g.ngrid_[0], g.dens_);
 
-  // Allocate total[g.csize_**3] and corr[g.csize_**3]
+  // Allocate total[csize**3] and corr[csize**3]
   Float *total = NULL;
-  initialize_matrix(total, g.csize3_, g.csize_[0]);
+  initialize_matrix(total, csize3, csize[0]);
   Float *corr = NULL;
-  initialize_matrix(corr, g.csize3_, g.csize_[0]);
+  initialize_matrix(corr, csize3, csize[0]);
   Float *ktotal = NULL;
   initialize_matrix(ktotal, g.ksize3_, g.ksize_[0]);
   Float *kcorr = NULL;
@@ -199,7 +203,7 @@ if (densFFT[j]!=work[j]) {
   // Loop over each ell to compute the anisotropic correlations
   for (int ell = 0; ell <= maxell; ell += 2) {
     // Initialize the submatrix
-    set_matrix(total, 0.0, g.csize3_, g.csize_[0]);
+    set_matrix(total, 0.0, csize3, csize[0]);
     set_matrix(ktotal, 0.0, g.ksize3_, g.ksize_[0]);
     // Loop over m
     for (int m = -ell; m <= ell; m++) {
@@ -233,27 +237,31 @@ if (densFFT[j]!=work[j]) {
       // Create Ylm for the submatrix that we'll extract for histogramming
       // The extra multiplication by one here is of negligible cost, since
       // this array is so much smaller than the FFT grid.
-      makeYlm(corr, ell, m, g.csize_, g.csize_[2], g.cx_cell_, g.cy_cell_,
-              g.cz_cell_, NULL, wide_angle_exponent);
+      makeYlm(corr, ell, m, csize, csize[2], cx_cell, cy_cell, cz_cell, NULL,
+              wide_angle_exponent);
 
       // Multiply these Ylm by the correlation result, and then add to total.
-      extract_submatrix(total, corr, g.csize_, work, g.ngrid_, g.ngrid2_);
+      extract_submatrix(total, corr, csize, work, g.ngrid_, g.ngrid2_);
 
       fprintf(stdout, "Done!\n");
     }
 
     // Extract.Start();
-    scale_matrix(total, norm, g.csize3_, g.csize_[0]);
+    scale_matrix(total, norm, csize3, csize[0]);
     scale_matrix(ktotal, Pnorm, g.ksize3_, g.ksize_[0]);
     // Extract.Stop();
-    // Histogram total by g.rnorm_
+    // Histogram total by rnorm
     // Hist.Start();
-    h.histcorr(ell, g.csize3_, g.rnorm_, total);
+    h.histcorr(ell, csize3, rnorm, total);
     kh.histcorr(ell, g.ksize3_, g.knorm_, ktotal);
     // Hist.Stop();
   }
 
   /* ------------------- Clean up -------------------*/
+  free(rnorm);
+  free(cx_cell);
+  free(cy_cell);
+  free(cz_cell);
   free(work);
   free(densFFT);
   free(corr);

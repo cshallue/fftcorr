@@ -19,10 +19,6 @@ class Grid {
     free(zcell_);
     free(ycell_);
     free(xcell_);
-    free(rnorm_);
-    free(cx_cell_);
-    free(cy_cell_);
-    free(cz_cell_);
     free(knorm_);
     free(kx_cell_);
     free(ky_cell_);
@@ -39,7 +35,7 @@ class Grid {
 
     // Have to set these to null so that the initialization will work.
     dens_ = NULL;
-    rnorm_ = knorm_ = CICwindow_ = NULL;
+    knorm_ = CICwindow_ = NULL;
 
     // Open a binary input file
     // Setup.Start();
@@ -552,14 +548,6 @@ class Grid {
   Float cell_size_;    // The size of the cubic cells
   Float origin_[3];    // The location of the origin_ in grid units.
   Float *xcell_, *ycell_, *zcell_;  // The cell centers, relative to the origin_
-
-  // Storage for the r-space submatrices
-  int csize_[3];  // How many cells we must extract as a submatrix to do the
-                  // histogramming.
-  int csize3_;    // The number of submatrix cells
-  // The cell centers, relative to zero lag.
-  Float *cx_cell_, *cy_cell_, *cz_cell_;
-  Float *rnorm_;  // The radius of each cell, in a flattened submatrix.
 
   // Storage for the k-space submatrices
   Float k_Nyq_;   // The Nyquist frequency for our grid.
