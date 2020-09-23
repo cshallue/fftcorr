@@ -534,7 +534,7 @@ class Grid {
   Float *zcell() { return zcell_; }
   Float cnt() { return cnt_; }
 
-  // private:
+ private:
   // Inputs
   int ngrid_[3];     // We might prefer a non-cubic box.  The cells are always
                      // cubic!

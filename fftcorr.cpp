@@ -320,7 +320,7 @@ int main(int argc, char *argv[]) {
 
   setup_wavelet();
   Grid g(infile, ngrid, cell, sep, qperiodic);
-  if (sep < 0) sep = g.max_sep_;
+  if (sep < 0) sep = g.max_sep();
   fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
   g.read_galaxies(infile, infile2, qperiodic);
   // The input grid is now in g.dens
