@@ -17,7 +17,8 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   assert(sep <= g.max_sep_);
 
   // Storage for the r-space submatrices
-  int sep_cell = ceil(sep / g.cell_size_);
+  Float cell_size = g.cell_size();
+  int sep_cell = ceil(sep / cell_size);
   // How many cells we must extract as a submatrix to do the histogramming.
   int csize[3];
   csize[0] = 2 * sep_cell + 1;
@@ -43,25 +44,25 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   assert(err == 0);
   initialize_matrix(rnorm, csize3, csize[0]);
 
-  // Normalizing by g.cell_size_ just so that the Ylm code can do the wide-angle
+  // Normalizing by cell_size just so that the Ylm code can do the wide-angle
   // corrections in the same units.
-  for (int i = 0; i < csize[0]; i++) cx_cell[i] = g.cell_size_ * (i - sep_cell);
-  for (int i = 0; i < csize[1]; i++) cy_cell[i] = g.cell_size_ * (i - sep_cell);
-  for (int i = 0; i < csize[2]; i++) cz_cell[i] = g.cell_size_ * (i - sep_cell);
+  for (int i = 0; i < csize[0]; i++) cx_cell[i] = cell_size * (i - sep_cell);
+  for (int i = 0; i < csize[1]; i++) cy_cell[i] = cell_size * (i - sep_cell);
+  for (int i = 0; i < csize[2]; i++) cz_cell[i] = cell_size * (i - sep_cell);
 
   for (uint64 i = 0; i < csize[0]; i++)
     for (int j = 0; j < csize[1]; j++)
       for (int k = 0; k < csize[2]; k++)
         rnorm[k + csize[2] * (j + i * csize[1])] =
-            g.cell_size_ * sqrt((i - sep_cell) * (i - sep_cell) +
-                                (j - sep_cell) * (j - sep_cell) +
-                                (k - sep_cell) * (k - sep_cell));
+            cell_size * sqrt((i - sep_cell) * (i - sep_cell) +
+                             (j - sep_cell) * (j - sep_cell) +
+                             (k - sep_cell) * (k - sep_cell));
   fprintf(stdout, "# Done setting up the separation submatrix of size +-%d\n",
           sep_cell);
 
   // Our box has cubic-sized cells, so k_Nyquist is the same in all
   // directions. The spacing of modes is therefore 2*k_Nyq/ngrid
-  Float k_Nyq = M_PI / g.cell_size_;  // The Nyquist frequency for our grid.
+  Float k_Nyq = M_PI / cell_size;  // The Nyquist frequency for our grid.
   fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq = %6.4f\n",
           kmax, k_Nyq);
   // How many cells we must extract as a submatrix to do the histogramming.
@@ -114,9 +115,9 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
             sqrt(kx_cell[i] * kx_cell[i] + ky_cell[j] * ky_cell[j] +
                  kz_cell[k] * kz_cell[k]);
         // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
-        Float sinkxL = sin(kx_cell[i] * g.cell_size_ / 2.0);
-        Float sinkyL = sin(ky_cell[j] * g.cell_size_ / 2.0);
-        Float sinkzL = sin(kz_cell[k] * g.cell_size_ / 2.0);
+        Float sinkxL = sin(kx_cell[i] * cell_size / 2.0);
+        Float sinkyL = sin(ky_cell[j] * cell_size / 2.0);
+        Float sinkzL = sin(kz_cell[k] * cell_size / 2.0);
         sinkxL *= sinkxL;
         sinkyL *= sinkyL;
         sinkzL *= sinkzL;
