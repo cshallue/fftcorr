@@ -379,7 +379,7 @@ int main(int argc, char *argv[]) {
           int(ceil(posrange[2] / cell_size)));
 
   Grid g(posmin, ngrid, cell_size, qperiodic);
-  g.read_galaxies(infile, infile2, qperiodic);
+  g.read_galaxies(infile, infile2);
 
   /* Done setup Grid ======================================================= */
 

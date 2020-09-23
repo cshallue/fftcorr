@@ -28,6 +28,7 @@ class Grid {
       assert(ngrid_[j] > 0 && ngrid_[j] < 1e4);
     }
     cell_size_ = cell_size;
+    qperiodic_ = qperiodic;
 
     // Have to set these to null so that the initialization will work.
     dens_ = NULL;
@@ -54,7 +55,7 @@ class Grid {
     ngrid3_ = (uint64)ngrid_[0] * ngrid_[1] * ngrid2_;
 
     // Convert origin to grid units
-    if (qperiodic) {
+    if (qperiodic_) {
       // In this case, we'll place the observer centered in the grid, but
       // then displaced far away in the -x direction
       for (int j = 0; j < 3; j++) origin_[j] = ngrid_[j] / 2.0;
@@ -90,8 +91,7 @@ class Grid {
 
   /* ------------------------------------------------------------------- */
 
-  void read_galaxies(const char filename[], const char filename2[],
-                     int qperiodic) {
+  void read_galaxies(const char filename[], const char filename2[]) {
     // filename and filename2 are the input particles. filename2==NULL
     // will skip that one
     // Read to the end of the file, bringing in x,y,z,w points.
@@ -153,7 +153,7 @@ class Grid {
     Float totw2 = sum_matrix(dens_, ngrid3_, ngrid_[0]);
     fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
             totw2 - totw);
-    if (qperiodic == 2) {
+    if (qperiodic_ == 2) {
       // We're asked to set the mean to zero
       Float mean = totw / ngrid_[0] / ngrid_[1] / ngrid_[2];
       addscalarto_matrix(dens_, -mean, ngrid3_, ngrid_[0]);
@@ -450,7 +450,11 @@ class Grid {
   Float posmin_[3];  // Including the border; we don't support periodic wrapping
                      // in CIC
   Float cell_size_;  // The size of the cubic cells
-  Float origin_[3];  // The location of the origin in grid units.
+
+  // TODO: does this class need to store this?
+  int qperiodic_;
+
+  Float origin_[3];                 // The location of the origin in grid units.
   Float *xcell_, *ycell_, *zcell_;  // The cell centers, relative to the origin
 
   // The big grids
