@@ -8,8 +8,9 @@
 
 /* ============== Spherical Harmonic routine ============== */
 
-void makeYlm(Float *Ylm, int ell, int m, int n[3], int n1, Float *xcell,
-             Float *ycell, Float *z, const Float *dens, int exponent) {
+void makeYlm(Float *Ylm, int ell, int m, int n[3], int n1, const Float *xcell,
+             const Float *ycell, const Float *z, const Float *dens,
+             int exponent) {
   // We're not actually returning Ylm here.
   // m>0 will return Re(Y_lm)*sqrt(2)
   // m<0 will return Im(Y_l|m|)*sqrt(2)
