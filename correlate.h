@@ -66,15 +66,16 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq = %6.4f\n",
           kmax, k_Nyq);
   // How many cells we must extract as a submatrix to do the histogramming.
+  int *ngrid = g.ngrid();
   int ksize[3];
   for (int i = 0; i < 3; i++)
-    ksize[i] = 2 * ceil(kmax / (2.0 * k_Nyq / g.ngrid_[i])) + 1;
+    ksize[i] = 2 * ceil(kmax / (2.0 * k_Nyq / ngrid[i])) + 1;
   assert(ksize[0] % 2 == 1);
   assert(ksize[1] % 2 == 1);
   assert(ksize[2] % 2 == 1);
   for (int i = 0; i < 3; i++)
-    if (ksize[i] > g.ngrid_[i]) {
-      ksize[i] = 2 * floor(g.ngrid_[i] / 2) + 1;
+    if (ksize[i] > ngrid[i]) {
+      ksize[i] = 2 * floor(ngrid[i] / 2) + 1;
       fprintf(stdout,
               "# WARNING: Requested wavenumber is too big.  Truncating "
               "ksize_[%d] to %d\n",
@@ -102,11 +103,11 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   initialize_matrix(CICwindow, ksize3, ksize[0]);
 
   for (int i = 0; i < ksize[0]; i++)
-    kx_cell[i] = (i - ksize[0] / 2) * 2.0 * k_Nyq / g.ngrid_[0];
+    kx_cell[i] = (i - ksize[0] / 2) * 2.0 * k_Nyq / ngrid[0];
   for (int i = 0; i < ksize[1]; i++)
-    ky_cell[i] = (i - ksize[1] / 2) * 2.0 * k_Nyq / g.ngrid_[1];
+    ky_cell[i] = (i - ksize[1] / 2) * 2.0 * k_Nyq / ngrid[1];
   for (int i = 0; i < ksize[2]; i++)
-    kz_cell[i] = (i - ksize[2] / 2) * 2.0 * k_Nyq / g.ngrid_[2];
+    kz_cell[i] = (i - ksize[2] / 2) * 2.0 * k_Nyq / ngrid[2];
 
   for (uint64 i = 0; i < ksize[0]; i++)
     for (int j = 0; j < ksize[1]; j++)
@@ -148,13 +149,13 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
 
   // Multiply total by 4*pi, to match SE15 normalization
   // Include the FFTW normalization
-  Float norm = 4.0 * M_PI / g.ngrid_[0] / g.ngrid_[1] / g.ngrid_[2];
+  Float norm = 4.0 * M_PI / ngrid[0] / ngrid[1] / ngrid[2];
   Float Pnorm = 4.0 * M_PI;
 
   // Allocate the work matrix and load it with the density
   // We do this here so that the array is touched before FFT planning
   Float *work = NULL;  // work space for each (ell,m), in a flattened grid.
-  initialize_matrix_by_copy(work, g.ngrid3_, g.ngrid_[0], g.dens_);
+  initialize_matrix_by_copy(work, g.ngrid3_, ngrid[0], g.dens_);
 
   // Allocate total[csize**3] and corr[csize**3]
   Float *total = NULL;
@@ -168,16 +169,15 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
 
   /* Setup FFTW */
   fftw_plan fft, fftYZ, fftX, ifft, ifftYZ, ifftX;
-  setup_FFTW(fft, fftYZ, fftX, ifft, ifftYZ, ifftX, g.ngrid_, g.ngrid2_, work);
+  setup_FFTW(fft, fftYZ, fftX, ifft, ifftYZ, ifftX, ngrid, g.ngrid2_, work);
 
   // FFTW might have destroyed the contents of work; need to restore
   // work[]==dens_[] So far, I haven't seen this happen.
-  if (g.dens_[1] != work[1] ||
-      g.dens_[1 + g.ngrid_[2]] != work[1 + g.ngrid_[2]] ||
+  if (g.dens_[1] != work[1] || g.dens_[1 + ngrid[2]] != work[1 + ngrid[2]] ||
       g.dens_[g.ngrid3_ - 1] != work[g.ngrid3_ - 1]) {
     fprintf(stdout, "Restoring work matrix\n");
     // Init.Start();
-    copy_matrix(work, g.dens_, g.ngrid3_, g.ngrid_[0]);
+    copy_matrix(work, g.dens_, g.ngrid3_, ngrid[0]);
     // Init.Stop();
   }
 
@@ -186,17 +186,17 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   // FFT(work) in place and conjugate it, storing in densFFT
   fprintf(stdout, "# Computing the density FFT...");
   fflush(NULL);
-  FFT_Execute(fft, fftYZ, fftX, g.ngrid_, g.ngrid2_, work);
+  FFT_Execute(fft, fftYZ, fftX, ngrid, g.ngrid2_, work);
 
   // Correlate.Stop();  // We're tracking initialization separately
   Float *densFFT = NULL;  // The FFT of the density field, in a flattened grid.
-  initialize_matrix_by_copy(densFFT, g.ngrid3_, g.ngrid_[0], work);
+  initialize_matrix_by_copy(densFFT, g.ngrid3_, ngrid[0], work);
   fprintf(stdout, "Done!\n");
   fflush(NULL);
   // Correlate.Start();
 
   // Let's try a check as well -- convert with the 3D code and compare
-  /* copy_matrix(work, dens_, ngrid3_, g.ngrid_[0]);
+  /* copy_matrix(work, dens_, ngrid3_, ngrid[0]);
 fftw_execute(fft);
 for (uint64 j=0; j<ngrid3_; j++)
 if (densFFT[j]!=work[j]) {
@@ -217,17 +217,17 @@ if (densFFT[j]!=work[j]) {
     for (int m = -ell; m <= ell; m++) {
       fprintf(stdout, "# Computing %d %2d...", ell, m);
       // Create the Ylm matrix times dens_
-      makeYlm(work, ell, m, g.ngrid_, g.ngrid2_, g.xcell_, g.ycell_, g.zcell_,
+      makeYlm(work, ell, m, ngrid, g.ngrid2_, g.xcell_, g.ycell_, g.zcell_,
               g.dens_, -wide_angle_exponent);
       fprintf(stdout, "Ylm...");
 
       // FFT in place
-      FFT_Execute(fft, fftYZ, fftX, g.ngrid_, g.ngrid2_, work);
+      FFT_Execute(fft, fftYZ, fftX, ngrid, g.ngrid2_, work);
 
       // Multiply by conj(densFFT), as complex numbers
       // AtimesB.Start();
       multiply_matrix_with_conjugation((Complex *)work, (Complex *)densFFT,
-                                       g.ngrid3_ / 2, g.ngrid_[0]);
+                                       g.ngrid3_ / 2, ngrid[0]);
       // AtimesB.Stop();
 
       // Extract the anisotropic power spectrum
@@ -235,11 +235,11 @@ if (densFFT[j]!=work[j]) {
       makeYlm(kcorr, ell, m, ksize, ksize[2], kx_cell, ky_cell, kz_cell,
               CICwindow, wide_angle_exponent);
       // Multiply these Ylm by the power result, and then add to total.
-      extract_submatrix_C2R(ktotal, kcorr, ksize, (Complex *)work, g.ngrid_,
+      extract_submatrix_C2R(ktotal, kcorr, ksize, (Complex *)work, ngrid,
                             g.ngrid2_);
 
       // iFFT the result, in place
-      IFFT_Execute(ifft, ifftYZ, ifftX, g.ngrid_, g.ngrid2_, work);
+      IFFT_Execute(ifft, ifftYZ, ifftX, ngrid, g.ngrid2_, work);
       fprintf(stdout, "FFT...");
 
       // Create Ylm for the submatrix that we'll extract for histogramming
@@ -249,7 +249,7 @@ if (densFFT[j]!=work[j]) {
               wide_angle_exponent);
 
       // Multiply these Ylm by the correlation result, and then add to total.
-      extract_submatrix(total, corr, csize, work, g.ngrid_, g.ngrid2_);
+      extract_submatrix(total, corr, csize, work, ngrid, g.ngrid2_);
 
       fprintf(stdout, "Done!\n");
     }
