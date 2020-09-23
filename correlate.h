@@ -7,7 +7,8 @@
 #include "grid.h"
 #include "types.h"
 
-void setup_corr(Grid &g, Float sep, Float kmax) {
+void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
+               Histogram &kh, int wide_angle_exponent) {
   // Set up the sub-matrix information, assuming that we'll extract
   // -sep..+sep cells around zero-lag.
   // sep<0 causes a default to the value in the file.
@@ -130,10 +131,7 @@ void setup_corr(Grid &g, Float sep, Float kmax) {
           g.ksize_[0] / 2, g.ksize_[1] / 2, g.ksize_[2] / 2);
 
   // Setup.Stop();
-}
 
-void correlate(Grid &g, int maxell, Histogram &h, Histogram &kh,
-               int wide_angle_exponent) {
   // Here's where most of the work occurs.
 
   // Multiply total by 4*pi, to match SE15 normalization
