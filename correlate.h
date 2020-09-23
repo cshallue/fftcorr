@@ -13,8 +13,8 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   // -sep..+sep cells around zero-lag.
   // sep<0 causes a default to the value in the file.
   // Setup.Start();
-  fprintf(stdout, "# Chosen separation %f vs max %f\n", sep, g.max_sep_);
-  assert(sep <= g.max_sep_);
+  fprintf(stdout, "# Chosen separation %f vs max %f\n", sep, g.max_sep());
+  assert(sep <= g.max_sep());
 
   // Storage for the r-space submatrices
   Float cell_size = g.cell_size();

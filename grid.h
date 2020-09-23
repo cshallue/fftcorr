@@ -180,10 +180,6 @@ class Grid {
     return;
   }
 
-  Float cell_size() { return cell_size_; }
-  Float ngrid3() { return ngrid3_; }
-  Float cnt() { return cnt_; }
-
   /* ------------------------------------------------------------------- */
 
   void read_galaxies(const char filename[], const char filename2[],
@@ -526,6 +522,11 @@ class Grid {
   }
 
   /* ------------------------------------------------------------------- */
+
+  Float cell_size() { return cell_size_; }
+  Float max_sep() { return max_sep_; }
+  Float ngrid3() { return ngrid3_; }
+  Float cnt() { return cnt_; }
 
   // private:
   // Inputs
