@@ -526,6 +526,7 @@ class Grid {
   Float cell_size() { return cell_size_; }
   Float max_sep() { return max_sep_; }
   int *ngrid() { return ngrid_; }
+  int ngrid2() { return ngrid2_; }
   Float ngrid3() { return ngrid3_; }
   Float cnt() { return cnt_; }
 

@@ -67,6 +67,8 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
           kmax, k_Nyq);
   // How many cells we must extract as a submatrix to do the histogramming.
   int *ngrid = g.ngrid();
+  int ngrid2 = g.ngrid2();
+  uint64 ngrid3 = g.ngrid3();
   int ksize[3];
   for (int i = 0; i < 3; i++)
     ksize[i] = 2 * ceil(kmax / (2.0 * k_Nyq / ngrid[i])) + 1;
@@ -155,7 +157,7 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   // Allocate the work matrix and load it with the density
   // We do this here so that the array is touched before FFT planning
   Float *work = NULL;  // work space for each (ell,m), in a flattened grid.
-  initialize_matrix_by_copy(work, g.ngrid3_, ngrid[0], g.dens_);
+  initialize_matrix_by_copy(work, ngrid3, ngrid[0], g.dens_);
 
   // Allocate total[csize**3] and corr[csize**3]
   Float *total = NULL;
@@ -169,15 +171,15 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
 
   /* Setup FFTW */
   fftw_plan fft, fftYZ, fftX, ifft, ifftYZ, ifftX;
-  setup_FFTW(fft, fftYZ, fftX, ifft, ifftYZ, ifftX, ngrid, g.ngrid2_, work);
+  setup_FFTW(fft, fftYZ, fftX, ifft, ifftYZ, ifftX, ngrid, ngrid2, work);
 
   // FFTW might have destroyed the contents of work; need to restore
   // work[]==dens_[] So far, I haven't seen this happen.
   if (g.dens_[1] != work[1] || g.dens_[1 + ngrid[2]] != work[1 + ngrid[2]] ||
-      g.dens_[g.ngrid3_ - 1] != work[g.ngrid3_ - 1]) {
+      g.dens_[ngrid3 - 1] != work[ngrid3 - 1]) {
     fprintf(stdout, "Restoring work matrix\n");
     // Init.Start();
-    copy_matrix(work, g.dens_, g.ngrid3_, ngrid[0]);
+    copy_matrix(work, g.dens_, ngrid3, ngrid[0]);
     // Init.Stop();
   }
 
@@ -186,11 +188,11 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   // FFT(work) in place and conjugate it, storing in densFFT
   fprintf(stdout, "# Computing the density FFT...");
   fflush(NULL);
-  FFT_Execute(fft, fftYZ, fftX, ngrid, g.ngrid2_, work);
+  FFT_Execute(fft, fftYZ, fftX, ngrid, ngrid2, work);
 
   // Correlate.Stop();  // We're tracking initialization separately
   Float *densFFT = NULL;  // The FFT of the density field, in a flattened grid.
-  initialize_matrix_by_copy(densFFT, g.ngrid3_, ngrid[0], work);
+  initialize_matrix_by_copy(densFFT, ngrid3, ngrid[0], work);
   fprintf(stdout, "Done!\n");
   fflush(NULL);
   // Correlate.Start();
@@ -217,17 +219,17 @@ if (densFFT[j]!=work[j]) {
     for (int m = -ell; m <= ell; m++) {
       fprintf(stdout, "# Computing %d %2d...", ell, m);
       // Create the Ylm matrix times dens_
-      makeYlm(work, ell, m, ngrid, g.ngrid2_, g.xcell_, g.ycell_, g.zcell_,
+      makeYlm(work, ell, m, ngrid, ngrid2, g.xcell_, g.ycell_, g.zcell_,
               g.dens_, -wide_angle_exponent);
       fprintf(stdout, "Ylm...");
 
       // FFT in place
-      FFT_Execute(fft, fftYZ, fftX, ngrid, g.ngrid2_, work);
+      FFT_Execute(fft, fftYZ, fftX, ngrid, ngrid2, work);
 
       // Multiply by conj(densFFT), as complex numbers
       // AtimesB.Start();
       multiply_matrix_with_conjugation((Complex *)work, (Complex *)densFFT,
-                                       g.ngrid3_ / 2, ngrid[0]);
+                                       ngrid3 / 2, ngrid[0]);
       // AtimesB.Stop();
 
       // Extract the anisotropic power spectrum
@@ -236,10 +238,10 @@ if (densFFT[j]!=work[j]) {
               CICwindow, wide_angle_exponent);
       // Multiply these Ylm by the power result, and then add to total.
       extract_submatrix_C2R(ktotal, kcorr, ksize, (Complex *)work, ngrid,
-                            g.ngrid2_);
+                            ngrid2);
 
       // iFFT the result, in place
-      IFFT_Execute(ifft, ifftYZ, ifftX, ngrid, g.ngrid2_, work);
+      IFFT_Execute(ifft, ifftYZ, ifftX, ngrid, ngrid2, work);
       fprintf(stdout, "FFT...");
 
       // Create Ylm for the submatrix that we'll extract for histogramming
@@ -249,7 +251,7 @@ if (densFFT[j]!=work[j]) {
               wide_angle_exponent);
 
       // Multiply these Ylm by the correlation result, and then add to total.
-      extract_submatrix(total, corr, csize, work, ngrid, g.ngrid2_);
+      extract_submatrix(total, corr, csize, work, ngrid, ngrid2);
 
       fprintf(stdout, "Done!\n");
     }
