@@ -390,8 +390,8 @@ int main(int argc, char *argv[]) {
   Total.Stop();
   uint64 nfft = 1;
   for (int j = 0; j <= maxell; j += 2) nfft += 2 * (2 * j + 1);
-  nfft *= g.ngrid3();
+  nfft *= g.dens().ngrid3();
   fprintf(stdout, "#\n");
-  ReportTimes(stdout, nfft, g.ngrid3(), reader.count());
+  ReportTimes(stdout, nfft, g.dens().ngrid3(), reader.count());
   return 0;
 }

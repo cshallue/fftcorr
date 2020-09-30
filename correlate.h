@@ -16,7 +16,10 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
 
   // Make a copy of g.ngrid(), partly for readability, but also needed because
   // [I]FFT_Execute takes a non-const pointer.
-  int ngrid[3] = {g.ngrid()[0], g.ngrid()[1], g.ngrid()[2]};
+  int ngrid[3] = {g.dens().ngrid()[0], g.dens().ngrid()[1],
+                  g.dens().ngrid()[2]};
+  int ngrid2 = g.dens().ngrid2();
+  uint64 ngrid3 = g.dens().ngrid3();
   Float cell_size = g.cell_size();
 
   // Compute the origin, in grid units.
@@ -85,8 +88,6 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq = %6.4f\n",
           kmax, k_Nyq);
   // How many cells we must extract as a submatrix to do the histogramming.
-  int ngrid2 = g.ngrid2();
-  uint64 ngrid3 = g.ngrid3();
   int ksize[3];
   for (int i = 0; i < 3; i++)
     ksize[i] = 2 * ceil(kmax / (2.0 * k_Nyq / ngrid[i])) + 1;

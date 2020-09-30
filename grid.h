@@ -18,8 +18,6 @@ class Grid {
   Grid(const Float posmin[3], int ngrid[3], Float cell_size) : dens_(ngrid) {
     for (int j = 0; j < 3; j++) {
       posmin_[j] = posmin[j];
-      ngrid_[j] = ngrid[j];
-      assert(ngrid_[j] > 0 && ngrid_[j] < 1e4);
     }
     cell_size_ = cell_size;
   }
@@ -44,15 +42,10 @@ class Grid {
 
   Float cell_size() { return cell_size_; }
   const Float *posmin() { return posmin_; }
-  const int *ngrid() { return ngrid_; }
-  int ngrid2() { return dens_.ngrid2(); }
-  Float ngrid3() { return dens_.ngrid3(); }
   Array3D &dens() { return dens_; };  // TODO: make const
 
  private:
   // Inputs
-  int ngrid_[3];     // We might prefer a non-cubic box.  The cells are always
-                     // cubic!
   Float posmin_[3];  // Including the border; we don't support periodic wrapping
                      // in CIC
   Float cell_size_;  // The size of the cubic cells
