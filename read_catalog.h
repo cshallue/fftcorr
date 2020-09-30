@@ -7,6 +7,9 @@
 #include "grid.h"
 #include "types.h"
 
+#define FILE_BUFFER_SIZE 512
+#define GALAXY_BATCH_SIZE 1000000
+
 class SurveyBox {
  public:
   SurveyBox() {
@@ -84,7 +87,8 @@ class SurveyReader {
     Pshot_ = 0;
   }
 
-  /* ------------------------------------------------------------------- */
+  void clear() { gal_.clear(); }
+  Float count() { return count_; }
 
   void read_galaxies(const Grid &grid, Array3D *arr, const char filename[],
                      const char filename2[], bool zero_center) {
@@ -101,14 +105,10 @@ class SurveyReader {
     count_ = 0;
     uint64 index;
     Float totw = 0.0, totwsq = 0.0;
-// Set up a small buffer, just to reduce the calls to fread, which seem to be
-// slow on some machines.
-#define BUFFERSIZE 512
-    double buffer[BUFFERSIZE], *b;
-#define MAXGAL 1000000
-    std::vector<Galaxy> gal;
-    gal.reserve(
-        MAXGAL);  // Just to cut down on thrashing; it will expand as needed
+    double *b;
+
+    clear();
+    gal_.reserve(GALAXY_BATCH_SIZE);
 
     // IO.Start();
     for (int file = 0; file < 2; file++) {
@@ -124,22 +124,23 @@ class SurveyReader {
       assert(fp != NULL);
       int nread = fread(tmp, sizeof(double), 8, fp);
       assert(nread == 8);  // Skip the header
-      while ((nread = fread(&buffer, sizeof(double), BUFFERSIZE, fp)) > 0) {
-        b = buffer;
+      while ((nread = fread(&buffer_, sizeof(double), FILE_BUFFER_SIZE, fp)) >
+             0) {
+        b = buffer_;
         for (int j = 0; j < nread; j += 4, b += 4) {
           grid.change_to_grid_coords(b);
           index = arr->to_grid_index(floor(b[0]), floor(b[1]), floor(b[2]));
-          gal.push_back(Galaxy(b, index));
+          gal_.push_back(Galaxy(b, index));
           thiscount_++;
           totw += b[3];
           totwsq += b[3] * b[3];
-          if (gal.size() >= MAXGAL) {
+          if (gal_.size() >= GALAXY_BATCH_SIZE) {
             // IO.Stop();
-            add_to_density_field(arr, gal);
+            flush_to_density_field(arr);
             // IO.Start();
           }
         }
-        if (nread != BUFFERSIZE) break;
+        if (nread != FILE_BUFFER_SIZE) break;
       }
       count_ += thiscount_;
       fprintf(stdout, "# Found %d galaxies in this file\n", thiscount_);
@@ -147,7 +148,7 @@ class SurveyReader {
     }
     // IO.Stop();
     // Add the remaining galaxies to the grid
-    add_to_density_field(arr, gal);
+    flush_to_density_field(arr);
 
     fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n", count_,
             totw);
@@ -193,17 +194,15 @@ class SurveyReader {
     // W^2/N. Meanwhile, each cell has density (W/N)*(N/Ncell) = W/Ncell.
     // sumsq_dens/Vcell = W^2/(Ncell*Vcell) = W^2/V.
     // Hence the real shot noise is V/N = 1/n.
-    return;
   }
 
-  /* ------------------------------------------------------------------- */
-
-  void add_to_density_field(Array3D *arr, std::vector<Galaxy> &gal) {
+ private:
+  void flush_to_density_field(Array3D *arr) {
     const int *ngrid = arr->ngrid();
 
     // Given a set of Galaxies, add them to the grid and then reset the list
     // CIC.Start();
-    const int galsize = gal.size();
+    const int galsize = gal_.size();
 
 #ifdef DEPRICATED
     // This works, but appears to be slower
@@ -218,7 +217,7 @@ class SurveyReader {
     // Do this by another vector.
     std::vector<Galaxy> tmp;
     tmp.reserve(galsize);
-    mergesort_parallel_omp(gal.data(), galsize, tmp.data(),
+    mergesort_parallel_omp(gal_.data(), galsize, tmp.data(),
                            omp_get_max_threads());
     // This just falls back to std::sort if omp_get_max_threads==1
 
@@ -228,7 +227,7 @@ class SurveyReader {
     // exceed N.
     int first[ngrid[0] + 1], ptr = 0;
     for (int j = 0; j < galsize; j++)
-      while (gal[j].x > ptr) first[ptr++] = j;
+      while (gal_[j].x > ptr) first[ptr++] = j;
     for (; ptr <= ngrid[0]; ptr++) first[ptr] = galsize;
 
     // Now, we'll loop, with each thread in charge of slab x.
@@ -245,14 +244,12 @@ class SurveyReader {
       for (int x = mod; x < ngrid[0]; x += slabset) {
         // For each slab, insert these particles
         for (int j = first[x]; j < first[x + 1]; j++)
-          add_galaxy_to_density_field(arr, gal[j]);
+          add_galaxy_to_density_field(arr, gal_[j]);
       }
     }
 #endif
-    gal.clear();
-    gal.reserve(MAXGAL);  // Just to check!
+    gal_.clear();
     // CIC.Stop();
-    return;
   }
 
   /* ------------------------------------------------------------------- */
@@ -425,13 +422,11 @@ class SurveyReader {
     }
   }
 
-  /* ------------------------------------------------------------------- */
-
-  Float count() { return count_; }
-
- private:
   Float posmin_[3];
   Float cell_size_;
+
+  double buffer_[FILE_BUFFER_SIZE];
+  std::vector<Galaxy> gal_;
 
   int count_;  // The number of galaxies read in.
   // The sum of squares of the weights, which is the shot noise for P_0.
