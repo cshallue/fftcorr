@@ -81,7 +81,8 @@ class SurveyReader {
   SurveyReader(Float cell_size) {
     cell_size_ = cell_size;
     count_ = 0;
-    Pshot_ = 0;
+    totw_ = 0;
+    totwsq_ = 0;
   }
 
   void clear() { gal_.clear(); }
@@ -101,7 +102,6 @@ class SurveyReader {
     double tmp[8];
     count_ = 0;
     uint64 index;
-    Float totw = 0.0, totwsq = 0.0;
     double *b;
 
     clear();
@@ -129,8 +129,8 @@ class SurveyReader {
           index = arr->to_grid_index(floor(b[0]), floor(b[1]), floor(b[2]));
           gal_.push_back(Galaxy(b, index));
           thiscount_++;
-          totw += b[3];
-          totwsq += b[3] * b[3];
+          totw_ += b[3];
+          totwsq_ += b[3] * b[3];
           if (gal_.size() >= GALAXY_BATCH_SIZE) {
             // IO.Stop();
             flush_to_density_field(arr);
@@ -148,23 +148,22 @@ class SurveyReader {
     flush_to_density_field(arr);
 
     fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n", count_,
-            totw);
+            totw_);
     Float totw2 = sum_matrix(arr->data(), ngrid3, ngrid[0]);
     fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
-            totw2 - totw);
+            totw2 - totw_);
     if (zero_center) {
       // We're asked to set the mean to zero
-      Float mean = totw / ngrid[0] / ngrid[1] / ngrid[2];
+      Float mean = totw_ / ngrid[0] / ngrid[1] / ngrid[2];
       addscalarto_matrix(arr->data_, -mean, ngrid3, ngrid[0]);
       fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
     }
 
     Float sumsq_dens = sumsq_matrix(arr->data(), ngrid3, ngrid[0]);
     fprintf(stdout, "# Sum of squares of density = %14.7e\n", sumsq_dens);
-    Pshot_ = totwsq;
     fprintf(stdout,
-            "# Sum of squares of weights (divide by I for Pshot_) = %14.7e\n",
-            Pshot_);
+            "# Sum of squares of weights (divide by I for Pshot) = %14.7e\n",
+            totwsq_);
 // When run with N=D-R, this divided by I would be the shot noise.
 
 // Meanwhile, an estimate of I when running with only R is
@@ -182,9 +181,9 @@ class SurveyReader {
     fprintf(stdout, "# Using nearest cell method\n");
 #endif
     Float Vcell = cell_size_ * cell_size_ * cell_size_;
-    fprintf(stdout,
-            "# Estimate of I (denominator) = %14.7e - %14.7e = %14.7e\n",
-            sumsq_dens / Vcell, totwsq / Vcell, (sumsq_dens - totwsq) / Vcell);
+    fprintf(
+        stdout, "# Estimate of I (denominator) = %14.7e - %14.7e = %14.7e\n",
+        sumsq_dens / Vcell, totwsq_ / Vcell, (sumsq_dens - totwsq_) / Vcell);
 
     // In the limit of infinite homogeneous particles in a periodic box:
     // If W=sum(w), then each particle has w = W/N.  totwsq = N*(W/N)^2 =
@@ -425,8 +424,10 @@ class SurveyReader {
   std::vector<Galaxy> gal_;
 
   int count_;  // The number of galaxies read in.
+
+  Float totw_;
   // The sum of squares of the weights, which is the shot noise for P_0.
-  Float Pshot_;
+  Float totwsq_;
 };
 
 #endif  // READ_GALAXIES_H
