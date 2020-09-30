@@ -16,9 +16,6 @@ class Grid {
 
   ~Grid() {
     if (dens_ != NULL) free(dens_);
-    free(zcell_);
-    free(ycell_);
-    free(xcell_);
   }
 
   Grid(Float posmin[3], int ngrid[3], Float cell_size, int qperiodic) {
@@ -64,24 +61,6 @@ class Grid {
       for (int j = 0; j < 3; j++) origin_[j] = (0.0 - posmin_[j]) / cell_size_;
     }
 
-    // Allocate xcell_, ycell_, zcell_ to [ngrid]
-    int err;
-    err = posix_memalign((void **)&xcell_, PAGE,
-                         sizeof(Float) * ngrid_[0] + PAGE);
-    assert(err == 0);
-    err = posix_memalign((void **)&ycell_, PAGE,
-                         sizeof(Float) * ngrid_[1] + PAGE);
-    assert(err == 0);
-    err = posix_memalign((void **)&zcell_, PAGE,
-                         sizeof(Float) * ngrid_[2] + PAGE);
-    assert(err == 0);
-    assert(xcell_ != NULL);
-    assert(ycell_ != NULL);
-    assert(zcell_ != NULL);
-    // Now set up the cell centers relative to the origin, in grid units
-    for (int j = 0; j < ngrid_[0]; j++) xcell_[j] = 0.5 + j - origin_[0];
-    for (int j = 0; j < ngrid_[1]; j++) ycell_[j] = 0.5 + j - origin_[1];
-    for (int j = 0; j < ngrid_[2]; j++) zcell_[j] = 0.5 + j - origin_[2];
     // Setup.Stop();
 
     // Allocate dens_ to [ngrid**2*ngrid2_] and set it to zero
@@ -108,13 +87,11 @@ class Grid {
   /* ------------------------------------------------------------------- */
 
   Float cell_size() { return cell_size_; }
+  const Float *origin() { return origin_; }
   const int *ngrid() { return ngrid_; }
   int ngrid2() { return ngrid2_; }
   Float ngrid3() { return ngrid3_; }
   const Float *dens() { return dens_; };
-  const Float *xcell() { return xcell_; }
-  const Float *ycell() { return ycell_; }
-  const Float *zcell() { return zcell_; }
 
  private:
   // Inputs
@@ -127,8 +104,7 @@ class Grid {
   // TODO: does this class need to store this?
   int qperiodic_;
 
-  Float origin_[3];                 // The location of the origin in grid units.
-  Float *xcell_, *ycell_, *zcell_;  // The cell centers, relative to the origin
+  Float origin_[3];  // The location of the origin in grid units.
 
   // The big grids
   int ngrid2_;     // ngrid_[2] padded out for the FFT work

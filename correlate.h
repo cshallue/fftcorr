@@ -13,6 +13,28 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   // -sep..+sep cells around zero-lag.
   // Setup.Start();
 
+  // Make a copy of g.ngrid(), partly for readability, but also needed because
+  // [I]FFT_Execute takes a non-const pointer.
+  int ngrid[3] = {g.ngrid()[0], g.ngrid()[1], g.ngrid()[2]};
+
+  // Compute xcell, ycell, zcell, which are the coordinates of the cell centers
+  // in each dimension, relative to the origin.
+  Float *xcell, *ycell, *zcell;
+  int err;
+  err = posix_memalign((void **)&xcell, PAGE, sizeof(Float) * ngrid[0] + PAGE);
+  assert(err == 0);
+  err = posix_memalign((void **)&ycell, PAGE, sizeof(Float) * ngrid[1] + PAGE);
+  assert(err == 0);
+  err = posix_memalign((void **)&zcell, PAGE, sizeof(Float) * ngrid[2] + PAGE);
+  assert(err == 0);
+  assert(xcell != NULL);
+  assert(ycell != NULL);
+  assert(zcell != NULL);
+  // Now set up the cell centers relative to the origin, in grid units
+  for (int j = 0; j < ngrid[0]; j++) xcell[j] = 0.5 + j - g.origin()[0];
+  for (int j = 0; j < ngrid[1]; j++) ycell[j] = 0.5 + j - g.origin()[1];
+  for (int j = 0; j < ngrid[2]; j++) zcell[j] = 0.5 + j - g.origin()[2];
+
   // Storage for the r-space submatrices
   Float cell_size = g.cell_size();
   int sep_cell = ceil(sep / cell_size);
@@ -29,7 +51,7 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   // The cell centers, relative to zero lag.
   Float *cx_cell, *cy_cell, *cz_cell;
   Float *rnorm = NULL;  // The radius of each cell, in a flattened submatrix.
-  int err;
+  // int err;
   err =
       posix_memalign((void **)&cx_cell, PAGE, sizeof(Float) * csize[0] + PAGE);
   assert(err == 0);
@@ -63,8 +85,6 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq = %6.4f\n",
           kmax, k_Nyq);
   // How many cells we must extract as a submatrix to do the histogramming.
-  // Copy g.ngrid() because [I}FFT_Execute takes a non-const pointer.
-  int ngrid[3] = {g.ngrid()[0], g.ngrid()[1], g.ngrid()[2]};
   int ngrid2 = g.ngrid2();
   uint64 ngrid3 = g.ngrid3();
   int ksize[3];
@@ -203,7 +223,7 @@ for (uint64 j=0; j<ngrid3_; j++)
 if (densFFT[j]!=work[j]) {
   int z = j%ngrid2_;
   int y = j/ngrid2_; y=y%ngrid2_;
-  int x = j/ngrid_[1]/ngrid2_;
+  int x = j/ngrid[1]/ngrid2_;
   printf("%d %d %d  %f  %f\n", x, y, z, densFFT[j], work[j]);
 }
 */
@@ -218,8 +238,8 @@ if (densFFT[j]!=work[j]) {
     for (int m = -ell; m <= ell; m++) {
       fprintf(stdout, "# Computing %d %2d...", ell, m);
       // Create the Ylm matrix times dens_
-      makeYlm(work, ell, m, ngrid, ngrid2, g.xcell(), g.ycell(), g.zcell(),
-              dens, -wide_angle_exponent);
+      makeYlm(work, ell, m, ngrid, ngrid2, xcell, ycell, zcell, dens,
+              -wide_angle_exponent);
       fprintf(stdout, "Ylm...");
 
       // FFT in place
@@ -267,6 +287,9 @@ if (densFFT[j]!=work[j]) {
   }
 
   /* ------------------- Clean up -------------------*/
+  free(zcell);
+  free(ycell);
+  free(xcell);
   free(rnorm);
   free(cx_cell);
   free(cy_cell);
