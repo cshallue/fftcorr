@@ -18,16 +18,13 @@ class Grid {
     if (dens_ != NULL) free(dens_);
   }
 
-  Grid(Float posmin[3], int ngrid[3], Float cell_size) {
+  Grid(const Float posmin[3], int ngrid[3], Float cell_size) {
     for (int j = 0; j < 3; j++) {
       posmin_[j] = posmin[j];
       ngrid_[j] = ngrid[j];
       assert(ngrid_[j] > 0 && ngrid_[j] < 1e4);
     }
     cell_size_ = cell_size;
-
-    // Have to set these to null so that the initialization will work.
-    dens_ = NULL;
 
     // ngrid2_ pads out the array for the in-place FFT.
     // The default 3d FFTW format must have the following:
@@ -52,7 +49,8 @@ class Grid {
 
     // Setup.Stop();
 
-    // Allocate dens_ to [ngrid**2*ngrid2_] and set it to zero
+    // Allocate dens_ to [ngrid3_] and set it to zero
+    dens_ = NULL;
     initialize_matrix(dens_, ngrid3_, ngrid_[0]);
     return;
   }
@@ -95,7 +93,7 @@ class Grid {
   uint64 ngrid3_;  // The total number of FFT grid cells
   Float *dens_;    // The density field, in a flattened grid
 
-  friend class CatalogReader;  // TODO: remove this
+  friend class SurveyReader;  // TODO: remove this
 };
 
 #endif  // GRID_H

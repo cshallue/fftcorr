@@ -333,10 +333,8 @@ int main(int argc, char *argv[]) {
 
   /* Setup Grid ========================================================= */
 
-  Float posmin[3];
   Float posrange[3];
   for (int i = 0; i < 3; i++) {
-    posmin[i] = box.posmin()[i];
     posrange[i] = box.posmax()[i] - box.posmin()[i];
   }
   // Compute the box size required in each direction.
@@ -350,7 +348,7 @@ int main(int argc, char *argv[]) {
   assert(cell_size * ngrid[0] >= posrange[0]);
   assert(cell_size * ngrid[1] >= posrange[1]);
   assert(cell_size * ngrid[2] >= posrange[2]);
-  fprintf(stdout, "# Adopting cell_size_=%f for ngrid=%d, %d, %d\n", cell_size,
+  fprintf(stdout, "# Adopting cell_size=%f for ngrid=%d, %d, %d\n", cell_size,
           ngrid[0], ngrid[1], ngrid[2]);
   fprintf(stdout, "# Adopted boxsize: %6.1f %6.1f %6.1f\n",
           cell_size * ngrid[0], cell_size * ngrid[1], cell_size * ngrid[2]);
@@ -361,8 +359,8 @@ int main(int argc, char *argv[]) {
           int(ceil(posrange[1] / cell_size)),
           int(ceil(posrange[2] / cell_size)));
 
-  Grid g(posmin, ngrid, cell_size);
-  CatalogReader reader;
+  Grid g(box.posmin(), ngrid, cell_size);
+  SurveyReader reader(box.posmin(), cell_size);
   bool zero_center = (qperiodic == 2);
   reader.read_galaxies(&g, infile, infile2, zero_center);
 

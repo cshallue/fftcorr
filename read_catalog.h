@@ -72,8 +72,17 @@ class SurveyBox {
   Float posmax_[3];
 };
 
-class CatalogReader {
+class SurveyReader {
  public:
+  SurveyReader(const Float posmin[3], Float cell_size) {
+    for (int i = 0; i < 3; ++i) {
+      posmin_[i] = posmin[i];
+    }
+    cell_size_ = cell_size;
+    count_ = 0;
+    Pshot_ = 0;
+  }
+
   /* ------------------------------------------------------------------- */
 
   void read_galaxies(Grid *grid, const char filename[], const char filename2[],
@@ -171,7 +180,7 @@ class CatalogReader {
 #else
     fprintf(stdout, "# Using nearest cell method\n");
 #endif
-    Float Vcell = grid->cell_size() * grid->cell_size() * grid->cell_size();
+    Float Vcell = cell_size_ * cell_size_ * cell_size_;
     fprintf(stdout,
             "# Estimate of I (denominator) = %14.7e - %14.7e = %14.7e\n",
             sumsq_dens / Vcell, totwsq / Vcell, (sumsq_dens - totwsq) / Vcell);
@@ -417,6 +426,9 @@ class CatalogReader {
   Float count() { return count_; }
 
  private:
+  Float posmin_[3];
+  Float cell_size_;
+
   int count_;  // The number of galaxies read in.
   // The sum of squares of the weights, which is the shot noise for P_0.
   Float Pshot_;
