@@ -1,6 +1,7 @@
 #ifndef GRID_H
 #define GRID_H
 
+#include "array3d.h"
 #include "d12.cpp"
 #include "galaxy.h"
 #include "histogram.h"
@@ -14,45 +15,13 @@ class Grid {
   // Positions need to arrive in a coordinate system that has the observer at
   // the origin
 
-  ~Grid() {
-    if (dens_ != NULL) free(dens_);
-  }
-
-  Grid(const Float posmin[3], int ngrid[3], Float cell_size) {
+  Grid(const Float posmin[3], int ngrid[3], Float cell_size) : dens_(ngrid) {
     for (int j = 0; j < 3; j++) {
       posmin_[j] = posmin[j];
       ngrid_[j] = ngrid[j];
       assert(ngrid_[j] > 0 && ngrid_[j] < 1e4);
     }
     cell_size_ = cell_size;
-
-    // ngrid2_ pads out the array for the in-place FFT.
-    // The default 3d FFTW format must have the following:
-    ngrid2_ = (ngrid_[2] / 2 + 1) * 2;  // For the in-place FFT
-#ifdef FFTSLAB
-// That said, the rest of the code should work even if extra space is used.
-// Some operations will blindly apply to the pad cells, but that's ok.
-// In particular, we might consider having ngrid2_ be evenly divisible by
-// the critical alignment stride (32 bytes for AVX, but might be more for cache
-// lines) or even by a full PAGE for NUMA memory.  Doing this *will* force a
-// more complicated FFT, but at least for the NUMA case this is desired: we want
-// to force the 2D FFT to run on its socket, and only have the last 1D FFT
-// crossing sockets.  Re-using FFTW plans requires the consistent memory
-// alignment.
-#define FFT_ALIGN 16
-    // This is in units of Floats.  16 doubles is 1024 bits.
-    ngrid2_ = FFT_ALIGN * (ngrid2_ / FFT_ALIGN + 1);
-#endif
-    assert(ngrid2_ % 2 == 0);
-    fprintf(stdout, "# Using ngrid2_=%d for FFT r2c padding\n", ngrid2_);
-    ngrid3_ = (uint64)ngrid_[0] * ngrid_[1] * ngrid2_;
-
-    // Setup.Stop();
-
-    // Allocate dens_ to [ngrid3_] and set it to zero
-    dens_ = NULL;
-    initialize_matrix(dens_, ngrid3_, ngrid_[0]);
-    return;
   }
 
   /* ------------------------------------------------------------------- */
@@ -68,7 +37,7 @@ class Grid {
     uint64 ix = floor(tmp[0]);
     uint64 iy = floor(tmp[1]);
     uint64 iz = floor(tmp[2]);
-    return (iz) + ngrid2_ * ((iy) + (ix)*ngrid_[1]);
+    return dens_.to_grid_index(ix, iy, iz);
   }
 
   /* ------------------------------------------------------------------- */
@@ -76,9 +45,9 @@ class Grid {
   Float cell_size() { return cell_size_; }
   const Float *posmin() { return posmin_; }
   const int *ngrid() { return ngrid_; }
-  int ngrid2() { return ngrid2_; }
-  Float ngrid3() { return ngrid3_; }
-  const Float *dens() { return dens_; };
+  int ngrid2() { return dens_.ngrid2(); }
+  Float ngrid3() { return dens_.ngrid3(); }
+  Array3D &dens() { return dens_; };  // TODO: make const
 
  private:
   // Inputs
@@ -88,10 +57,7 @@ class Grid {
                      // in CIC
   Float cell_size_;  // The size of the cubic cells
 
-  // The big grids
-  int ngrid2_;     // ngrid_[2] padded out for the FFT work
-  uint64 ngrid3_;  // The total number of FFT grid cells
-  Float *dens_;    // The density field, in a flattened grid
+  Array3D dens_;
 
   friend class SurveyReader;  // TODO: remove this
 };

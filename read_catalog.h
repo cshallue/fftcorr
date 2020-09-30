@@ -146,19 +146,21 @@ class SurveyReader {
 
     fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n", count_,
             totw);
-    Float totw2 = sum_matrix(grid->dens(), grid->ngrid3(), grid->ngrid()[0]);
+    Float totw2 =
+        sum_matrix(grid->dens_.data(), grid->ngrid3(), grid->ngrid()[0]);
     fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
             totw2 - totw);
     if (zero_center) {
       // We're asked to set the mean to zero
       Float mean =
           totw / grid->ngrid()[0] / grid->ngrid()[1] / grid->ngrid()[2];
-      addscalarto_matrix(grid->dens_, -mean, grid->ngrid3(), grid->ngrid()[0]);
+      addscalarto_matrix(grid->dens_.data(), -mean, grid->ngrid3(),
+                         grid->ngrid()[0]);
       fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
     }
 
     Float sumsq_dens =
-        sumsq_matrix(grid->dens(), grid->ngrid3(), grid->ngrid()[0]);
+        sumsq_matrix(grid->dens_.data(), grid->ngrid3(), grid->ngrid()[0]);
     fprintf(stdout, "# Sum of squares of density = %14.7e\n", sumsq_dens);
     Pshot_ = totwsq;
     fprintf(stdout,
@@ -253,7 +255,7 @@ class SurveyReader {
   /* ------------------------------------------------------------------- */
 
   void add_particle_to_grid(Grid *grid, Galaxy g) {
-    Float *dens = grid->dens_;
+    Float *dens = grid->dens_.data();
 
     // Add one particle to the density grid.
     // This does a 27-point triangular cloud-in-cell, unless one invokes
