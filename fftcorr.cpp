@@ -325,33 +325,19 @@ int main(int argc, char *argv[]) {
   // Read box dimensions from catalog box.
   SurveyBox box;
   box.read_header(infile);
-
-  /* Setup Grid ========================================================= */
-
   if (qperiodic) {
     box.set_periodic_boundary();
   }
-  Float max_sep = box.max_sep();
-  fprintf(stderr, "max_sep = %f\n", max_sep);
+  box.ensure_sep(sep);
+  if (sep < 0) sep = box.max_sep();
 
-  // If the user asked for a larger separation than what was planned in the
-  // input positions, then we can accomodate.
-  Float extra_pad = 0.0;
-  if (sep < 0) sep = max_sep;
-  if (sep > max_sep) {
-    extra_pad = sep - max_sep;
-    max_sep = sep;
-  }
-  fprintf(stderr, "max_sep = %f\n", max_sep);
-  // Add the extra padding to posmax.
+  /* Setup Grid ========================================================= */
+
   Float posmin[3];
-  Float posmax[3];
   Float posrange[3];
-  for (int j = 0; j < 3; j++) {
-    posmin[j] = box.posmin()[j];
-    posmax[j] = box.posmax()[j] + extra_pad;
-    posrange[j] = posmax[j] - posmin[j];
-    assert(posrange[j] > 0.0);
+  for (int i = 0; i < 3; i++) {
+    posmin[i] = box.posmin()[i];
+    posrange[i] = box.posmax()[i] - box.posmin()[i];
   }
   // Compute the box size required in each direction.
   if (cell_size <= 0) {

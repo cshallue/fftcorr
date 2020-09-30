@@ -52,6 +52,16 @@ class SurveyBox {
   // If the user wants periodic BC, then we can ignore separation issues.
   void set_periodic_boundary() { max_sep_ = (posmax_[0] - posmin_[0]) * 100; }
 
+  void ensure_sep(Float sep) {
+    // Expand the survey box to ensure a minimum separation.
+    if (sep <= max_sep_) return;
+    Float extra_pad = sep - max_sep_;
+    for (int i = 0; i < 3; i++) {
+      posmax_[i] += extra_pad;
+    }
+    max_sep_ = sep;
+  }
+
   Float max_sep() { return max_sep_; }
   Float *posmin() { return posmin_; }
   Float *posmax() { return posmax_; }
