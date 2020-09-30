@@ -51,8 +51,8 @@ class CatalogReader {
  public:
   /* ------------------------------------------------------------------- */
 
-  void read_galaxies(Grid *grid, const char filename[],
-                     const char filename2[]) {
+  void read_galaxies(Grid *grid, const char filename[], const char filename2[],
+                     bool zero_center) {
     // filename and filename2 are the input particles. filename2==NULL
     // will skip that one
     // Read to the end of the file, bringing in x,y,z,w points.
@@ -115,7 +115,7 @@ class CatalogReader {
     Float totw2 = sum_matrix(grid->dens(), grid->ngrid3(), grid->ngrid()[0]);
     fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
             totw2 - totw);
-    if (grid->qperiodic_ == 2) {
+    if (zero_center) {
       // We're asked to set the mean to zero
       Float mean =
           totw / grid->ngrid()[0] / grid->ngrid()[1] / grid->ngrid()[2];

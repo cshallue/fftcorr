@@ -18,14 +18,13 @@ class Grid {
     if (dens_ != NULL) free(dens_);
   }
 
-  Grid(Float posmin[3], int ngrid[3], Float cell_size, int qperiodic) {
+  Grid(Float posmin[3], int ngrid[3], Float cell_size) {
     for (int j = 0; j < 3; j++) {
       posmin_[j] = posmin[j];
       ngrid_[j] = ngrid[j];
       assert(ngrid_[j] > 0 && ngrid_[j] < 1e4);
     }
     cell_size_ = cell_size;
-    qperiodic_ = qperiodic;
 
     // Have to set these to null so that the initialization will work.
     dens_ = NULL;
@@ -50,16 +49,6 @@ class Grid {
     assert(ngrid2_ % 2 == 0);
     fprintf(stdout, "# Using ngrid2_=%d for FFT r2c padding\n", ngrid2_);
     ngrid3_ = (uint64)ngrid_[0] * ngrid_[1] * ngrid2_;
-
-    // Convert origin to grid units
-    if (qperiodic_) {
-      // In this case, we'll place the observer centered in the grid, but
-      // then displaced far away in the -x direction
-      for (int j = 0; j < 3; j++) origin_[j] = ngrid_[j] / 2.0;
-      origin_[0] -= ngrid_[0] * 1e6;  // Observer far away!
-    } else {
-      for (int j = 0; j < 3; j++) origin_[j] = (0.0 - posmin_[j]) / cell_size_;
-    }
 
     // Setup.Stop();
 
@@ -87,7 +76,7 @@ class Grid {
   /* ------------------------------------------------------------------- */
 
   Float cell_size() { return cell_size_; }
-  const Float *origin() { return origin_; }
+  const Float *posmin() { return posmin_; }
   const int *ngrid() { return ngrid_; }
   int ngrid2() { return ngrid2_; }
   Float ngrid3() { return ngrid3_; }
@@ -100,11 +89,6 @@ class Grid {
   Float posmin_[3];  // Including the border; we don't support periodic wrapping
                      // in CIC
   Float cell_size_;  // The size of the cubic cells
-
-  // TODO: does this class need to store this?
-  int qperiodic_;
-
-  Float origin_[3];  // The location of the origin in grid units.
 
   // The big grids
   int ngrid2_;     // ngrid_[2] padded out for the FFT work

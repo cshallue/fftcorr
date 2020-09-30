@@ -377,9 +377,10 @@ int main(int argc, char *argv[]) {
           int(ceil(posrange[1] / cell_size)),
           int(ceil(posrange[2] / cell_size)));
 
-  Grid g(posmin, ngrid, cell_size, qperiodic);
+  Grid g(posmin, ngrid, cell_size);
   CatalogReader reader;
-  reader.read_galaxies(&g, infile, infile2);
+  bool zero_center = (qperiodic == 2);
+  reader.read_galaxies(&g, infile, infile2, zero_center);
 
   /* Done setup Grid ======================================================= */
 
@@ -388,7 +389,7 @@ int main(int argc, char *argv[]) {
   Histogram h(maxell, sep, dsep);
   Histogram kh(maxell, kmax, dk);
   fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-  correlate(g, sep, kmax, maxell, h, kh, wide_angle_exponent);
+  correlate(g, sep, kmax, maxell, h, kh, wide_angle_exponent, qperiodic);
 
   Ylm_count.print(stdout);
   fprintf(stdout, "# Anisotropic power spectrum:\n");

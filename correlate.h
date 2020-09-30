@@ -9,7 +9,7 @@
 #include "types.h"
 
 void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
-               Histogram &kh, int wide_angle_exponent) {
+               Histogram &kh, int wide_angle_exponent, int qperiodic) {
   // Set up the sub-matrix information, assuming that we'll extract
   // -sep..+sep cells around zero-lag.
   // Setup.Start();
@@ -17,6 +17,22 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   // Make a copy of g.ngrid(), partly for readability, but also needed because
   // [I]FFT_Execute takes a non-const pointer.
   int ngrid[3] = {g.ngrid()[0], g.ngrid()[1], g.ngrid()[2]};
+  Float cell_size = g.cell_size();
+
+  // Compute the origin, in grid units.
+  Float origin[3];
+  if (qperiodic) {
+    // In this case, we'll place the observer centered in the grid, but
+    // then displaced far away in the -x direction
+    for (int j = 0; j < 3; j++) {
+      origin[j] = ngrid[j] / 2.0;
+    }
+    origin[0] -= ngrid[0] * 1e6;  // Observer far away!
+  } else {
+    for (int j = 0; j < 3; j++) {
+      origin[j] = (0.0 - g.posmin()[j]) / cell_size;
+    }
+  }
 
   // Compute xcell, ycell, zcell, which are the coordinates of the cell centers
   // in each dimension, relative to the origin.
@@ -24,12 +40,11 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   Float *ycell = allocate_array(ngrid[1]);
   Float *zcell = allocate_array(ngrid[2]);
   // Now set up the cell centers relative to the origin, in grid units
-  for (int j = 0; j < ngrid[0]; j++) xcell[j] = 0.5 + j - g.origin()[0];
-  for (int j = 0; j < ngrid[1]; j++) ycell[j] = 0.5 + j - g.origin()[1];
-  for (int j = 0; j < ngrid[2]; j++) zcell[j] = 0.5 + j - g.origin()[2];
+  for (int j = 0; j < ngrid[0]; j++) xcell[j] = 0.5 + j - origin[0];
+  for (int j = 0; j < ngrid[1]; j++) ycell[j] = 0.5 + j - origin[1];
+  for (int j = 0; j < ngrid[2]; j++) zcell[j] = 0.5 + j - origin[2];
 
   // Storage for the r-space submatrices
-  Float cell_size = g.cell_size();
   int sep_cell = ceil(sep / cell_size);
   // How many cells we must extract as a submatrix to do the histogramming.
   int csize[3];
