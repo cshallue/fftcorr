@@ -322,18 +322,16 @@ int main(int argc, char *argv[]) {
 
   setup_wavelet();
 
-  // Read box dimensions from catalog header.
-  CatalogHeader header = read_header(infile);
+  // Read box dimensions from catalog box.
+  SurveyBox box;
+  box.read_header(infile);
 
   /* Setup Grid ========================================================= */
 
-  Float max_sep;
   if (qperiodic) {
-    // If the user wants periodic BC, then we can ignore separation issues.
-    max_sep = (header.posmax[0] - header.posmin[0]) * 100.0;
-  } else {
-    max_sep = header.max_sep;
+    box.set_periodic_boundary();
   }
+  Float max_sep = box.max_sep();
   fprintf(stderr, "max_sep = %f\n", max_sep);
 
   // If the user asked for a larger separation than what was planned in the
@@ -350,8 +348,8 @@ int main(int argc, char *argv[]) {
   Float posmax[3];
   Float posrange[3];
   for (int j = 0; j < 3; j++) {
-    posmin[j] = header.posmin[j];
-    posmax[j] = header.posmax[j] + extra_pad;
+    posmin[j] = box.posmin()[j];
+    posmax[j] = box.posmax()[j] + extra_pad;
     posrange[j] = posmax[j] - posmin[j];
     assert(posrange[j] > 0.0);
   }

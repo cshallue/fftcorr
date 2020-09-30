@@ -6,46 +6,61 @@
 #include "grid.h"
 #include "types.h"
 
-struct CatalogHeader {
-  Float max_sep;
-  Float posmin[3];
-  Float posmax[3];
-};
-
-CatalogHeader read_header(const char filename[]) {
-  CatalogHeader h;
-  // Read posmin_[3], posmax_[3], max_sep_, blank8;
-  FILE *fp = fopen(filename, "rb");
-  assert(fp != NULL);
-  double buf[8];
-  int nread = fread(buf, sizeof(double), 8, fp);
-  assert(nread == 8);
-  fclose(fp);
-
-  Float TOOBIG = 1e10;
-  for (int i = 0; i < 7; i++) {
-    assert(fabs(buf[i]) < TOOBIG);
+class SurveyBox {
+ public:
+  SurveyBox() {
+    max_sep_ = 0;
+    for (int i = 0; i < 3; ++i) {
+      posmin_[i] = 0;
+      posmax_[i] = 0;
+    }
   }
 
-  h.posmin[0] = buf[0];
-  h.posmin[1] = buf[1];
-  h.posmin[2] = buf[2];
-  h.posmax[0] = buf[3];
-  h.posmax[1] = buf[4];
-  h.posmax[2] = buf[5];
-  h.max_sep = buf[6];
-  // buf[7] not used, just for alignment.
+  void read_header(const char filename[]) {
+    // Read posmin_[3], posmax_[3], max_sep_, blank8;
+    FILE *fp = fopen(filename, "rb");
+    assert(fp != NULL);
+    double buf[8];
+    int nread = fread(buf, sizeof(double), 8, fp);
+    assert(nread == 8);
+    fclose(fp);
 
-  assert(h.max_sep >= 0);
+    Float TOOBIG = 1e10;
+    for (int i = 0; i < 7; i++) {
+      assert(fabs(buf[i]) < TOOBIG);
+    }
 
-  fprintf(stderr, "posmin = [%.4f, %.4f, %.4f]\n", h.posmin[0], h.posmin[1],
-          h.posmin[2]);
-  fprintf(stderr, "posmax = [%.4f, %.4f, %.4f]\n", h.posmax[0], h.posmax[1],
-          h.posmax[2]);
-  fprintf(stderr, "max_sep = %f\n", h.max_sep);
+    posmin_[0] = buf[0];
+    posmin_[1] = buf[1];
+    posmin_[2] = buf[2];
+    posmax_[0] = buf[3];
+    posmax_[1] = buf[4];
+    posmax_[2] = buf[5];
+    max_sep_ = buf[6];
+    // buf[7] not used, just for alignment.
 
-  return h;
-}
+    assert(max_sep_ >= 0);
+
+    fprintf(stderr, "Reading survey box from header of %s\n", filename);
+    fprintf(stderr, "posmin = [%.4f, %.4f, %.4f]\n", posmin_[0], posmin_[1],
+            posmin_[2]);
+    fprintf(stderr, "posmax = [%.4f, %.4f, %.4f]\n", posmax_[0], posmax_[1],
+            posmax_[2]);
+    fprintf(stderr, "max_sep = %f\n", max_sep_);
+  }
+
+  // If the user wants periodic BC, then we can ignore separation issues.
+  void set_periodic_boundary() { max_sep_ = (posmax_[0] - posmin_[0]) * 100; }
+
+  Float max_sep() { return max_sep_; }
+  Float *posmin() { return posmin_; }
+  Float *posmax() { return posmax_; }
+
+ private:
+  Float max_sep_;
+  Float posmin_[3];
+  Float posmax_[3];
+};
 
 class CatalogReader {
  public:
@@ -152,8 +167,8 @@ class CatalogReader {
             sumsq_dens / Vcell, totwsq / Vcell, (sumsq_dens - totwsq) / Vcell);
 
     // In the limit of infinite homogeneous particles in a periodic box:
-    // If W=sum(w), then each particle has w = W/N.  totwsq = N*(W/N)^2 = W^2/N.
-    // Meanwhile, each cell has density (W/N)*(N/Ncell) = W/Ncell.
+    // If W=sum(w), then each particle has w = W/N.  totwsq = N*(W/N)^2 =
+    // W^2/N. Meanwhile, each cell has density (W/N)*(N/Ncell) = W/Ncell.
     // sumsq_dens/Vcell = W^2/(Ncell*Vcell) = W^2/V.
     // Hence the real shot noise is V/N = 1/n.
     return;
@@ -171,8 +186,8 @@ class CatalogReader {
     for (int j = 0; j < galsize; j++) add_particle_to_grid(grid, gal[j]);
 #else
     // If we're parallelizing this, then we need to keep the threads from
-    // stepping on each other.  Do this in slabs, but with only every third slab
-    // active at any time.
+    // stepping on each other.  Do this in slabs, but with only every third
+    // slab active at any time.
 
     // Let's sort the particles by x.
     // Need to supply an equal amount of temporary space to merge sort.
@@ -193,9 +208,10 @@ class CatalogReader {
     for (; ptr <= grid->ngrid()[0]; ptr++) first[ptr] = galsize;
 
     // Now, we'll loop, with each thread in charge of slab x.
-    // Not bothering with NUMA issues.  a) Most of the time is spent waiting for
-    // memory to respond, not actually piping between processors.  b) Adjacent
-    // slabs may not be on the same memory bank anyways.  Keep it simple.
+    // Not bothering with NUMA issues.  a) Most of the time is spent waiting
+    // for memory to respond, not actually piping between processors.  b)
+    // Adjacent slabs may not be on the same memory bank anyways.  Keep it
+    // simple.
     int slabset = 3;
 #ifdef WAVELET
     slabset = WCELLS;
