@@ -134,7 +134,7 @@ class SurveyReader {
           totwsq += b[3] * b[3];
           if (gal.size() >= MAXGAL) {
             // IO.Stop();
-            add_to_grid(grid, gal);
+            add_to_density_field(grid, gal);
             // IO.Start();
           }
         }
@@ -146,7 +146,7 @@ class SurveyReader {
     }
     // IO.Stop();
     // Add the remaining galaxies to the grid
-    add_to_grid(grid, gal);
+    add_to_density_field(grid, gal);
 
     fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n", count_,
             totw);
@@ -197,7 +197,7 @@ class SurveyReader {
 
   /* ------------------------------------------------------------------- */
 
-  void add_to_grid(Grid &grid, std::vector<Galaxy> &gal) {
+  void add_to_density_field(Grid &grid, std::vector<Galaxy> &gal) {
     const int *ngrid = grid.dens_.ngrid();
 
     // Given a set of Galaxies, add them to the grid and then reset the list
@@ -206,7 +206,8 @@ class SurveyReader {
 
 #ifdef DEPRICATED
     // This works, but appears to be slower
-    for (int j = 0; j < galsize; j++) add_particle_to_grid(grid, gal[j]);
+    for (int j = 0; j < galsize; j++)
+      add_particle_to_density_field(grid, gal[j]);
 #else
     // If we're parallelizing this, then we need to keep the threads from
     // stepping on each other.  Do this in slabs, but with only every third
@@ -244,7 +245,7 @@ class SurveyReader {
       for (int x = mod; x < ngrid[0]; x += slabset) {
         // For each slab, insert these particles
         for (int j = first[x]; j < first[x + 1]; j++)
-          add_particle_to_grid(grid, gal[j]);
+          add_particle_to_density_field(grid, gal[j]);
       }
     }
 #endif
@@ -256,7 +257,7 @@ class SurveyReader {
 
   /* ------------------------------------------------------------------- */
 
-  void add_particle_to_grid(Grid &grid, Galaxy g) {
+  void add_particle_to_density_field(Grid &grid, Galaxy g) {
     const int *ngrid = grid.dens_.ngrid();
     int ngrid2 = grid.dens_.ngrid2();
     Float *dens = grid.dens_.data();
