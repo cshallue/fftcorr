@@ -57,16 +57,18 @@ class Array3D {
 
   /* ------------------------------------------------------------------- */
 
-  const int *ngrid() { return ngrid_; }
-  int ngrid2() { return ngrid2_; }
-  Float ngrid3() { return ngrid3_; }
-  Float *data() { return data_; };  // TODO: make const
+  const int *ngrid() const { return ngrid_; }
+  int ngrid2() const { return ngrid2_; }
+  Float ngrid3() const { return ngrid3_; }
+  const Float *data() const { return data_; };  // TODO: make const
 
  private:
   int ngrid_[3];
   int ngrid2_;     // ngrid_[2] padded out for the FFT work
   uint64 ngrid3_;  // The total number of FFT grid cells
   Float *data_;    // The flattened grid
+
+  friend class SurveyReader;  // TODO: remove
 };
 
 #endif  // ARRAY3D_H

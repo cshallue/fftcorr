@@ -359,10 +359,11 @@ int main(int argc, char *argv[]) {
           int(ceil(posrange[1] / cell_size)),
           int(ceil(posrange[2] / cell_size)));
 
-  Grid g(box.posmin(), ngrid, cell_size);
+  Grid g(box.posmin(), cell_size);
+  Array3D dens(ngrid);
   SurveyReader reader(box.posmin(), cell_size);
   bool zero_center = (qperiodic == 2);
-  reader.read_galaxies(g, infile, infile2, zero_center);
+  reader.read_galaxies(g, &dens, infile, infile2, zero_center);
 
   /* Done setup Grid ======================================================= */
 
@@ -371,7 +372,7 @@ int main(int argc, char *argv[]) {
   Histogram h(maxell, sep, dsep);
   Histogram kh(maxell, kmax, dk);
   fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-  correlate(g, sep, kmax, maxell, h, kh, wide_angle_exponent, qperiodic);
+  correlate(g, dens, sep, kmax, maxell, h, kh, wide_angle_exponent, qperiodic);
 
   Ylm_count.print(stdout);
   fprintf(stdout, "# Anisotropic power spectrum:\n");
@@ -390,8 +391,8 @@ int main(int argc, char *argv[]) {
   Total.Stop();
   uint64 nfft = 1;
   for (int j = 0; j <= maxell; j += 2) nfft += 2 * (2 * j + 1);
-  nfft *= g.dens().ngrid3();
+  nfft *= dens.ngrid3();
   fprintf(stdout, "#\n");
-  ReportTimes(stdout, nfft, g.dens().ngrid3(), reader.count());
+  ReportTimes(stdout, nfft, dens.ngrid3(), reader.count());
   return 0;
 }

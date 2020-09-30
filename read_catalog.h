@@ -3,6 +3,7 @@
 
 #include <assert.h>
 
+#include "array3d.h"
 #include "grid.h"
 #include "types.h"
 
@@ -85,11 +86,10 @@ class SurveyReader {
 
   /* ------------------------------------------------------------------- */
 
-  void read_galaxies(Grid &grid, const char filename[], const char filename2[],
-                     bool zero_center) {
-    const int *ngrid = grid.dens_.ngrid();
-    Float ngrid3 = grid.dens_.ngrid3();
-    Float *dens = grid.dens_.data();
+  void read_galaxies(const Grid &grid, Array3D *arr, const char filename[],
+                     const char filename2[], bool zero_center) {
+    const int *ngrid = arr->ngrid();
+    Float ngrid3 = arr->ngrid3();
 
     // filename and filename2 are the input particles. filename2==NULL
     // will skip that one
@@ -127,14 +127,15 @@ class SurveyReader {
       while ((nread = fread(&buffer, sizeof(double), BUFFERSIZE, fp)) > 0) {
         b = buffer;
         for (int j = 0; j < nread; j += 4, b += 4) {
-          index = grid.change_to_grid_coords(b);
+          grid.change_to_grid_coords(b);
+          index = arr->to_grid_index(floor(b[0]), floor(b[1]), floor(b[2]));
           gal.push_back(Galaxy(b, index));
           thiscount_++;
           totw += b[3];
           totwsq += b[3] * b[3];
           if (gal.size() >= MAXGAL) {
             // IO.Stop();
-            add_to_density_field(grid, gal);
+            add_to_density_field(arr, gal);
             // IO.Start();
           }
         }
@@ -146,21 +147,21 @@ class SurveyReader {
     }
     // IO.Stop();
     // Add the remaining galaxies to the grid
-    add_to_density_field(grid, gal);
+    add_to_density_field(arr, gal);
 
     fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n", count_,
             totw);
-    Float totw2 = sum_matrix(dens, ngrid3, ngrid[0]);
+    Float totw2 = sum_matrix(arr->data(), ngrid3, ngrid[0]);
     fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
             totw2 - totw);
     if (zero_center) {
       // We're asked to set the mean to zero
       Float mean = totw / ngrid[0] / ngrid[1] / ngrid[2];
-      addscalarto_matrix(dens, -mean, ngrid3, ngrid[0]);
+      addscalarto_matrix(arr->data_, -mean, ngrid3, ngrid[0]);
       fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
     }
 
-    Float sumsq_dens = sumsq_matrix(dens, ngrid3, ngrid[0]);
+    Float sumsq_dens = sumsq_matrix(arr->data(), ngrid3, ngrid[0]);
     fprintf(stdout, "# Sum of squares of density = %14.7e\n", sumsq_dens);
     Pshot_ = totwsq;
     fprintf(stdout,
@@ -197,8 +198,8 @@ class SurveyReader {
 
   /* ------------------------------------------------------------------- */
 
-  void add_to_density_field(Grid &grid, std::vector<Galaxy> &gal) {
-    const int *ngrid = grid.dens_.ngrid();
+  void add_to_density_field(Array3D *arr, std::vector<Galaxy> &gal) {
+    const int *ngrid = arr->ngrid();
 
     // Given a set of Galaxies, add them to the grid and then reset the list
     // CIC.Start();
@@ -206,8 +207,7 @@ class SurveyReader {
 
 #ifdef DEPRICATED
     // This works, but appears to be slower
-    for (int j = 0; j < galsize; j++)
-      add_particle_to_density_field(grid, gal[j]);
+    for (int j = 0; j < galsize; j++) add_galaxy_to_density_field(grid, gal[j]);
 #else
     // If we're parallelizing this, then we need to keep the threads from
     // stepping on each other.  Do this in slabs, but with only every third
@@ -245,7 +245,7 @@ class SurveyReader {
       for (int x = mod; x < ngrid[0]; x += slabset) {
         // For each slab, insert these particles
         for (int j = first[x]; j < first[x + 1]; j++)
-          add_particle_to_density_field(grid, gal[j]);
+          add_galaxy_to_density_field(arr, gal[j]);
       }
     }
 #endif
@@ -257,10 +257,10 @@ class SurveyReader {
 
   /* ------------------------------------------------------------------- */
 
-  void add_particle_to_density_field(Grid &grid, Galaxy g) {
-    const int *ngrid = grid.dens_.ngrid();
-    int ngrid2 = grid.dens_.ngrid2();
-    Float *dens = grid.dens_.data();
+  void add_galaxy_to_density_field(Array3D *arr, Galaxy g) {
+    const int *ngrid = arr->ngrid();
+    int ngrid2 = arr->ngrid2();
+    Float *dens = arr->data_;
 
     // Add one particle to the density grid.
     // This does a 27-point triangular cloud-in-cell, unless one invokes

@@ -8,18 +8,20 @@
 #include "matrix_utils.h"
 #include "types.h"
 
-void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
-               Histogram &kh, int wide_angle_exponent, int qperiodic) {
+// TODO: rename arr to dens
+void correlate(const Grid &g, const Array3D &arr, Float sep, Float kmax,
+               int maxell, Histogram &h, Histogram &kh, int wide_angle_exponent,
+               int qperiodic) {
   // Set up the sub-matrix information, assuming that we'll extract
   // -sep..+sep cells around zero-lag.
   // Setup.Start();
 
   // Make a copy of g.ngrid(), partly for readability, but also needed because
   // [I]FFT_Execute takes a non-const pointer.
-  int ngrid[3] = {g.dens().ngrid()[0], g.dens().ngrid()[1],
-                  g.dens().ngrid()[2]};
-  int ngrid2 = g.dens().ngrid2();
-  uint64 ngrid3 = g.dens().ngrid3();
+  const Float *dens = arr.data();
+  int ngrid[3] = {arr.ngrid()[0], arr.ngrid()[1], arr.ngrid()[2]};
+  int ngrid2 = arr.ngrid2();
+  uint64 ngrid3 = arr.ngrid3();
   Float cell_size = g.cell_size();
 
   // Compute the origin, in grid units.
@@ -168,7 +170,6 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
 
   // Allocate the work matrix and load it with the density
   // We do this here so that the array is touched before FFT planning
-  const Float *dens = g.dens().data();
   Float *work = NULL;  // work space for each (ell,m), in a flattened grid.
   initialize_matrix_by_copy(work, ngrid3, ngrid[0], dens);
 
