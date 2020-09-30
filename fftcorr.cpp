@@ -362,8 +362,52 @@ int main(int argc, char *argv[]) {
   Grid g(box.posmin(), cell_size);
   Array3D dens(ngrid);
   SurveyReader reader(cell_size);
-  bool zero_center = (qperiodic == 2);
-  reader.read_galaxies(g, &dens, infile, infile2, zero_center);
+  reader.read_galaxies(g, &dens, infile, infile2);
+
+  fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n",
+          reader.count(), reader.totw());
+  Float totw2 = sum_matrix(dens.data(), dens.ngrid3(), dens.ngrid()[0]);
+  fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
+          totw2 - reader.totw());
+  if (qperiodic == 2) {
+    // We're asked to set the mean to zero
+    Float mean =
+        reader.totw() / dens.ngrid()[0] / dens.ngrid()[1] / dens.ngrid()[2];
+    addscalarto_matrix(dens.raw_data(), -mean, dens.ngrid3(), dens.ngrid()[0]);
+    fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
+  }
+
+  Float sumsq_dens = sumsq_matrix(dens.data(), dens.ngrid3(), dens.ngrid()[0]);
+  fprintf(stdout, "# Sum of squares of density = %14.7e\n", sumsq_dens);
+  fprintf(stdout,
+          "# Sum of squares of weights (divide by I for Pshot) = %14.7e\n",
+          reader.totwsq());
+// When run with N=D-R, this divided by I would be the shot noise.
+
+// Meanwhile, an estimate of I when running with only R is
+// (sum of R^2)/Vcell - (11/20)**3*(sum_R w^2)/Vcell
+// The latter is correcting the estimate for shot noise
+// The 11/20 factor is for triangular cloud in cell.
+#ifndef NEAREST_CELL
+#ifdef WAVELET
+  fprintf(stdout, "# Using D12 wavelet\n");
+#else
+  totwsq *= 0.55 * 0.55 * 0.55;
+  fprintf(stdout, "# Using triangular cloud-in-cell\n");
+#endif
+#else
+  fprintf(stdout, "# Using nearest cell method\n");
+#endif
+  Float Vcell = cell_size * cell_size * cell_size;
+  fprintf(stdout, "# Estimate of I (denominator) = %14.7e - %14.7e = %14.7e\n",
+          sumsq_dens / Vcell, reader.totwsq() / Vcell,
+          (sumsq_dens - reader.totwsq()) / Vcell);
+
+  // In the limit of infinite homogeneous particles in a periodic box:
+  // If W=sum(w), then each particle has w = W/N.  totwsq = N*(W/N)^2 =
+  // W^2/N. Meanwhile, each cell has density (W/N)*(N/Ncell) = W/Ncell.
+  // sumsq_dens/Vcell = W^2/(Ncell*Vcell) = W^2/V.
+  // Hence the real shot noise is V/N = 1/n.
 
   /* Done setup Grid ======================================================= */
 

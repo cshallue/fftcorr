@@ -60,7 +60,8 @@ class Array3D {
   const int *ngrid() const { return ngrid_; }
   int ngrid2() const { return ngrid2_; }
   Float ngrid3() const { return ngrid3_; }
-  const Float *data() const { return data_; };  // TODO: make const
+  const Float *data() const { return data_; };
+  Float *raw_data() { return data_; }  // TODO: come up with a better solution
 
  private:
   int ngrid_[3];

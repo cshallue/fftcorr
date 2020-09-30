@@ -86,13 +86,12 @@ class SurveyReader {
   }
 
   void clear() { gal_.clear(); }
-  Float count() { return count_; }
+  int count() { return count_; }
+  Float totw() { return totw_; }
+  Float totwsq() { return totwsq_; }
 
   void read_galaxies(const Grid &grid, Array3D *arr, const char filename[],
-                     const char filename2[], bool zero_center) {
-    const int *ngrid = arr->ngrid();
-    Float ngrid3 = arr->ngrid3();
-
+                     const char filename2[]) {
     // filename and filename2 are the input particles. filename2==NULL
     // will skip that one
     // Read to the end of the file, bringing in x,y,z,w points.
@@ -110,7 +109,7 @@ class SurveyReader {
     // IO.Start();
     for (int file = 0; file < 2; file++) {
       char *fn;
-      int thiscount_ = 0;
+      int thiscount = 0;
       if (file == 0)
         fn = (char *)filename;
       else
@@ -128,7 +127,7 @@ class SurveyReader {
           grid.change_to_grid_coords(b);
           index = arr->to_grid_index(floor(b[0]), floor(b[1]), floor(b[2]));
           gal_.push_back(Galaxy(b, index));
-          thiscount_++;
+          ++thiscount;
           totw_ += b[3];
           totwsq_ += b[3] * b[3];
           if (gal_.size() >= GALAXY_BATCH_SIZE) {
@@ -139,57 +138,13 @@ class SurveyReader {
         }
         if (nread != FILE_BUFFER_SIZE) break;
       }
-      count_ += thiscount_;
-      fprintf(stdout, "# Found %d galaxies in this file\n", thiscount_);
+      count_ += thiscount;
+      fprintf(stdout, "# Found %d galaxies in this file\n", thiscount);
       fclose(fp);
     }
     // IO.Stop();
     // Add the remaining galaxies to the grid
     flush_to_density_field(arr);
-
-    fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n", count_,
-            totw_);
-    Float totw2 = sum_matrix(arr->data(), ngrid3, ngrid[0]);
-    fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
-            totw2 - totw_);
-    if (zero_center) {
-      // We're asked to set the mean to zero
-      Float mean = totw_ / ngrid[0] / ngrid[1] / ngrid[2];
-      addscalarto_matrix(arr->data_, -mean, ngrid3, ngrid[0]);
-      fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
-    }
-
-    Float sumsq_dens = sumsq_matrix(arr->data(), ngrid3, ngrid[0]);
-    fprintf(stdout, "# Sum of squares of density = %14.7e\n", sumsq_dens);
-    fprintf(stdout,
-            "# Sum of squares of weights (divide by I for Pshot) = %14.7e\n",
-            totwsq_);
-// When run with N=D-R, this divided by I would be the shot noise.
-
-// Meanwhile, an estimate of I when running with only R is
-// (sum of R^2)/Vcell - (11/20)**3*(sum_R w^2)/Vcell
-// The latter is correcting the estimate for shot noise
-// The 11/20 factor is for triangular cloud in cell.
-#ifndef NEAREST_CELL
-#ifdef WAVELET
-    fprintf(stdout, "# Using D12 wavelet\n");
-#else
-    totwsq *= 0.55 * 0.55 * 0.55;
-    fprintf(stdout, "# Using triangular cloud-in-cell\n");
-#endif
-#else
-    fprintf(stdout, "# Using nearest cell method\n");
-#endif
-    Float Vcell = cell_size_ * cell_size_ * cell_size_;
-    fprintf(
-        stdout, "# Estimate of I (denominator) = %14.7e - %14.7e = %14.7e\n",
-        sumsq_dens / Vcell, totwsq_ / Vcell, (sumsq_dens - totwsq_) / Vcell);
-
-    // In the limit of infinite homogeneous particles in a periodic box:
-    // If W=sum(w), then each particle has w = W/N.  totwsq = N*(W/N)^2 =
-    // W^2/N. Meanwhile, each cell has density (W/N)*(N/Ncell) = W/Ncell.
-    // sumsq_dens/Vcell = W^2/(Ncell*Vcell) = W^2/V.
-    // Hence the real shot noise is V/N = 1/n.
   }
 
  private:
