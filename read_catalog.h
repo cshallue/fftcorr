@@ -85,7 +85,7 @@ class SurveyReader {
 
   /* ------------------------------------------------------------------- */
 
-  void read_galaxies(Grid *grid, const char filename[], const char filename2[],
+  void read_galaxies(Grid &grid, const char filename[], const char filename2[],
                      bool zero_center) {
     // filename and filename2 are the input particles. filename2==NULL
     // will skip that one
@@ -123,7 +123,7 @@ class SurveyReader {
       while ((nread = fread(&buffer, sizeof(double), BUFFERSIZE, fp)) > 0) {
         b = buffer;
         for (int j = 0; j < nread; j += 4, b += 4) {
-          index = grid->change_to_grid_coords(b);
+          index = grid.change_to_grid_coords(b);
           gal.push_back(Galaxy(b, index));
           thiscount_++;
           totw += b[3];
@@ -146,21 +146,19 @@ class SurveyReader {
 
     fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n", count_,
             totw);
-    Float totw2 =
-        sum_matrix(grid->dens_.data(), grid->ngrid3(), grid->ngrid()[0]);
+    Float totw2 = sum_matrix(grid.dens_.data(), grid.ngrid3(), grid.ngrid()[0]);
     fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
             totw2 - totw);
     if (zero_center) {
       // We're asked to set the mean to zero
-      Float mean =
-          totw / grid->ngrid()[0] / grid->ngrid()[1] / grid->ngrid()[2];
-      addscalarto_matrix(grid->dens_.data(), -mean, grid->ngrid3(),
-                         grid->ngrid()[0]);
+      Float mean = totw / grid.ngrid()[0] / grid.ngrid()[1] / grid.ngrid()[2];
+      addscalarto_matrix(grid.dens_.data(), -mean, grid.ngrid3(),
+                         grid.ngrid()[0]);
       fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
     }
 
     Float sumsq_dens =
-        sumsq_matrix(grid->dens_.data(), grid->ngrid3(), grid->ngrid()[0]);
+        sumsq_matrix(grid.dens_.data(), grid.ngrid3(), grid.ngrid()[0]);
     fprintf(stdout, "# Sum of squares of density = %14.7e\n", sumsq_dens);
     Pshot_ = totwsq;
     fprintf(stdout,
@@ -197,7 +195,7 @@ class SurveyReader {
 
   /* ------------------------------------------------------------------- */
 
-  void add_to_grid(Grid *grid, std::vector<Galaxy> &gal) {
+  void add_to_grid(Grid &grid, std::vector<Galaxy> &gal) {
     // Given a set of Galaxies, add them to the grid and then reset the list
     // CIC.Start();
     const int galsize = gal.size();
@@ -223,10 +221,10 @@ class SurveyReader {
     // Galaxies between N and N+1 should be in indices [first[N], first[N+1]).
     // That means that first[N] should be the index of the first galaxy to
     // exceed N.
-    int first[grid->ngrid()[0] + 1], ptr = 0;
+    int first[grid.ngrid()[0] + 1], ptr = 0;
     for (int j = 0; j < galsize; j++)
       while (gal[j].x > ptr) first[ptr++] = j;
-    for (; ptr <= grid->ngrid()[0]; ptr++) first[ptr] = galsize;
+    for (; ptr <= grid.ngrid()[0]; ptr++) first[ptr] = galsize;
 
     // Now, we'll loop, with each thread in charge of slab x.
     // Not bothering with NUMA issues.  a) Most of the time is spent waiting
@@ -239,7 +237,7 @@ class SurveyReader {
 #endif
     for (int mod = 0; mod < slabset; mod++) {
 #pragma omp parallel for schedule(dynamic, 1)
-      for (int x = mod; x < grid->ngrid()[0]; x += slabset) {
+      for (int x = mod; x < grid.ngrid()[0]; x += slabset) {
         // For each slab, insert these particles
         for (int j = first[x]; j < first[x + 1]; j++)
           add_particle_to_grid(grid, gal[j]);
@@ -254,8 +252,8 @@ class SurveyReader {
 
   /* ------------------------------------------------------------------- */
 
-  void add_particle_to_grid(Grid *grid, Galaxy g) {
-    Float *dens = grid->dens_.data();
+  void add_particle_to_grid(Grid &grid, Galaxy g) {
+    Float *dens = grid.dens_.data();
 
     // Add one particle to the density grid.
     // This does a 27-point triangular cloud-in-cell, unless one invokes
@@ -267,7 +265,7 @@ class SurveyReader {
 
 // If we're just doing nearest cell.
 #ifdef NEAREST_CELL
-    index = (iz) + grid->ngrid2() * ((iy) + (ix)*grid->ngrid()[1]);
+    index = (iz) + grid.ngrid2() * ((iy) + (ix)*grid.ngrid()[1]);
     dens[index] += g.w;
     return;
 #endif
@@ -284,21 +282,21 @@ class SurveyReader {
     const Float *ywave = wave + sy * WCELLS;
     const Float *zwave = wave + sz * WCELLS;
     // This code does periodic wrapping
-    const uint64 ng0 = grid->ngrid()[0];
-    const uint64 ng1 = grid->ngrid()[1];
-    const uint64 ng2 = grid->ngrid()[2];
+    const uint64 ng0 = grid.ngrid()[0];
+    const uint64 ng1 = grid.ngrid()[1];
+    const uint64 ng2 = grid.ngrid()[2];
     // Offset to the lower-most cell, taking care to handle unsigned int
     ix = (ix + ng0 + WMIN) % ng0;
     iy = (iy + ng1 + WMIN) % ng1;
     iz = (iz + ng2 + WMIN) % ng2;
-    Float *px = dens + grid->ngrid2() * ng1 * ix;
-    for (int ox = 0; ox < WCELLS; ox++, px += grid->ngrid2() * ng1) {
+    Float *px = dens + grid.ngrid2() * ng1 * ix;
+    for (int ox = 0; ox < WCELLS; ox++, px += grid.ngrid2() * ng1) {
       if (ix + ox == ng0)
-        px -= ng0 * ng1 * grid->ngrid2();  // Periodic wrap in X
+        px -= ng0 * ng1 * grid.ngrid2();  // Periodic wrap in X
       Float Dx = xwave[ox] * g.w;
-      Float *py = px + iy * grid->ngrid2();
-      for (int oy = 0; oy < WCELLS; oy++, py += grid->ngrid2()) {
-        if (iy + oy == ng1) py -= ng1 * grid->ngrid2();  // Periodic wrap in Y
+      Float *py = px + iy * grid.ngrid2();
+      for (int oy = 0; oy < WCELLS; oy++, py += grid.ngrid2()) {
+        if (iy + oy == ng1) py -= ng1 * grid.ngrid2();  // Periodic wrap in Y
         Float *pz = py + iz;
         Float Dxy = Dx * ywave[oy];
         if (iz + WCELLS > ng2) {  // Z Wrap is needed
@@ -329,94 +327,94 @@ class SurveyReader {
     Float zp = 0.5 * rz * rz;
     Float z0 = 0.5 + rz - rz * rz;
     //
-    if (ix == 0 || ix == grid->ngrid()[0] - 1 || iy == 0 ||
-        iy == grid->ngrid()[1] - 1 || iz == 0 || iz == grid->ngrid()[2] - 1) {
+    if (ix == 0 || ix == grid.ngrid()[0] - 1 || iy == 0 ||
+        iy == grid.ngrid()[1] - 1 || iz == 0 || iz == grid.ngrid()[2] - 1) {
       // This code does periodic wrapping
-      const uint64 ng0 = grid->ngrid()[0];
-      const uint64 ng1 = grid->ngrid()[1];
-      const uint64 ng2 = grid->ngrid()[2];
-      ix += grid->ngrid()[0];  // Just to put away any fears of negative mods
-      iy += grid->ngrid()[1];
-      iz += grid->ngrid()[2];
+      const uint64 ng0 = grid.ngrid()[0];
+      const uint64 ng1 = grid.ngrid()[1];
+      const uint64 ng2 = grid.ngrid()[2];
+      ix += grid.ngrid()[0];  // Just to put away any fears of negative mods
+      iy += grid.ngrid()[1];
+      iz += grid.ngrid()[2];
       const uint64 izm = (iz - 1) % ng2;
       const uint64 iz0 = (iz) % ng2;
       const uint64 izp = (iz + 1) % ng2;
       //
-      index = grid->ngrid2() * (((iy - 1) % ng1) + ((ix - 1) % ng0) * ng1);
+      index = grid.ngrid2() * (((iy - 1) % ng1) + ((ix - 1) % ng0) * ng1);
       dens[index + izm] += xm * ym * zm;
       dens[index + iz0] += xm * ym * z0;
       dens[index + izp] += xm * ym * zp;
-      index = grid->ngrid2() * (((iy) % ng1) + ((ix - 1) % ng0) * ng1);
+      index = grid.ngrid2() * (((iy) % ng1) + ((ix - 1) % ng0) * ng1);
       dens[index + izm] += xm * y0 * zm;
       dens[index + iz0] += xm * y0 * z0;
       dens[index + izp] += xm * y0 * zp;
-      index = grid->ngrid2() * (((iy + 1) % ng1) + ((ix - 1) % ng0) * ng1);
+      index = grid.ngrid2() * (((iy + 1) % ng1) + ((ix - 1) % ng0) * ng1);
       dens[index + izm] += xm * yp * zm;
       dens[index + iz0] += xm * yp * z0;
       dens[index + izp] += xm * yp * zp;
       //
-      index = grid->ngrid2() * (((iy - 1) % ng1) + ((ix) % ng0) * ng1);
+      index = grid.ngrid2() * (((iy - 1) % ng1) + ((ix) % ng0) * ng1);
       dens[index + izm] += x0 * ym * zm;
       dens[index + iz0] += x0 * ym * z0;
       dens[index + izp] += x0 * ym * zp;
-      index = grid->ngrid2() * (((iy) % ng1) + ((ix) % ng0) * ng1);
+      index = grid.ngrid2() * (((iy) % ng1) + ((ix) % ng0) * ng1);
       dens[index + izm] += x0 * y0 * zm;
       dens[index + iz0] += x0 * y0 * z0;
       dens[index + izp] += x0 * y0 * zp;
-      index = grid->ngrid2() * (((iy + 1) % ng1) + ((ix) % ng0) * ng1);
+      index = grid.ngrid2() * (((iy + 1) % ng1) + ((ix) % ng0) * ng1);
       dens[index + izm] += x0 * yp * zm;
       dens[index + iz0] += x0 * yp * z0;
       dens[index + izp] += x0 * yp * zp;
       //
-      index = grid->ngrid2() * (((iy - 1) % ng1) + ((ix + 1) % ng0) * ng1);
+      index = grid.ngrid2() * (((iy - 1) % ng1) + ((ix + 1) % ng0) * ng1);
       dens[index + izm] += xp * ym * zm;
       dens[index + iz0] += xp * ym * z0;
       dens[index + izp] += xp * ym * zp;
-      index = grid->ngrid2() * (((iy) % ng1) + ((ix + 1) % ng0) * ng1);
+      index = grid.ngrid2() * (((iy) % ng1) + ((ix + 1) % ng0) * ng1);
       dens[index + izm] += xp * y0 * zm;
       dens[index + iz0] += xp * y0 * z0;
       dens[index + izp] += xp * y0 * zp;
-      index = grid->ngrid2() * (((iy + 1) % ng1) + ((ix + 1) % ng0) * ng1);
+      index = grid.ngrid2() * (((iy + 1) % ng1) + ((ix + 1) % ng0) * ng1);
       dens[index + izm] += xp * yp * zm;
       dens[index + iz0] += xp * yp * z0;
       dens[index + izp] += xp * yp * zp;
     } else {
       // This code is faster, but doesn't do periodic wrapping
       index =
-          (iz - 1) + grid->ngrid2() * ((iy - 1) + (ix - 1) * grid->ngrid()[1]);
+          (iz - 1) + grid.ngrid2() * ((iy - 1) + (ix - 1) * grid.ngrid()[1]);
       dens[index++] += xm * ym * zm;
       dens[index++] += xm * ym * z0;
       dens[index] += xm * ym * zp;
-      index += grid->ngrid2() - 2;  // Step to the next row in y
+      index += grid.ngrid2() - 2;  // Step to the next row in y
       dens[index++] += xm * y0 * zm;
       dens[index++] += xm * y0 * z0;
       dens[index] += xm * y0 * zp;
-      index += grid->ngrid2() - 2;  // Step to the next row in y
+      index += grid.ngrid2() - 2;  // Step to the next row in y
       dens[index++] += xm * yp * zm;
       dens[index++] += xm * yp * z0;
       dens[index] += xm * yp * zp;
-      index = (iz - 1) + grid->ngrid2() * ((iy - 1) + ix * grid->ngrid()[1]);
+      index = (iz - 1) + grid.ngrid2() * ((iy - 1) + ix * grid.ngrid()[1]);
       dens[index++] += x0 * ym * zm;
       dens[index++] += x0 * ym * z0;
       dens[index] += x0 * ym * zp;
-      index += grid->ngrid2() - 2;  // Step to the next row in y
+      index += grid.ngrid2() - 2;  // Step to the next row in y
       dens[index++] += x0 * y0 * zm;
       dens[index++] += x0 * y0 * z0;
       dens[index] += x0 * y0 * zp;
-      index += grid->ngrid2() - 2;  // Step to the next row in y
+      index += grid.ngrid2() - 2;  // Step to the next row in y
       dens[index++] += x0 * yp * zm;
       dens[index++] += x0 * yp * z0;
       dens[index] += x0 * yp * zp;
       index =
-          (iz - 1) + grid->ngrid2() * ((iy - 1) + (ix + 1) * grid->ngrid()[1]);
+          (iz - 1) + grid.ngrid2() * ((iy - 1) + (ix + 1) * grid.ngrid()[1]);
       dens[index++] += xp * ym * zm;
       dens[index++] += xp * ym * z0;
       dens[index] += xp * ym * zp;
-      index += grid->ngrid2() - 2;  // Step to the next row in y
+      index += grid.ngrid2() - 2;  // Step to the next row in y
       dens[index++] += xp * y0 * zm;
       dens[index++] += xp * y0 * z0;
       dens[index] += xp * y0 * zp;
-      index += grid->ngrid2() - 2;  // Step to the next row in y
+      index += grid.ngrid2() - 2;  // Step to the next row in y
       dens[index++] += xp * yp * zm;
       dens[index++] += xp * yp * z0;
       dens[index] += xp * yp * zp;

@@ -362,7 +362,7 @@ int main(int argc, char *argv[]) {
   Grid g(box.posmin(), ngrid, cell_size);
   SurveyReader reader(box.posmin(), cell_size);
   bool zero_center = (qperiodic == 2);
-  reader.read_galaxies(&g, infile, infile2, zero_center);
+  reader.read_galaxies(g, infile, infile2, zero_center);
 
   /* Done setup Grid ======================================================= */
 
