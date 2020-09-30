@@ -378,7 +378,8 @@ int main(int argc, char *argv[]) {
           int(ceil(posrange[2] / cell_size)));
 
   Grid g(posmin, ngrid, cell_size, qperiodic);
-  g.read_galaxies(infile, infile2);
+  CatalogReader reader;
+  reader.read_galaxies(&g, infile, infile2);
 
   /* Done setup Grid ======================================================= */
 
@@ -408,6 +409,6 @@ int main(int argc, char *argv[]) {
   for (int j = 0; j <= maxell; j += 2) nfft += 2 * (2 * j + 1);
   nfft *= g.ngrid3();
   fprintf(stdout, "#\n");
-  ReportTimes(stdout, nfft, g.ngrid3(), g.cnt());
+  ReportTimes(stdout, nfft, g.ngrid3(), reader.count());
   return 0;
 }

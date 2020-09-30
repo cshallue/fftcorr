@@ -191,7 +191,7 @@ void copy_matrix(Float *a, const Float *b, const Float c, const uint64 size,
 #endif
 }
 
-Float sum_matrix(Float *a, const uint64 size, const int nx) {
+Float sum_matrix(const Float *a, const uint64 size, const int nx) {
   // Sum the elements of the matrix
   // nx will be our slab decomposition; it must divide into size evenly
   assert(size % nx == 0);
@@ -210,7 +210,7 @@ Float sum_matrix(Float *a, const uint64 size, const int nx) {
   return tot;
 }
 
-Float sumsq_matrix(Float *a, const uint64 size, const int nx) {
+Float sumsq_matrix(const Float *a, const uint64 size, const int nx) {
   // Sum the square of elements of the matrix
   // nx will be our slab decomposition; it must divide into size evenly
   assert(size % nx == 0);
