@@ -78,10 +78,7 @@ class SurveyBox {
 
 class SurveyReader {
  public:
-  SurveyReader(const Float posmin[3], Float cell_size) {
-    for (int i = 0; i < 3; ++i) {
-      posmin_[i] = posmin[i];
-    }
+  SurveyReader(Float cell_size) {
     cell_size_ = cell_size;
     count_ = 0;
     Pshot_ = 0;
@@ -422,7 +419,6 @@ class SurveyReader {
     }
   }
 
-  Float posmin_[3];
   Float cell_size_;
 
   double buffer_[FILE_BUFFER_SIZE];

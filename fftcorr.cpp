@@ -361,7 +361,7 @@ int main(int argc, char *argv[]) {
 
   Grid g(box.posmin(), cell_size);
   Array3D dens(ngrid);
-  SurveyReader reader(box.posmin(), cell_size);
+  SurveyReader reader(cell_size);
   bool zero_center = (qperiodic == 2);
   reader.read_galaxies(g, &dens, infile, infile2, zero_center);
 
