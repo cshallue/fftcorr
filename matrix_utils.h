@@ -1,6 +1,8 @@
 #ifndef MATRIX_UTILS_H
 #define MATRIX_UTILS_H
 
+#include <assert.h>
+
 #include "types.h"
 
 // Here are some matrix handling routines, which may need OMP attention
@@ -35,6 +37,14 @@ void print_submatrix(Float *m, int n, int p, FILE *fp, Float norm) {
       fprintf(fp, "\n");
     }
   return;
+}
+
+Float *allocate_array(uint64 size) {
+  Float *arr;
+  int err = posix_memalign((void **)&arr, PAGE, sizeof(Float) * size + PAGE);
+  assert(err == 0);
+  assert(arr != NULL);
+  return arr;
 }
 
 void initialize_matrix(Float *&m, const uint64 size, const int nx) {

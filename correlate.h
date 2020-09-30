@@ -5,6 +5,7 @@
 
 #include "fft_utils.h"
 #include "grid.h"
+#include "matrix_utils.h"
 #include "types.h"
 
 void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
@@ -19,17 +20,9 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
 
   // Compute xcell, ycell, zcell, which are the coordinates of the cell centers
   // in each dimension, relative to the origin.
-  Float *xcell, *ycell, *zcell;
-  int err;
-  err = posix_memalign((void **)&xcell, PAGE, sizeof(Float) * ngrid[0] + PAGE);
-  assert(err == 0);
-  err = posix_memalign((void **)&ycell, PAGE, sizeof(Float) * ngrid[1] + PAGE);
-  assert(err == 0);
-  err = posix_memalign((void **)&zcell, PAGE, sizeof(Float) * ngrid[2] + PAGE);
-  assert(err == 0);
-  assert(xcell != NULL);
-  assert(ycell != NULL);
-  assert(zcell != NULL);
+  Float *xcell = allocate_array(ngrid[0]);
+  Float *ycell = allocate_array(ngrid[1]);
+  Float *zcell = allocate_array(ngrid[2]);
   // Now set up the cell centers relative to the origin, in grid units
   for (int j = 0; j < ngrid[0]; j++) xcell[j] = 0.5 + j - g.origin()[0];
   for (int j = 0; j < ngrid[1]; j++) ycell[j] = 0.5 + j - g.origin()[1];
@@ -49,18 +42,10 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   int csize3 = csize[0] * csize[1] * csize[2];
   // Allocate corr_cell to [csize] and rnorm to [csize**3]
   // The cell centers, relative to zero lag.
-  Float *cx_cell, *cy_cell, *cz_cell;
+  Float *cx_cell = allocate_array(csize[0]);
+  Float *cy_cell = allocate_array(csize[1]);
+  Float *cz_cell = allocate_array(csize[2]);
   Float *rnorm = NULL;  // The radius of each cell, in a flattened submatrix.
-  // int err;
-  err =
-      posix_memalign((void **)&cx_cell, PAGE, sizeof(Float) * csize[0] + PAGE);
-  assert(err == 0);
-  err =
-      posix_memalign((void **)&cy_cell, PAGE, sizeof(Float) * csize[1] + PAGE);
-  assert(err == 0);
-  err =
-      posix_memalign((void **)&cz_cell, PAGE, sizeof(Float) * csize[2] + PAGE);
-  assert(err == 0);
   initialize_matrix(rnorm, csize3, csize[0]);
 
   // Normalizing by cell_size just so that the Ylm code can do the wide-angle
@@ -105,16 +90,9 @@ void correlate(Grid &g, Float sep, Float kmax, int maxell, Histogram &h,
   int ksize3 = ksize[0] * ksize[1] * ksize[2];
   // The cell centers, relative to zero lag.
   // Allocate kx_cell to [ksize_] and knorm_ to [ksize_**3]
-  Float *kx_cell, *ky_cell, *kz_cell;
-  err =
-      posix_memalign((void **)&kx_cell, PAGE, sizeof(Float) * ksize[0] + PAGE);
-  assert(err == 0);
-  err =
-      posix_memalign((void **)&ky_cell, PAGE, sizeof(Float) * ksize[1] + PAGE);
-  assert(err == 0);
-  err =
-      posix_memalign((void **)&kz_cell, PAGE, sizeof(Float) * ksize[2] + PAGE);
-  assert(err == 0);
+  Float *kx_cell = allocate_array(ksize[0]);
+  Float *ky_cell = allocate_array(ksize[1]);
+  Float *kz_cell = allocate_array(ksize[2]);
   // The wavenumber of each cell, in a flattened submatrix.
   Float *knorm = NULL;
   initialize_matrix(knorm, ksize3, ksize[0]);
