@@ -20,8 +20,14 @@ OMP = -DOPENMP -DFFTSLAB -DSLAB
 
 default: fftcorr
 
-fftcorr: fftcorr.cpp Makefile merge_sort_omp.cpp STimer.cc
-	${CXX} ${CXXFLAGS} fftcorr.cpp ${FFTW} -o fftcorr
+fftcorr: fftcorr.cpp Makefile merge_sort_omp.cpp STimer.cc array3d.o
+	${CXX} ${CXXFLAGS} ${FFTW} fftcorr.cpp -o fftcorr array3d.o
+
+array3d.o: array3d.cc array3d.h types.h
+	${CXX} ${CXXFLAGS} -c array3d.cc
+
+clean:
+	rm fftcorr array3d.o
 
 tar:
 	tar cvf fftcorr.tar --exclude="*.pyc" \

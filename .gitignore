@@ -2,4 +2,5 @@
 fftcorr
 wisdom_fftw
 *.pyc
+*.o
 test_data*
