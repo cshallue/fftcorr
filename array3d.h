@@ -13,6 +13,8 @@ class Array3D {
   }
 
   void add_scalar(Float s);
+  Float sum() const;
+  Float sumsq() const;
 
   const int *ngrid() const { return ngrid_; }
   int ngrid2() const { return ngrid2_; }

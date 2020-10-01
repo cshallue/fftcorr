@@ -366,18 +366,19 @@ int main(int argc, char *argv[]) {
 
   fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n",
           reader.count(), reader.totw());
-  Float totw2 = sum_matrix(dens.data(), dens.ngrid3(), dens.ngrid()[0]);
+  Float totw2 = dens.sum();
   fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
           totw2 - reader.totw());
   if (qperiodic == 2) {
     // We're asked to set the mean to zero
+    // TODO: make a function of Array3D returning the product of ngrid.
     Float mean =
         reader.totw() / dens.ngrid()[0] / dens.ngrid()[1] / dens.ngrid()[2];
     dens.add_scalar(-mean);
     fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
   }
 
-  Float sumsq_dens = sumsq_matrix(dens.data(), dens.ngrid3(), dens.ngrid()[0]);
+  Float sumsq_dens = dens.sumsq();
   fprintf(stdout, "# Sum of squares of density = %14.7e\n", sumsq_dens);
   fprintf(stdout,
           "# Sum of squares of weights (divide by I for Pshot) = %14.7e\n",

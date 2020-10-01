@@ -183,44 +183,6 @@ void copy_matrix(Float *a, const Float *b, const Float c, const uint64 size,
 #endif
 }
 
-Float sum_matrix(const Float *a, const uint64 size, const int nx) {
-  // Sum the elements of the matrix
-  // nx will be our slab decomposition; it must divide into size evenly
-  assert(size % nx == 0);
-  Float tot = 0.0;
-#ifdef SLAB
-  const uint64 nyz = size / nx;
-#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
-  for (int x = 0; x < nx; x++) {
-    Float *aslab = a + x * nyz;
-    for (uint64 j = 0; j < nyz; j++) tot += aslab[j];
-  }
-#else
-#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
-  for (uint64 j = 0; j < size; j++) tot += a[j];
-#endif
-  return tot;
-}
-
-Float sumsq_matrix(const Float *a, const uint64 size, const int nx) {
-  // Sum the square of elements of the matrix
-  // nx will be our slab decomposition; it must divide into size evenly
-  assert(size % nx == 0);
-  Float tot = 0.0;
-#ifdef SLAB
-  const uint64 nyz = size / nx;
-#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
-  for (int x = 0; x < nx; x++) {
-    Float *aslab = a + x * nyz;
-    for (uint64 j = 0; j < nyz; j++) tot += aslab[j] * aslab[j];
-  }
-#else
-#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
-  for (uint64 j = 0; j < size; j++) tot += a[j] * a[j];
-#endif
-  return tot;
-}
-
 void multiply_matrix_with_conjugation(Complex *a, Complex *b, const uint64 size,
                                       const int nx) {
   // Element-wise multiply a[] by conjugate of b[]
