@@ -361,7 +361,7 @@ int main(int argc, char *argv[]) {
 
   Grid g(box.posmin(), cell_size);
   Array3D dens(ngrid);
-  SurveyReader reader(cell_size);
+  SurveyReader reader;
   reader.read_galaxies(g, &dens, infile, infile2);
 
   fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n",

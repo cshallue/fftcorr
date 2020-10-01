@@ -16,6 +16,7 @@ class Grid {
   // the origin
 
   Grid(const Float posmin[3], Float cell_size) {
+    // TODO: here and elsewhere in the code, use std::array
     for (int j = 0; j < 3; j++) {
       posmin_[j] = posmin[j];
     }
@@ -44,8 +45,6 @@ class Grid {
   Float posmin_[3];  // Including the border; we don't support periodic wrapping
                      // in CIC
   Float cell_size_;  // The size of the cubic cells
-
-  friend class SurveyReader;  // TODO: remove this
 };
 
 #endif  // GRID_H

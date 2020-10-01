@@ -25,6 +25,7 @@ void correlate(const Grid &g, const Array3D &arr, Float sep, Float kmax,
   Float cell_size = g.cell_size();
 
   // Compute the origin, in grid units.
+  // TODO: might want to put the origin inside the Grid class
   Float origin[3];
   if (qperiodic) {
     // In this case, we'll place the observer centered in the grid, but

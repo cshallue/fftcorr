@@ -78,8 +78,7 @@ class SurveyBox {
 
 class SurveyReader {
  public:
-  SurveyReader(Float cell_size) {
-    cell_size_ = cell_size;
+  SurveyReader() {
     count_ = 0;
     totw_ = 0;
     totwsq_ = 0;
@@ -90,6 +89,7 @@ class SurveyReader {
   Float totw() { return totw_; }
   Float totwsq() { return totwsq_; }
 
+  // TODO: this function only needs to read one file at a time.
   void read_galaxies(const Grid &grid, Array3D *arr, const char filename[],
                      const char filename2[]) {
     // filename and filename2 are the input particles. filename2==NULL
@@ -99,7 +99,6 @@ class SurveyReader {
     // We're setting up a large buffer to read in the galaxies.
     // Will reset the buffer periodically, just to limit the size.
     double tmp[8];
-    count_ = 0;
     uint64 index;
     double *b;
 
@@ -372,8 +371,6 @@ class SurveyReader {
       dens[index] += xp * yp * zp;
     }
   }
-
-  Float cell_size_;
 
   double buffer_[FILE_BUFFER_SIZE];
   std::vector<Galaxy> gal_;
