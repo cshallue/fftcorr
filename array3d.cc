@@ -40,6 +40,25 @@ Array3D::~Array3D() {
   if (data_ != NULL) free(data_);
 }
 
+void Array3D::add_scalar(Float s) {
+#ifdef SLAB
+  int nx = ngrid_[0];
+  const uint64 nyz = ngrid3_ / nx;
+#pragma omp parallel for MY_SCHEDULE
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data_ + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] += s;
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 i = 0; i < ngrid3_; ++i) {
+    data_[i] += s;
+  }
+#endif
+}
+
 void Array3D::initialize(Float *&m, const uint64 size, const int nx) {
   // Initialize a matrix m and set it to zero.
   // We want to touch the whole matrix, because in NUMA this defines the

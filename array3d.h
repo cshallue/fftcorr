@@ -12,6 +12,8 @@ class Array3D {
     return iz + ngrid2_ * (iy + ix * ngrid_[1]);
   }
 
+  void add_scalar(Float s);
+
   const int *ngrid() const { return ngrid_; }
   int ngrid2() const { return ngrid2_; }
   Float ngrid3() const { return ngrid3_; }

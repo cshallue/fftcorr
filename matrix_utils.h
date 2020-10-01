@@ -146,24 +146,6 @@ void scale_matrix(Float *a, const Float b, const uint64 size, const int nx) {
 #endif
 }
 
-void addscalarto_matrix(Float *a, const Float b, const uint64 size,
-                        const int nx) {
-  // Add scalar b to matrix a
-  // nx will be our slab decomposition; it must divide into size evenly
-  assert(size % nx == 0);
-#ifdef SLAB
-  const uint64 nyz = size / nx;
-#pragma omp parallel for MY_SCHEDULE
-  for (int x = 0; x < nx; x++) {
-    Float *aslab = a + x * nyz;
-    for (uint64 j = 0; j < nyz; j++) aslab[j] += b;
-  }
-#else
-#pragma omp parallel for MY_SCHEDULE
-  for (uint64 j = 0; j < size; j++) a[j] += b;
-#endif
-}
-
 void copy_matrix(Float *a, const Float *b, const uint64 size, const int nx) {
   // Set a equal to a vector b
   // nx will be our slab decomposition; it must divide into size evenly

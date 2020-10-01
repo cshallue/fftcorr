@@ -373,7 +373,7 @@ int main(int argc, char *argv[]) {
     // We're asked to set the mean to zero
     Float mean =
         reader.totw() / dens.ngrid()[0] / dens.ngrid()[1] / dens.ngrid()[2];
-    addscalarto_matrix(dens.raw_data(), -mean, dens.ngrid3(), dens.ngrid()[0]);
+    dens.add_scalar(-mean);
     fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
   }
 
