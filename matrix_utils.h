@@ -185,27 +185,6 @@ void copy_matrix(Float *a, const Float *b, const Float c, const uint64 size,
 #endif
 }
 
-void multiply_matrix_with_conjugation(Complex *a, const Complex *b,
-                                      const uint64 size, const int nx) {
-  // Element-wise multiply a[] by conjugate of b[]
-  // Note that size refers to the Complex size; the calling routine
-  // is responsible for dividing the Float size by 2.
-  // nx will be our slab decomposition; it must divide into size evenly
-  assert(size % nx == 0);
-#ifdef SLAB
-  const uint64 nyz = size / nx;
-#pragma omp parallel for MY_SCHEDULE
-  for (int x = 0; x < nx; x++) {
-    Complex *aslab = a + x * nyz;
-    Complex *bslab = b + x * nyz;
-    for (uint64 j = 0; j < nyz; j++) aslab[j] *= std::conj(bslab[j]);
-  }
-#else
-#pragma omp parallel for MY_SCHEDULE
-  for (uint64 j = 0; j < size; j++) a[j] *= std::conj(b[j]);
-#endif
-}
-
 /* ==========================  Submatrix extraction =================== */
 
 void extract_submatrix(Float *total, const Float *corr, const int csize[3],

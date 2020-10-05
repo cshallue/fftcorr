@@ -241,9 +241,7 @@ if (densFFT[j]!=work[j]) {
 
       // Multiply by conj(densFFT), as complex numbers
       // AtimesB.Start();
-      multiply_matrix_with_conjugation((Complex *)work.raw_data(),
-                                       (const Complex *)densFFT.data(),
-                                       ngrid3 / 2, ngrid[0]);
+      work.multiply_with_conjugation(densFFT);
       // AtimesB.Stop();
 
       // Extract the anisotropic power spectrum

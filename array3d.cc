@@ -236,6 +236,31 @@ void Array3D::set_value(Float value) {
   // Init.Stop();
 }
 
+void Array3D::multiply_with_conjugation(const Array3D &other) {
+  // Element-wise multiply by conjugate of other
+  // TODO: check same dimensions.
+  Complex *data = (Complex *)data_;
+  const Complex *other_data = (Complex *)other.data();
+  uint64 size = ngrid3_ / 2;  // Note that size refers to the Complex size.
+#ifdef SLAB
+  int nx = ngrid_[0];
+  const uint64 nyz = size / nx;
+#pragma omp parallel for MY_SCHEDULE
+  for (int x = 0; x < nx; ++x) {
+    Complex *slab = data + x * nyz;
+    Complex *other_slab = other_data + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] *= std::conj(other_slab[i]);
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 i = 0; i < size; ++i) {
+    data[i] *= std::conj(other_data[i]);
+  }
+#endif
+}
+
 void Array3D::copy_from(const Float *other) {
   // Init.Start();
 #ifdef SLAB

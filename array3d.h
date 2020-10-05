@@ -27,6 +27,7 @@ class Array3D {
   }
 
   void add_scalar(Float s);
+  void multiply_with_conjugation(const Array3D &other);
   Float sum() const;
   Float sumsq() const;
 
