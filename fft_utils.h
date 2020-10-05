@@ -109,26 +109,6 @@ void setup_FFTW(fftw_plan &fft, fftw_plan &fftYZ, fftw_plan &fftX,
   return;
 }
 
-void free_FFTW(fftw_plan &fft, fftw_plan &fftYZ, fftw_plan &fftX,
-               fftw_plan &ifft, fftw_plan &ifftYZ, fftw_plan &ifftX) {
-// Call all of the FFTW destroy routines
-#ifndef FFTSLAB
-  fftw_destroy_plan(fft);
-  fftw_destroy_plan(ifft);
-#else
-  fftw_destroy_plan(fftYZ);
-  fftw_destroy_plan(fftX);
-  fftw_destroy_plan(ifftYZ);
-  fftw_destroy_plan(ifftX);
-#endif
-#ifdef OPENMP
-#ifndef FFTSLAB
-  fftw_cleanup_threads();
-#endif
-#endif
-  return;
-}
-
 void FFT_Execute(fftw_plan fft, fftw_plan fftYZ, fftw_plan fftX, int ngrid[3],
                  const int ngrid2, Float *work) {
   // Note that if FFTSLAB is not set, then the *work input is ignored!

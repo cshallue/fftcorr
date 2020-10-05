@@ -3,7 +3,6 @@
 
 #include <assert.h>
 
-#include "fft_utils.h"
 #include "grid.h"
 #include "matrix_utils.h"
 #include "types.h"
@@ -170,9 +169,10 @@ void correlate(const Grid &g, const Array3D &arr, Float sep, Float kmax,
   Float Pnorm = 4.0 * M_PI;
 
   // Allocate the work matrix and load it with the density
-  // We do this here so that the array is touched before FFT planning
-  Float *work = NULL;  // work space for each (ell,m), in a flattened grid.
-  initialize_matrix_by_copy(work, ngrid3, ngrid[0], dens);
+  // Ensure that the array is touched before FFT planning
+  Array3D work(ngrid);  // work space for each (ell,m), in a flattened grid.
+  work.copy_from(dens);
+  work.setup_fft();
 
   // Allocate total[csize**3] and corr[csize**3]
   Float *total = NULL;
@@ -184,17 +184,15 @@ void correlate(const Grid &g, const Array3D &arr, Float sep, Float kmax,
   Float *kcorr = NULL;
   initialize_matrix(kcorr, ksize3, ksize[0]);
 
-  /* Setup FFTW */
-  fftw_plan fft, fftYZ, fftX, ifft, ifftYZ, ifftX;
-  setup_FFTW(fft, fftYZ, fftX, ifft, ifftYZ, ifftX, ngrid, ngrid2, work);
-
   // FFTW might have destroyed the contents of work; need to restore
   // work[]==dens_[] So far, I haven't seen this happen.
-  if (dens[1] != work[1] || dens[1 + ngrid[2]] != work[1 + ngrid[2]] ||
-      dens[ngrid3 - 1] != work[ngrid3 - 1]) {
+  // TODO: make Array3D indexable, perhaps by (ix,iy,iz).
+  if (dens[1] != work.data()[1] ||
+      dens[1 + ngrid[2]] != work.data()[1 + ngrid[2]] ||
+      dens[ngrid3 - 1] != work.data()[ngrid3 - 1]) {
     fprintf(stdout, "Restoring work matrix\n");
     // Init.Start();
-    copy_matrix(work, dens, ngrid3, ngrid[0]);
+    work.copy_from(dens);
     // Init.Stop();
   }
 
@@ -203,17 +201,17 @@ void correlate(const Grid &g, const Array3D &arr, Float sep, Float kmax,
   // FFT(work) in place and conjugate it, storing in densFFT
   fprintf(stdout, "# Computing the density FFT...");
   fflush(NULL);
-  FFT_Execute(fft, fftYZ, fftX, ngrid, ngrid2, work);
+  work.execute_fft();
   fprintf(stdout, "# Done!\n");
   fflush(NULL);
 
   // Correlate.Stop();  // We're tracking initialization separately
   Array3D densFFT(ngrid);
-  densFFT.copy_from(work);
+  densFFT.copy_from(work.data());
   // Correlate.Start();
 
   // Let's try a check as well -- convert with the 3D code and compare
-  /* copy_matrix(work, dens_, ngrid3_, ngrid[0]);
+  /* work.copy_from(dens_.data());
 fftw_execute(fft);
 for (uint64 j=0; j<ngrid3_; j++)
 if (densFFT[j]!=work[j]) {
@@ -234,16 +232,16 @@ if (densFFT[j]!=work[j]) {
     for (int m = -ell; m <= ell; m++) {
       fprintf(stdout, "# Computing %d %2d...", ell, m);
       // Create the Ylm matrix times dens_
-      makeYlm(work, ell, m, ngrid, ngrid2, xcell, ycell, zcell, dens,
+      makeYlm(work.raw_data(), ell, m, ngrid, ngrid2, xcell, ycell, zcell, dens,
               -wide_angle_exponent);
       fprintf(stdout, "Ylm...");
 
       // FFT in place
-      FFT_Execute(fft, fftYZ, fftX, ngrid, ngrid2, work);
+      work.execute_fft();
 
       // Multiply by conj(densFFT), as complex numbers
       // AtimesB.Start();
-      multiply_matrix_with_conjugation((Complex *)work,
+      multiply_matrix_with_conjugation((Complex *)work.raw_data(),
                                        (const Complex *)densFFT.data(),
                                        ngrid3 / 2, ngrid[0]);
       // AtimesB.Stop();
@@ -253,11 +251,11 @@ if (densFFT[j]!=work[j]) {
       makeYlm(kcorr, ell, m, ksize, ksize[2], kx_cell, ky_cell, kz_cell,
               CICwindow, wide_angle_exponent);
       // Multiply these Ylm by the power result, and then add to total.
-      extract_submatrix_C2R(ktotal, kcorr, ksize, (Complex *)work, ngrid,
-                            ngrid2);
+      extract_submatrix_C2R(ktotal, kcorr, ksize, (Complex *)work.raw_data(),
+                            ngrid, ngrid2);
 
       // iFFT the result, in place
-      IFFT_Execute(ifft, ifftYZ, ifftX, ngrid, ngrid2, work);
+      work.execute_ifft();
       fprintf(stdout, "FFT...");
 
       // Create Ylm for the submatrix that we'll extract for histogramming
@@ -267,9 +265,10 @@ if (densFFT[j]!=work[j]) {
               wide_angle_exponent);
 
       // Multiply these Ylm by the correlation result, and then add to total.
-      extract_submatrix(total, corr, csize, work, ngrid, ngrid2);
+      extract_submatrix(total, corr, csize, work.raw_data(), ngrid, ngrid2);
 
       fprintf(stdout, "Done!\n");
+      fflush(NULL);
     }
 
     // Extract.Start();
@@ -296,13 +295,10 @@ if (densFFT[j]!=work[j]) {
   free(ky_cell);
   free(kz_cell);
   free(CICwindow);
-  free(work);
   free(corr);
   free(total);
   free(kcorr);
   free(ktotal);
-  free_FFTW(fft, fftYZ, fftX, ifft, ifftYZ, ifftX);
-
   // Correlate.Stop();
 }
 

@@ -1,5 +1,6 @@
 # For my MacBook
-FFTW = -L ~/miniconda3/envs/fftcorr/lib -I ~/miniconda3/envs/fftcorr/include -lfftw3
+FFTW_INCLUDE = -I ~/miniconda3/envs/fftcorr/include
+FFTW = ${FFTW_INCLUDE} -L ~/miniconda3/envs/fftcorr/lib -lfftw3
 CXXFLAGS = -Wall -O2 
 #CXXFLAGS = -g ${FFTW} 
 
@@ -20,11 +21,11 @@ OMP = -DOPENMP -DFFTSLAB -DSLAB
 
 default: fftcorr
 
-fftcorr: fftcorr.cpp Makefile merge_sort_omp.cpp STimer.cc array3d.o
+fftcorr: fftcorr.cpp merge_sort_omp.cpp STimer.cc array3d.o
 	${CXX} ${CXXFLAGS} ${FFTW} fftcorr.cpp -o fftcorr array3d.o
 
 array3d.o: array3d.cc array3d.h types.h
-	${CXX} ${CXXFLAGS} -c array3d.cc
+	${CXX} ${CXXFLAGS} ${FFTW_INCLUDE} -c array3d.cc
 
 clean:
 	rm fftcorr array3d.o

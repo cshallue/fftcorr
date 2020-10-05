@@ -508,7 +508,7 @@ def correlateCPP(filename, dsep, ngrid, max_ell, qperiodic, file2=""):
         s += " -p -r %f" % MAX_SEP
     print(s)
     retcode = subprocess.call(shlex.split(s))
-    assert retcode >= 0
+    assert retcode >= 0, "fftcorr returned: {}".format(retcode)
 
     # Load the anisotropic correlation function.
     data = np.loadtxt(outfile)

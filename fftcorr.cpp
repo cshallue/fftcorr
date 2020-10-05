@@ -80,7 +80,6 @@ cloud-in-cell to keep up.
 
 /* ======================= Preamble ================= */
 #include <assert.h>
-#include <fftw3.h>
 #include <math.h>
 #include <stdio.h>
 #include <stdlib.h>

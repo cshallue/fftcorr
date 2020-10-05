@@ -1,5 +1,7 @@
 #include "array3d.h"
 
+#include "fft_utils.h"
+
 Array3D::Array3D(int ngrid[3]) {
   for (int j = 0; j < 3; j++) {
     ngrid_[j] = ngrid[j];
@@ -35,10 +37,52 @@ Array3D::Array3D(int ngrid[3]) {
       posix_memalign((void **)&data_, PAGE, sizeof(Float) * ngrid3_ + PAGE);
   assert(err == 0);
   assert(data_ != NULL);
+
+  // NULL is a valid fftw_plan value; the planner will return NULL if it fails.
+  fft_ = NULL;
+  fftYZ_ = NULL;
+  fftX_ = NULL;
+  ifft_ = NULL;
+  ifftYZ_ = NULL;
+  ifftX_ = NULL;
 }
 
 Array3D::~Array3D() {
   if (data_ != NULL) free(data_);
+    // Destroy the FFT plans.
+#ifndef FFTSLAB
+  if (fft_ != NULL) fftw_destroy_plan(fft_);
+  if (ifft_ != NULL) fftw_destroy_plan(ifft_);
+#else
+  if (fftX_ != NULL) fftw_destroy_plan(fftX_);
+  if (fftYZ_ != NULL) fftw_destroy_plan(fftYZ_);
+  if (ifftX_ != NULL) fftw_destroy_plan(ifftX_);
+  if (ifftYZ_ != NULL) fftw_destroy_plan(ifftTZ_);
+#endif
+#ifdef OPENMP
+#ifndef FFTSLAB
+  fftw_cleanup_threads();
+#endif
+#endif
+}
+
+void Array3D::setup_fft() {
+  // TODO: move this function into this class.
+  setup_FFTW(fft_, fftYZ_, fftX_, ifft_, ifftYZ_, ifftX_, ngrid_, ngrid2_,
+             data_);
+}
+
+void Array3D::execute_fft() {
+  // TODO: assert that setup has been called. Decide best way to crash with
+  // informative message.
+  // TODO: move this function into this class.
+  FFT_Execute(fft_, fftYZ_, fftX_, ngrid_, ngrid2_, data_);
+}
+
+void Array3D::execute_ifft() {
+  // TODO: move this function into this class.
+  // TODO: class knows whether it's Fourier transformed or not?
+  IFFT_Execute(ifft_, ifftYZ_, ifftX_, ngrid_, ngrid2_, data_);
 }
 
 void Array3D::set_value(Float value) {

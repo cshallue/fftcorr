@@ -1,12 +1,18 @@
 #ifndef ARRAY3D_H
 #define ARRAY3D_H
 
+#include <fftw3.h>
+
 #include "types.h"
 
 class Array3D {
  public:
   Array3D(int ngrid[3]);
   ~Array3D();
+
+  void setup_fft();
+  void execute_fft();
+  void execute_ifft();
 
   // TODO: maybe call this automatically if copy initialization is always done
   // by a copy constructor. Or else check that it's been initialized.
@@ -34,6 +40,14 @@ class Array3D {
   int ngrid2_;     // ngrid_[2] padded out for the FFT work
   uint64 ngrid3_;  // The total number of FFT grid cells
   Float *data_;    // The flattened grid
+
+  // TODO: define these conditionally on compiler flags.
+  fftw_plan fft_;
+  fftw_plan fftYZ_;
+  fftw_plan fftX_;
+  fftw_plan ifft_;
+  fftw_plan ifftYZ_;
+  fftw_plan ifftX_;
 
   friend class SurveyReader;  // TODO: remove
 };
