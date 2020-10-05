@@ -251,8 +251,8 @@ if (densFFT[j]!=work[j]) {
       makeYlm(kcorr, ell, m, ksize, ksize[2], kx_cell, ky_cell, kz_cell,
               CICwindow, wide_angle_exponent);
       // Multiply these Ylm by the power result, and then add to total.
-      extract_submatrix_C2R(ktotal, kcorr, ksize, (Complex *)work.raw_data(),
-                            ngrid, ngrid2);
+      extract_submatrix_C2R(ktotal, kcorr, ksize, (Complex *)work.data(), ngrid,
+                            ngrid2);
 
       // iFFT the result, in place
       work.execute_ifft();
@@ -265,7 +265,7 @@ if (densFFT[j]!=work[j]) {
               wide_angle_exponent);
 
       // Multiply these Ylm by the correlation result, and then add to total.
-      extract_submatrix(total, corr, csize, work.raw_data(), ngrid, ngrid2);
+      extract_submatrix(total, corr, csize, work.data(), ngrid, ngrid2);
 
       fprintf(stdout, "Done!\n");
       fflush(NULL);

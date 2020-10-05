@@ -208,8 +208,8 @@ void multiply_matrix_with_conjugation(Complex *a, const Complex *b,
 
 /* ==========================  Submatrix extraction =================== */
 
-void extract_submatrix(Float *total, Float *corr, int csize[3], Float *work,
-                       int ngrid[3], const int ngrid2) {
+void extract_submatrix(Float *total, const Float *corr, const int csize[3],
+                       const Float *work, const int ngrid[3], int ngrid2) {
   // Given a large matrix work[ngrid^3],
   // extract out a submatrix of size csize^3, centered on work[0,0,0].
   // Multiply the result by corr[csize^3] and add it onto total[csize^3]
@@ -224,9 +224,9 @@ void extract_submatrix(Float *total, Float *corr, int csize[3], Float *work,
     uint64 ii = (ngrid[0] - cx + i) % ngrid[0];
     for (int j = 0; j < csize[1]; j++) {
       uint64 jj = (ngrid[1] - cy + j) % ngrid[1];
-      Float *t = total + (i * csize[1] + j) * csize[2];  // This is (i,j,0)
-      Float *cc = corr + (i * csize[1] + j) * csize[2];  // This is (i,j,0)
-      Float *Y = work + (ii * ngrid[1] + jj) * ngrid2 + ngrid[2] - cz;
+      Float *t = total + (i * csize[1] + j) * csize[2];        // (i,j,0)
+      const Float *cc = corr + (i * csize[1] + j) * csize[2];  // (i,j,0)
+      const Float *Y = work + (ii * ngrid[1] + jj) * ngrid2 + ngrid[2] - cz;
       // This is (ii,jj,ngrid[2]-c)
       for (int k = 0; k < cz; k++) t[k] += cc[k] * Y[k];
       Y = work + (ii * ngrid[1] + jj) * ngrid2 - cz;
@@ -237,8 +237,9 @@ void extract_submatrix(Float *total, Float *corr, int csize[3], Float *work,
   // Extract.Stop();
 }
 
-void extract_submatrix_C2R(Float *total, Float *corr, int csize[3],
-                           Complex *work, int ngrid[3], const int ngrid2) {
+void extract_submatrix_C2R(Float *total, const Float *corr, const int csize[3],
+                           const Complex *work, const int ngrid[3],
+                           int ngrid2) {
   // Given a large matrix work[ngrid^3/2],
   // extract out a submatrix of size csize^3, centered on work[0,0,0].
   // The input matrix is Complex * with the half-domain Fourier convention.
@@ -259,10 +260,10 @@ void extract_submatrix_C2R(Float *total, Float *corr, int csize[3],
     for (int j = 0; j < csize[1]; j++) {
       uint64 jj = (ngrid[1] - cy + j) % ngrid[1];
       uint64 jjn = (ngrid[1] - jj) % ngrid[1];           // The reflected coord
-      Float *t = total + (i * csize[1] + j) * csize[2];  // This is (i,j,0)
-      Float *cc = corr + (i * csize[1] + j) * csize[2];  // This is (i,j,0)
+      Float *t = total + (i * csize[1] + j) * csize[2];  //  (i,j,0)
+      const Float *cc = corr + (i * csize[1] + j) * csize[2];  //  (i,j,0)
       // The positive half-plane (inclusize)
-      Complex *Y = work + (ii * ngrid[1] + jj) * ngrid2 / 2 - cz;
+      const Complex *Y = work + (ii * ngrid[1] + jj) * ngrid2 / 2 - cz;
       // This is (ii,jj,-cz)
       for (int k = cz; k < csize[2]; k++) t[k] += cc[k] * std::real(Y[k]);
       // The negative half-plane (inclusize), reflected.
