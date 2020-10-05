@@ -10,6 +10,7 @@ class Array3D {
   Array3D(int ngrid[3]);
   ~Array3D();
 
+  // TODO: allow the user to pass fft flags? I.e. FFT_MEASURE, etc.
   void setup_fft();
   void execute_fft();
   void execute_ifft();

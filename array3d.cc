@@ -1,7 +1,5 @@
 #include "array3d.h"
 
-#include "fft_utils.h"
-
 Array3D::Array3D(int ngrid[3]) {
   for (int j = 0; j < 3; j++) {
     ngrid_[j] = ngrid[j];
@@ -67,9 +65,100 @@ Array3D::~Array3D() {
 }
 
 void Array3D::setup_fft() {
-  // TODO: move this function into this class.
-  setup_FFTW(fft_, fftYZ_, fftX_, ifft_, ifftYZ_, ifftX_, ngrid_, ngrid2_,
-             data_);
+  // Setup the FFTW plans, possibly from disk, and save the wisdom
+  fprintf(stdout, "# Planning the FFTs...");
+  fflush(NULL);
+  // FFTW.Start();
+  FILE *fp = NULL;
+#ifdef OPENMP
+#ifndef FFTSLAB
+  {
+    int errval = fftw_init_threads();
+    assert(errval);
+  }
+  fftw_plan_with_nthreads(omp_get_max_threads());
+#endif
+#define WISDOMFILE "wisdom_fftw_omp"
+#else
+#define WISDOMFILE "wisdom_fftw"
+#endif
+#ifdef FFTSLAB
+#undef WISDOMFILE
+#define WISDOMFILE "wisdom_fftw"
+#endif
+  fp = fopen(WISDOMFILE, "r");
+  if (fp != NULL) {
+    fprintf(stdout, "Reading %s...", WISDOMFILE);
+    fflush(NULL);
+    fftw_import_wisdom_from_file(fp);
+    fclose(fp);
+  }
+
+  // Interpret data_ as complex.
+  fftw_complex *cdata = (fftw_complex *)data_;
+
+#ifndef FFTSLAB
+  // The following interface should work even if ngrid2 was 'non-minimal',
+  // as might be desired by padding.
+  int nfft[3], nfftc[3];
+  nfft[0] = nfftc[0] = ngrid_[0];
+  nfft[1] = nfftc[1] = ngrid_[1];
+  // Since ngrid2 is always even, this will trick
+  // FFTW to assume ngrid2/2 Complex numbers in the result, while
+  // fulfilling that nfft[2]>=ngrid[2].
+  nfft[2] = ngrid2_;
+  nfftc[2] = nfft[2] / 2;
+  int howmany = 1;  // Only one forward and inverse FFT.
+  int dist = 0;     // Unused because howmany = 1.
+  int stride = 1;   // Array is continuous in memory.
+  fft_ = fftw_plan_many_dft_r2c(3, ngrid_, howmany, data_, nfft, stride, dist,
+                                cdata, nfftc, stride, dist, FFTW_MEASURE);
+  ifft_ = fftw_plan_many_dft_c2r(3, ngrid_, howmany, cdata, nfftc, stride, dist,
+                                 data_, nfft, stride, dist, FFTW_MEASURE);
+
+  /*	// The original interface, which only works if ngrid2 is tightly packed.
+  fft_ = fftw_plan_dft_r2c_3d(ngrid[0], ngrid[1], ngrid[2],
+                  data_, cdata, FFTW_MEASURE);
+  ifft_ = fftw_plan_dft_c2r_3d(ngrid[0], ngrid[1], ngrid[2],
+                  cdata, data_, FFTW_MEASURE);
+*/
+
+#else
+  // If we wanted to split into 2D and 1D by hand (and therefore handle the OMP
+  // aspects ourselves), then we need to have two plans each.
+  int nfft2[2], nfft2c[2];
+  nfft2[0] = nfft2c[0] = ngrid_[1];
+  nfft2[1] = ngrid2_;  // Since ngrid2 is always even, this will trick
+  nfft2c[1] = nfft2[1] / 2;
+  int ngridYZ[2];
+  ngridYZ[0] = ngrid_[1];
+  ngridYZ[1] = ngrid_[2];
+  fftYZ_ = fftw_plan_many_dft_r2c(2, ngridYZ, 1, data_, nfft2, 1, 0, cdata,
+                                  nfft2c, 1, 0, FFTW_MEASURE);
+  ifftYZ_ = fftw_plan_many_dft_c2r(2, ngridYZ, 1, cdata, nfft2c, 1, 0, data_,
+                                   nfft2, 1, 0, FFTW_MEASURE);
+
+  // After we've done the 2D r2c FFT, we have to do the 1D c2c transform.
+  // We'll plan to parallelize over Y, so that we're doing (ngrid[2]/2+1)
+  // 1D FFTs at a time.
+  // Elements in the X direction are separated by ngrid[1]*ngrid2/2 complex
+  // numbers.
+  int ngridX = ngrid_[0];
+  fftX_ = fftw_plan_many_dft(1, &ngridX, (ngrid_[2] / 2 + 1), cdata, NULL,
+                             ngrid_[1] * ngrid2_ / 2, 1, cdata, NULL,
+                             ngrid_[1] * ngrid2_ / 2, 1, -1, FFTW_MEASURE);
+  ifftX_ = fftw_plan_many_dft(1, &ngridX, (ngrid_[2] / 2 + 1), cdata, NULL,
+                              ngrid_[1] * ngrid2_ / 2, 1, cdata, NULL,
+                              ngrid_[1] * ngrid2_ / 2, 1, +1, FFTW_MEASURE);
+#endif
+
+  fp = fopen(WISDOMFILE, "w");
+  assert(fp != NULL);
+  fftw_export_wisdom_to_file(fp);
+  fclose(fp);
+  fprintf(stdout, "Done!\n");
+  fflush(NULL);
+  // FFTW.Stop();
 }
 
 void Array3D::execute_fft() {
