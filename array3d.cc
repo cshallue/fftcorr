@@ -41,7 +41,7 @@ Array3D::~Array3D() {
   if (data_ != NULL) free(data_);
 }
 
-void Array3D::initialize() {
+void Array3D::set_value(Float value) {
   // Initialize data_ by setting each element.
   // We want to touch the whole matrix, because in NUMA this defines the
   // association of logical memory into the physical banks.
@@ -53,19 +53,19 @@ void Array3D::initialize() {
   for (int x = 0; x < nx; ++x) {
     Float *slab = data_ + x * nyz;
     for (uint64 i = 0; i < nyz; ++i) {
-      slab[i] = 0.0;
+      slab[i] = value;
     }
   }
 #else
 #pragma omp parallel for MY_SCHEDULE
   for (uint64 i = 0; i < ngrid3_; i++) {
-    data_[i] = 0.0;
+    data_[i] = value;
   }
 #endif
   // Init.Stop();
 }
 
-void Array3D::initialize_by_copy(const Float *other) {
+void Array3D::copy_from(const Float *other) {
   // Init.Start();
 #ifdef SLAB
   int nx = ngrid_[0];

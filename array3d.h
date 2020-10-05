@@ -8,9 +8,12 @@ class Array3D {
   Array3D(int ngrid[3]);
   ~Array3D();
 
-  void initialize();
+  // TODO: maybe call this automatically if copy initialization is always done
+  // by a copy constructor. Or else check that it's been initialized.
+  void set_value(Float value);
   // TODO: accept another Array3D.
-  void initialize_by_copy(const Float *other);
+  // TODO: this might just become a copy constructor.
+  void copy_from(const Float *other);
 
   inline uint64 to_grid_index(uint64 ix, uint64 iy, uint64 iz) {
     return iz + ngrid2_ * (iy + ix * ngrid_[1]);

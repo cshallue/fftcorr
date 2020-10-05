@@ -209,7 +209,7 @@ void correlate(const Grid &g, const Array3D &arr, Float sep, Float kmax,
 
   // Correlate.Stop();  // We're tracking initialization separately
   Array3D densFFT(ngrid);
-  densFFT.initialize_by_copy(work);
+  densFFT.copy_from(work);
   // Correlate.Start();
 
   // Let's try a check as well -- convert with the 3D code and compare
