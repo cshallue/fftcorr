@@ -29,18 +29,16 @@ Array3D::Array3D(int ngrid[3]) {
   fprintf(stdout, "# Using ngrid2_=%d for FFT r2c padding\n", ngrid2_);
 
   ngrid3_ = (uint64)ngrid_[0] * ngrid_[1] * ngrid2_;
-  data_ = NULL;
+
+  // Allocate data_ array.
+  int err =
+      posix_memalign((void **)&data_, PAGE, sizeof(Float) * ngrid3_ + PAGE);
+  assert(err == 0);
+  assert(data_ != NULL);
 }
 
 Array3D::~Array3D() {
   if (data_ != NULL) free(data_);
-}
-
-// TODO: this is also in matrix_utils; consolodate.
-void allocate_array(Float *&arr, uint64 size) {
-  int err = posix_memalign((void **)&arr, PAGE, sizeof(Float) * size + PAGE);
-  assert(err == 0);
-  assert(arr != NULL);
 }
 
 void Array3D::initialize() {
@@ -48,7 +46,6 @@ void Array3D::initialize() {
   // We want to touch the whole matrix, because in NUMA this defines the
   // association of logical memory into the physical banks.
   // Init.Start();
-  if (data_ == NULL) allocate_array(data_, ngrid3_);
 #ifdef SLAB
   int nx = ngrid_[0];
   const uint64 nyz = ngrid3_ / nx;
@@ -69,8 +66,7 @@ void Array3D::initialize() {
 }
 
 void Array3D::initialize_by_copy(const Float *other) {
-  if (data_ == NULL) allocate_array(data_, ngrid3_);
-    // Init.Start();
+  // Init.Start();
 #ifdef SLAB
   int nx = ngrid_[0];
   const uint64 nyz = ngrid3_ / nx;
