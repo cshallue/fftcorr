@@ -9,6 +9,8 @@ class Array3D {
   ~Array3D();
 
   void initialize();
+  // TODO: accept another Array3D.
+  void initialize_by_copy(Float *other);
 
   inline uint64 to_grid_index(uint64 ix, uint64 iy, uint64 iz) {
     return iz + ngrid2_ * (iy + ix * ngrid_[1]);

@@ -36,29 +36,56 @@ Array3D::~Array3D() {
   if (data_ != NULL) free(data_);
 }
 
+// TODO: this is also in matrix_utils; consolodate.
+void allocate_array(Float *&arr, uint64 size) {
+  int err = posix_memalign((void **)&arr, PAGE, sizeof(Float) * size + PAGE);
+  assert(err == 0);
+  assert(arr != NULL);
+}
+
 void Array3D::initialize() {
   // Initialize data_ by setting each element.
   // We want to touch the whole matrix, because in NUMA this defines the
   // association of logical memory into the physical banks.
   // Init.Start();
-  // TODO: this block is allocate_array in matrix_utils; consolodate.
-  if (data_ == NULL) {
-    int err =
-        posix_memalign((void **)&data_, PAGE, sizeof(Float) * ngrid3_ + PAGE);
-    assert(err == 0);
-  }
-  assert(data_ != NULL);
+  if (data_ == NULL) allocate_array(data_, ngrid3_);
 #ifdef SLAB
   int nx = ngrid_[0];
   const uint64 nyz = ngrid3_ / nx;
 #pragma omp parallel for MY_SCHEDULE
   for (int x = 0; x < nx; ++x) {
     Float *slab = data_ + x * nyz;
-    for (uint64 i = 0; i < nyz; ++i) slab[i] = 0.0;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] = 0.0;
+    }
   }
 #else
 #pragma omp parallel for MY_SCHEDULE
-  for (uint64 i = 0; i < ngrid3_; i++) data_[i] = 0.0;
+  for (uint64 i = 0; i < ngrid3_; i++) {
+    data_[i] = 0.0;
+  }
+#endif
+  // Init.Stop();
+}
+
+void Array3D::initialize_by_copy(Float *other) {
+  if (data_ == NULL) allocate_array(data_, ngrid3_);
+    // Init.Start();
+#ifdef SLAB
+  int nx = ngrid_[0];
+  const uint64 nyz = ngrid3_ / nx;
+#pragma omp parallel for MY_SCHEDULE
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data_ + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] = other[i];
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 i = 0; i < ngrid3_; i++) {
+    data_[i] = other[i];
+  }
 #endif
   // Init.Stop();
 }
