@@ -47,6 +47,7 @@ Float *allocate_array(uint64 size) {
   return arr;
 }
 
+// TODO: delete once all uses of this are in Array3D
 void initialize_matrix(Float *&m, const uint64 size, const int nx) {
   // Initialize a matrix m and set it to zero.
   // We want to touch the whole matrix, because in NUMA this defines the

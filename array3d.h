@@ -8,6 +8,8 @@ class Array3D {
   Array3D(int ngrid[3]);
   ~Array3D();
 
+  void initialize();
+
   inline uint64 to_grid_index(uint64 ix, uint64 iy, uint64 iz) {
     return iz + ngrid2_ * (iy + ix * ngrid_[1]);
   }
@@ -27,10 +29,6 @@ class Array3D {
   int ngrid2_;     // ngrid_[2] padded out for the FFT work
   uint64 ngrid3_;  // The total number of FFT grid cells
   Float *data_;    // The flattened grid
-
-  // TODO: make public, don't call automatically in constructor, and
-  // remove from matrix_utils.
-  void initialize(Float *&m, const uint64 size, const int nx);
 
   friend class SurveyReader;  // TODO: remove
 };

@@ -361,6 +361,7 @@ int main(int argc, char *argv[]) {
 
   Grid g(box.posmin(), cell_size);
   Array3D dens(ngrid);
+  dens.initialize();
   SurveyReader reader;
   reader.read_galaxies(g, &dens, infile, infile2);
 
