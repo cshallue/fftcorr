@@ -68,7 +68,7 @@ void Array3D::initialize() {
   // Init.Stop();
 }
 
-void Array3D::initialize_by_copy(Float *other) {
+void Array3D::initialize_by_copy(const Float *other) {
   if (data_ == NULL) allocate_array(data_, ngrid3_);
     // Init.Start();
 #ifdef SLAB
