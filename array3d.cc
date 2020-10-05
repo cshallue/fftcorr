@@ -37,12 +37,15 @@ Array3D::Array3D(int ngrid[3]) {
   assert(data_ != NULL);
 
   // NULL is a valid fftw_plan value; the planner will return NULL if it fails.
+#ifndef FFTSLAB
   fft_ = NULL;
-  fftYZ_ = NULL;
-  fftX_ = NULL;
   ifft_ = NULL;
+#else
+  fftX_ = NULL;
+  fftYZ_ = NULL;
   ifftYZ_ = NULL;
   ifftX_ = NULL;
+#endif
 }
 
 Array3D::~Array3D() {

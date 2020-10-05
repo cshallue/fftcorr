@@ -42,13 +42,15 @@ class Array3D {
   uint64 ngrid3_;  // The total number of FFT grid cells
   Float *data_;    // The flattened grid
 
-  // TODO: define these conditionally on compiler flags.
+#ifndef FFTSLAB
   fftw_plan fft_;
-  fftw_plan fftYZ_;
-  fftw_plan fftX_;
   fftw_plan ifft_;
+#else
+  fftw_plan fftX_;
+  fftw_plan fftYZ_;
   fftw_plan ifftYZ_;
   fftw_plan ifftX_;
+#endif
 
   friend class SurveyReader;  // TODO: remove
 };
