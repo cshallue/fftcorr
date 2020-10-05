@@ -79,6 +79,7 @@ void initialize_matrix(Float *&m, const uint64 size, const int nx) {
   return;
 }
 
+// TODO: delete once all uses of this are in Array3D
 void initialize_matrix_by_copy(Float *&m, const uint64 size, const int nx,
                                const Float *copy) {
   // Initialize a matrix m and set it to copy[size].
@@ -184,8 +185,8 @@ void copy_matrix(Float *a, const Float *b, const Float c, const uint64 size,
 #endif
 }
 
-void multiply_matrix_with_conjugation(Complex *a, Complex *b, const uint64 size,
-                                      const int nx) {
+void multiply_matrix_with_conjugation(Complex *a, const Complex *b,
+                                      const uint64 size, const int nx) {
   // Element-wise multiply a[] by conjugate of b[]
   // Note that size refers to the Complex size; the calling routine
   // is responsible for dividing the Float size by 2.

@@ -204,12 +204,12 @@ void correlate(const Grid &g, const Array3D &arr, Float sep, Float kmax,
   fprintf(stdout, "# Computing the density FFT...");
   fflush(NULL);
   FFT_Execute(fft, fftYZ, fftX, ngrid, ngrid2, work);
+  fprintf(stdout, "# Done!\n");
+  fflush(NULL);
 
   // Correlate.Stop();  // We're tracking initialization separately
-  Float *densFFT = NULL;  // The FFT of the density field, in a flattened grid.
-  initialize_matrix_by_copy(densFFT, ngrid3, ngrid[0], work);
-  fprintf(stdout, "Done!\n");
-  fflush(NULL);
+  Array3D densFFT(ngrid);
+  densFFT.initialize_by_copy(work);
   // Correlate.Start();
 
   // Let's try a check as well -- convert with the 3D code and compare
@@ -243,7 +243,8 @@ if (densFFT[j]!=work[j]) {
 
       // Multiply by conj(densFFT), as complex numbers
       // AtimesB.Start();
-      multiply_matrix_with_conjugation((Complex *)work, (Complex *)densFFT,
+      multiply_matrix_with_conjugation((Complex *)work,
+                                       (const Complex *)densFFT.data(),
                                        ngrid3 / 2, ngrid[0]);
       // AtimesB.Stop();
 
@@ -296,7 +297,6 @@ if (densFFT[j]!=work[j]) {
   free(kz_cell);
   free(CICwindow);
   free(work);
-  free(densFFT);
   free(corr);
   free(total);
   free(kcorr);
