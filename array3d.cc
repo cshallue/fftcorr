@@ -74,15 +74,50 @@ void Array3D::setup_fft() {
 
 void Array3D::execute_fft() {
   // TODO: assert that setup has been called. Decide best way to crash with
-  // informative message.
-  // TODO: move this function into this class.
-  FFT_Execute(fft_, fftYZ_, fftX_, ngrid_, ngrid2_, data_);
+  // informative message. Same with execute_ifft
+  // FFTonly.Start();
+#ifndef FFTSLAB
+  fftw_execute(fft_);
+#else
+  // FFTyz.Start();
+// Then need to call this for every slab.  Can OMP these lines
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 x = 0; x < ngrid_[0]; x++)
+    fftw_execute_dft_r2c(fftYZ_, data_ + x * ngrid_[1] * ngrid2_,
+                         (fftw_complex *)data_ + x * ngrid_[1] * ngrid2_ / 2);
+    // FFTyz.Stop();
+    // FFTx.Start();
+#pragma omp parallel for schedule(dynamic, 1)
+  for (uint64 y = 0; y < ngrid_[1]; y++)
+    fftw_execute_dft(fftX_, (fftw_complex *)data_ + y * ngrid2_ / 2,
+                     (fftw_complex *)data_ + y * ngrid2_ / 2);
+    // FFTx.Stop();
+#endif
+  // FFTonly.Stop();
 }
 
 void Array3D::execute_ifft() {
-  // TODO: move this function into this class.
   // TODO: class knows whether it's Fourier transformed or not?
-  IFFT_Execute(ifft_, ifftYZ_, ifftX_, ngrid_, ngrid2_, data_);
+  // FFTonly.Start();
+#ifndef FFTSLAB
+  fftw_execute(ifft_);
+#else
+  // FFTx.Start();
+// Then need to call this for every slab.  Can OMP these lines
+#pragma omp parallel for schedule(dynamic, 1)
+  for (uint64 y = 0; y < ngrid_[1]; y++)
+    fftw_execute_dft(ifftX_, (fftw_complex *)data_ + y * ngrid2_ / 2,
+                     (fftw_complex *)data_ + y * ngrid2_ / 2);
+    // FFTx.Stop();
+    // FFTyz.Start();
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 x = 0; x < ngrid_[0]; x++)
+    fftw_execute_dft_c2r(ifftYZ_,
+                         (fftw_complex *)data_ + x * ngrid_[1] * ngrid2_ / 2,
+                         data_ + x * ngrid_[1] * ngrid2_);
+    // FFTyz.Stop();
+#endif
+  // FFTonly.Stop();
 }
 
 void Array3D::set_value(Float value) {
