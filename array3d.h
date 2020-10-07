@@ -22,6 +22,9 @@ class Array3D {
   void set_value(Float value);
   // TODO: this might just become a copy constructor.
   void copy_from(const Array3D &other);
+  // TODO: if we decide to execute setup_fft() every time we initialize, this
+  // function could go inside the function that initializes by copy. (a) copy,
+  // (b) setup_fft, (c) restore_from
   void restore_from(const Array3D &other);
 
   // TODO: make this class indexable? But would need to know whether in
