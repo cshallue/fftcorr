@@ -5,6 +5,7 @@ Array3D::Array3D(int ngrid[3]) {
     ngrid_[j] = ngrid[j];
     assert(ngrid_[j] > 0 && ngrid_[j] < 1e4);
   }
+  is_fourier_space_ = false;
 
   // Setup ngrid2_.
 #ifdef FFTSLAB
@@ -165,6 +166,7 @@ void Array3D::setup_fft() {
 }
 
 void Array3D::execute_fft() {
+  assert(!is_fourier_space_);
   // TODO: assert that setup has been called. Decide best way to crash with
   // informative message. Same with execute_ifft
   // FFTonly.Start();
@@ -189,7 +191,7 @@ void Array3D::execute_fft() {
 }
 
 void Array3D::execute_ifft() {
-  // TODO: class knows whether it's Fourier transformed or not?
+  assert(is_fourier_space_);
   // FFTonly.Start();
 #ifndef FFTSLAB
   fftw_execute(ifft_);
@@ -213,6 +215,7 @@ void Array3D::execute_ifft() {
 }
 
 void Array3D::set_value(Float value) {
+  assert(!is_fourier_space_);
   // Initialize data_ by setting each element.
   // We want to touch the whole matrix, because in NUMA this defines the
   // association of logical memory into the physical banks.
@@ -237,6 +240,7 @@ void Array3D::set_value(Float value) {
 }
 
 void Array3D::multiply_with_conjugation(const Array3D &other) {
+  assert(is_fourier_space_);
   // Element-wise multiply by conjugate of other
   // TODO: check same dimensions.
   Complex *data = (Complex *)data_;
@@ -262,7 +266,9 @@ void Array3D::multiply_with_conjugation(const Array3D &other) {
 }
 
 void Array3D::copy_from(const Array3D &other) {
+  // TODO: check same dimensions.
   // Init.Start();
+  is_fourier_space_ = other.is_fourier_space_;
   const Float *other_data = other.data_;
 #ifdef SLAB
   int nx = ngrid_[0];
@@ -284,6 +290,7 @@ void Array3D::copy_from(const Array3D &other) {
 }
 
 void Array3D::restore_from(const Array3D &other) {
+  assert(is_fourier_space_ == other.is_fourier_space_);
   if (other.data_[1] != data_[1] ||
       other.data_[1 + ngrid_[2]] != data_[1 + ngrid_[2]] ||
       other.data_[ngrid3_ - 1] != data_[ngrid3_ - 1]) {
@@ -294,6 +301,7 @@ void Array3D::restore_from(const Array3D &other) {
 }
 
 void Array3D::add_scalar(Float s) {
+  assert(!is_fourier_space_);
 #ifdef SLAB
   int nx = ngrid_[0];
   const uint64 nyz = ngrid3_ / nx;
@@ -313,6 +321,7 @@ void Array3D::add_scalar(Float s) {
 }
 
 Float Array3D::sum() const {
+  assert(!is_fourier_space_);
   Float tot = 0.0;
 #ifdef SLAB
   int nx = ngrid_[0];
@@ -335,6 +344,7 @@ Float Array3D::sum() const {
 
 // TODO: come up with a way to template these parallelizable ops
 Float Array3D::sumsq() const {
+  assert(!is_fourier_space_);
   Float tot = 0.0;
 #ifdef SLAB
   int nx = ngrid_[0];

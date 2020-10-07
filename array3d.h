@@ -42,9 +42,10 @@ class Array3D {
 
  private:
   int ngrid_[3];
-  int ngrid2_;     // ngrid_[2] padded out for the FFT work
-  uint64 ngrid3_;  // The total number of FFT grid cells
-  Float *data_;    // The flattened grid
+  int ngrid2_;             // ngrid_[2] padded out for the FFT work
+  uint64 ngrid3_;          // The total number of FFT grid cells
+  Float *data_;            // The flattened grid
+  bool is_fourier_space_;  // Whether data is in Fourier space
 
 #ifndef FFTSLAB
   fftw_plan fft_;
