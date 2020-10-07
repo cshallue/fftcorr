@@ -261,8 +261,9 @@ void Array3D::multiply_with_conjugation(const Array3D &other) {
 #endif
 }
 
-void Array3D::copy_from(const Float *other) {
+void Array3D::copy_from(const Array3D &other) {
   // Init.Start();
+  const Float *other_data = other.data_;
 #ifdef SLAB
   int nx = ngrid_[0];
   const uint64 nyz = ngrid3_ / nx;
@@ -270,21 +271,22 @@ void Array3D::copy_from(const Float *other) {
   for (int x = 0; x < nx; ++x) {
     Float *slab = data_ + x * nyz;
     for (uint64 i = 0; i < nyz; ++i) {
-      slab[i] = other[i];
+      slab[i] = other_data[i];
     }
   }
 #else
 #pragma omp parallel for MY_SCHEDULE
   for (uint64 i = 0; i < ngrid3_; i++) {
-    data_[i] = other[i];
+    data_[i] = other_data[i];
   }
 #endif
   // Init.Stop();
 }
 
-void Array3D::restore_from(const Float *other) {
-  if (other[1] != data_[1] || other[1 + ngrid_[2]] != data_[1 + ngrid_[2]] ||
-      other[ngrid3_ - 1] != data_[ngrid3_ - 1]) {
+void Array3D::restore_from(const Array3D &other) {
+  if (other.data_[1] != data_[1] ||
+      other.data_[1 + ngrid_[2]] != data_[1 + ngrid_[2]] ||
+      other.data_[ngrid3_ - 1] != data_[ngrid3_ - 1]) {
     // Init.Start();
     copy_from(other);
     // Init.Stop();

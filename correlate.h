@@ -169,11 +169,11 @@ void correlate(const Grid &g, const Array3D &dens, Float sep, Float kmax,
   // Allocate the work matrix and load it with the density
   // Ensure that the array is touched before FFT planning
   Array3D work(ngrid);  // work space for each (ell,m), in a flattened grid.
-  work.copy_from(dens.data());
+  work.copy_from(dens);
   work.setup_fft();
   // FFTW might have destroyed the contents of work; need to restore
   // work[]==dens_[] So far, I haven't seen this happen.
-  work.restore_from(dens.data());
+  work.restore_from(dens);
 
   // Allocate total[csize**3] and corr[csize**3]
   Float *total = NULL;
@@ -196,20 +196,8 @@ void correlate(const Grid &g, const Array3D &dens, Float sep, Float kmax,
 
   // Correlate.Stop();  // We're tracking initialization separately
   Array3D densFFT(ngrid);
-  densFFT.copy_from(work.data());
+  densFFT.copy_from(work);
   // Correlate.Start();
-
-  // Let's try a check as well -- convert with the 3D code and compare
-  /* work.copy_from(dens_.data());
-fftw_execute(fft);
-for (uint64 j=0; j<ngrid3_; j++)
-if (densFFT[j]!=work[j]) {
-  int z = j%ngrid2_;
-  int y = j/ngrid2_; y=y%ngrid2_;
-  int x = j/ngrid[1]/ngrid2_;
-  printf("%d %d %d  %f  %f\n", x, y, z, densFFT[j], work[j]);
-}
-*/
 
   /* ------------ Loop over ell & m --------------- */
   // Loop over each ell to compute the anisotropic correlations

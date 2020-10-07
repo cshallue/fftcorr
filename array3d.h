@@ -18,10 +18,9 @@ class Array3D {
   // TODO: maybe call this automatically if copy initialization is always done
   // by a copy constructor. Or else check that it's been initialized.
   void set_value(Float value);
-  // TODO: accept another Array3D.
   // TODO: this might just become a copy constructor.
-  void copy_from(const Float *other);
-  void restore_from(const Float *other);
+  void copy_from(const Array3D &other);
+  void restore_from(const Array3D &other);
 
   // TODO: make this class indexable? But would need to know whether in
   // Fourier space or not.
