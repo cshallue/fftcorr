@@ -21,7 +21,10 @@ class Array3D {
   // TODO: accept another Array3D.
   // TODO: this might just become a copy constructor.
   void copy_from(const Float *other);
+  void restore_from(const Float *other);
 
+  // TODO: make this class indexable? But would need to know whether in
+  // Fourier space or not.
   inline uint64 to_grid_index(uint64 ix, uint64 iy, uint64 iz) {
     return iz + ngrid2_ * (iy + ix * ngrid_[1]);
   }
@@ -34,8 +37,9 @@ class Array3D {
   const int *ngrid() const { return ngrid_; }
   int ngrid2() const { return ngrid2_; }
   Float ngrid3() const { return ngrid3_; }
+  // TODO: access to these should be internal-only.
   const Float *data() const { return data_; };
-  Float *raw_data() { return data_; }  // TODO: come up with a better solution
+  Float *raw_data() { return data_; }
 
  private:
   int ngrid_[3];

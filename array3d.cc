@@ -282,6 +282,15 @@ void Array3D::copy_from(const Float *other) {
   // Init.Stop();
 }
 
+void Array3D::restore_from(const Float *other) {
+  if (other[1] != data_[1] || other[1 + ngrid_[2]] != data_[1 + ngrid_[2]] ||
+      other[ngrid3_ - 1] != data_[ngrid3_ - 1]) {
+    // Init.Start();
+    copy_from(other);
+    // Init.Stop();
+  }
+}
+
 void Array3D::add_scalar(Float s) {
 #ifdef SLAB
   int nx = ngrid_[0];

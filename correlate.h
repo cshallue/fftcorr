@@ -20,7 +20,6 @@ void correlate(const Grid &g, const Array3D &arr, Float sep, Float kmax,
   const Float *dens = arr.data();
   int ngrid[3] = {arr.ngrid()[0], arr.ngrid()[1], arr.ngrid()[2]};
   int ngrid2 = arr.ngrid2();
-  uint64 ngrid3 = arr.ngrid3();
   Float cell_size = g.cell_size();
 
   // Compute the origin, in grid units.
@@ -173,6 +172,9 @@ void correlate(const Grid &g, const Array3D &arr, Float sep, Float kmax,
   Array3D work(ngrid);  // work space for each (ell,m), in a flattened grid.
   work.copy_from(dens);
   work.setup_fft();
+  // FFTW might have destroyed the contents of work; need to restore
+  // work[]==dens_[] So far, I haven't seen this happen.
+  work.restore_from(dens);
 
   // Allocate total[csize**3] and corr[csize**3]
   Float *total = NULL;
@@ -183,18 +185,6 @@ void correlate(const Grid &g, const Array3D &arr, Float sep, Float kmax,
   initialize_matrix(ktotal, ksize3, ksize[0]);
   Float *kcorr = NULL;
   initialize_matrix(kcorr, ksize3, ksize[0]);
-
-  // FFTW might have destroyed the contents of work; need to restore
-  // work[]==dens_[] So far, I haven't seen this happen.
-  // TODO: make Array3D indexable, perhaps by (ix,iy,iz).
-  if (dens[1] != work.data()[1] ||
-      dens[1 + ngrid[2]] != work.data()[1 + ngrid[2]] ||
-      dens[ngrid3 - 1] != work.data()[ngrid3 - 1]) {
-    fprintf(stdout, "Restoring work matrix\n");
-    // Init.Start();
-    work.copy_from(dens);
-    // Init.Stop();
-  }
 
   // Correlate .Start();  // Starting the main work
   // Now compute the FFT of the density field and conjugate it
