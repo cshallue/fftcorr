@@ -5,6 +5,8 @@
 
 #include "types.h"
 
+// TODO: consider renaming to Field or DiscreteField to reflect the fact that
+// it can be in complex / Fourier space.
 class Array3D {
  public:
   Array3D(int ngrid[3]);
@@ -33,10 +35,13 @@ class Array3D {
   Float sum() const;
   Float sumsq() const;
 
+  // TODO: rename these to something sensible. shape, sizexy, sizez?
   const int *ngrid() const { return ngrid_; }
   int ngrid2() const { return ngrid2_; }
   Float ngrid3() const { return ngrid3_; }
   // TODO: access to these should be internal-only.
+  // Or, at the very least, we should have two functions, one for Fourier
+  // space that casts to complex.
   const Float *data() const { return data_; };
   Float *raw_data() { return data_; }
 
