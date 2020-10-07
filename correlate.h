@@ -7,8 +7,7 @@
 #include "matrix_utils.h"
 #include "types.h"
 
-// TODO: rename arr to dens
-void correlate(const Grid &g, const Array3D &arr, Float sep, Float kmax,
+void correlate(const Grid &g, const Array3D &dens, Float sep, Float kmax,
                int maxell, Histogram &h, Histogram &kh, int wide_angle_exponent,
                int qperiodic) {
   // Set up the sub-matrix information, assuming that we'll extract
@@ -17,9 +16,9 @@ void correlate(const Grid &g, const Array3D &arr, Float sep, Float kmax,
 
   // Make a copy of g.ngrid(), partly for readability, but also needed because
   // [I]FFT_Execute takes a non-const pointer.
-  const Float *dens = arr.data();
-  int ngrid[3] = {arr.ngrid()[0], arr.ngrid()[1], arr.ngrid()[2]};
-  int ngrid2 = arr.ngrid2();
+  // TODO: fix when ngrid is a std::array
+  int ngrid[3] = {dens.ngrid()[0], dens.ngrid()[1], dens.ngrid()[2]};
+  int ngrid2 = dens.ngrid2();
   Float cell_size = g.cell_size();
 
   // Compute the origin, in grid units.
@@ -170,11 +169,11 @@ void correlate(const Grid &g, const Array3D &arr, Float sep, Float kmax,
   // Allocate the work matrix and load it with the density
   // Ensure that the array is touched before FFT planning
   Array3D work(ngrid);  // work space for each (ell,m), in a flattened grid.
-  work.copy_from(dens);
+  work.copy_from(dens.data());
   work.setup_fft();
   // FFTW might have destroyed the contents of work; need to restore
   // work[]==dens_[] So far, I haven't seen this happen.
-  work.restore_from(dens);
+  work.restore_from(dens.data());
 
   // Allocate total[csize**3] and corr[csize**3]
   Float *total = NULL;
@@ -222,8 +221,8 @@ if (densFFT[j]!=work[j]) {
     for (int m = -ell; m <= ell; m++) {
       fprintf(stdout, "# Computing %d %2d...", ell, m);
       // Create the Ylm matrix times dens_
-      makeYlm(work.raw_data(), ell, m, ngrid, ngrid2, xcell, ycell, zcell, dens,
-              -wide_angle_exponent);
+      makeYlm(work.raw_data(), ell, m, ngrid, ngrid2, xcell, ycell, zcell,
+              dens.data(), -wide_angle_exponent);
       fprintf(stdout, "Ylm...");
 
       // FFT in place
