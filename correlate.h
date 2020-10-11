@@ -3,27 +3,28 @@
 
 #include <assert.h>
 
+#include <array>
+
+#include "discrete_field.h"
 #include "grid.h"
 #include "matrix_utils.h"
 #include "types.h"
 
-void correlate(const Grid &g, const Array3D &dens, Float sep, Float kmax,
+void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
                int maxell, Histogram &h, Histogram &kh, int wide_angle_exponent,
                int qperiodic) {
   // Set up the sub-matrix information, assuming that we'll extract
   // -sep..+sep cells around zero-lag.
   // Setup.Start();
 
-  // Make a copy of g.ngrid(), partly for readability, but also needed because
-  // [I]FFT_Execute takes a non-const pointer.
-  // TODO: fix when ngrid is a std::array
-  int ngrid[3] = {dens.ngrid()[0], dens.ngrid()[1], dens.ngrid()[2]};
-  int ngrid2 = dens.ngrid2();
+  // TODO: rename these things something better.
+  std::array<int, 3> ngrid = dens.rshape();
+  int ngrid2 = dens.dshape()[2];  // TODO: abstract away?
   Float cell_size = g.cell_size();
 
   // Compute the origin, in grid units.
   // TODO: might want to put the origin inside the Grid class
-  Float origin[3];
+  std::array<Float, 3> origin;
   if (qperiodic) {
     // In this case, we'll place the observer centered in the grid, but
     // then displaced far away in the -x direction
@@ -50,12 +51,10 @@ void correlate(const Grid &g, const Array3D &dens, Float sep, Float kmax,
   // Storage for the r-space submatrices
   int sep_cell = ceil(sep / cell_size);
   // How many cells we must extract as a submatrix to do the histogramming.
-  int csize[3];
-  csize[0] = 2 * sep_cell + 1;
-  csize[1] = csize[2] = csize[0];
-  assert(csize[0] % 2 == 1);
-  assert(csize[1] % 2 == 1);
-  assert(csize[2] % 2 == 1);
+  int csizex = 2 * sep_cell + 1;
+  assert(csizex % 2 == 1);
+  std::array<int, 3> csize = {csizex, csizex, csizex};
+
   // The number of submatrix cells
   int csize3 = csize[0] * csize[1] * csize[2];
   // Allocate corr_cell to [csize] and rnorm to [csize**3]
@@ -88,7 +87,7 @@ void correlate(const Grid &g, const Array3D &dens, Float sep, Float kmax,
   fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq = %6.4f\n",
           kmax, k_Nyq);
   // How many cells we must extract as a submatrix to do the histogramming.
-  int ksize[3];
+  std::array<int, 3> ksize;
   for (int i = 0; i < 3; i++)
     ksize[i] = 2 * ceil(kmax / (2.0 * k_Nyq / ngrid[i])) + 1;
   assert(ksize[0] % 2 == 1);
@@ -168,7 +167,7 @@ void correlate(const Grid &g, const Array3D &dens, Float sep, Float kmax,
 
   // Allocate the work matrix and load it with the density
   // Ensure that the array is touched before FFT planning
-  Array3D work(ngrid);  // work space for each (ell,m), in a flattened grid.
+  DiscreteField work(ngrid);
   work.copy_from(dens);
   work.setup_fft();
   // FFTW might have destroyed the contents of work; need to restore
@@ -195,7 +194,7 @@ void correlate(const Grid &g, const Array3D &dens, Float sep, Float kmax,
   fflush(NULL);
 
   // Correlate.Stop();  // We're tracking initialization separately
-  Array3D densFFT(ngrid);
+  DiscreteField densFFT(ngrid);
   densFFT.copy_from(work);
   // Correlate.Start();
 
@@ -209,7 +208,7 @@ void correlate(const Grid &g, const Array3D &dens, Float sep, Float kmax,
     for (int m = -ell; m <= ell; m++) {
       fprintf(stdout, "# Computing %d %2d...", ell, m);
       // Create the Ylm matrix times dens_
-      makeYlm(work.raw_data(), ell, m, ngrid, ngrid2, xcell, ycell, zcell,
+      makeYlm(work.data(), ell, m, ngrid, ngrid2, xcell, ycell, zcell,
               dens.data(), -wide_angle_exponent);
       fprintf(stdout, "Ylm...");
 
@@ -226,8 +225,7 @@ void correlate(const Grid &g, const Array3D &dens, Float sep, Float kmax,
       makeYlm(kcorr, ell, m, ksize, ksize[2], kx_cell, ky_cell, kz_cell,
               CICwindow, wide_angle_exponent);
       // Multiply these Ylm by the power result, and then add to total.
-      extract_submatrix_C2R(ktotal, kcorr, ksize, (Complex *)work.data(), ngrid,
-                            ngrid2);
+      extract_submatrix_C2R(ktotal, kcorr, ksize, work.cdata(), ngrid, ngrid2);
 
       // iFFT the result, in place
       work.execute_ifft();

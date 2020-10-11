@@ -3,7 +3,9 @@
 
 #include <assert.h>
 
-#include "array3d.h"
+#include <array>
+
+#include "discrete_field.h"
 #include "grid.h"
 #include "types.h"
 
@@ -90,8 +92,8 @@ class SurveyReader {
   Float totwsq() { return totwsq_; }
 
   // TODO: this function only needs to read one file at a time.
-  void read_galaxies(const Grid &grid, Array3D *arr, const char filename[],
-                     const char filename2[]) {
+  void read_galaxies(const Grid &grid, DiscreteField *field,
+                     const char filename[], const char filename2[]) {
     // filename and filename2 are the input particles. filename2==NULL
     // will skip that one
     // Read to the end of the file, bringing in x,y,z,w points.
@@ -124,14 +126,14 @@ class SurveyReader {
         b = buffer_;
         for (int j = 0; j < nread; j += 4, b += 4) {
           grid.change_to_grid_coords(b);
-          index = arr->to_grid_index(floor(b[0]), floor(b[1]), floor(b[2]));
+          index = field->to_flat_index(floor(b[0]), floor(b[1]), floor(b[2]));
           gal_.push_back(Galaxy(b, index));
           ++thiscount;
           totw_ += b[3];
           totwsq_ += b[3] * b[3];
           if (gal_.size() >= GALAXY_BATCH_SIZE) {
             // IO.Stop();
-            flush_to_density_field(arr);
+            flush_to_density_field(field);
             // IO.Start();
           }
         }
@@ -143,12 +145,12 @@ class SurveyReader {
     }
     // IO.Stop();
     // Add the remaining galaxies to the grid
-    flush_to_density_field(arr);
+    flush_to_density_field(field);
   }
 
  private:
-  void flush_to_density_field(Array3D *arr) {
-    const int *ngrid = arr->ngrid();
+  void flush_to_density_field(DiscreteField *field) {
+    const std::array<int, 3> &ngrid = field->rshape();
 
     // Given a set of Galaxies, add them to the grid and then reset the list
     // CIC.Start();
@@ -194,7 +196,7 @@ class SurveyReader {
       for (int x = mod; x < ngrid[0]; x += slabset) {
         // For each slab, insert these particles
         for (int j = first[x]; j < first[x + 1]; j++)
-          add_galaxy_to_density_field(arr, gal_[j]);
+          add_galaxy_to_density_field(field, gal_[j]);
       }
     }
 #endif
@@ -204,10 +206,11 @@ class SurveyReader {
 
   /* ------------------------------------------------------------------- */
 
-  void add_galaxy_to_density_field(Array3D *arr, Galaxy g) {
-    const int *ngrid = arr->ngrid();
-    int ngrid2 = arr->ngrid2();
-    Float *dens = arr->data_;
+  void add_galaxy_to_density_field(DiscreteField *field, Galaxy g) {
+    // TODO: rename these things?
+    const std::array<int, 3> &ngrid = field->rshape();
+    int ngrid2 = field->dshape()[2];
+    Float *dens = field->data();
 
     // Add one particle to the density grid.
     // This does a 27-point triangular cloud-in-cell, unless one invokes

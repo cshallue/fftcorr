@@ -3,6 +3,8 @@
 
 #include <assert.h>
 
+#include <array>
+
 #include "types.h"
 
 // Here are some matrix handling routines, which may need OMP attention
@@ -187,8 +189,9 @@ void copy_matrix(Float *a, const Float *b, const Float c, const uint64 size,
 
 /* ==========================  Submatrix extraction =================== */
 
-void extract_submatrix(Float *total, const Float *corr, const int csize[3],
-                       const Float *work, const int ngrid[3], int ngrid2) {
+void extract_submatrix(Float *total, const Float *corr,
+                       const std::array<int, 3> &csize, const Float *work,
+                       const std::array<int, 3> &ngrid, int ngrid2) {
   // Given a large matrix work[ngrid^3],
   // extract out a submatrix of size csize^3, centered on work[0,0,0].
   // Multiply the result by corr[csize^3] and add it onto total[csize^3]
@@ -216,9 +219,9 @@ void extract_submatrix(Float *total, const Float *corr, const int csize[3],
   // Extract.Stop();
 }
 
-void extract_submatrix_C2R(Float *total, const Float *corr, const int csize[3],
-                           const Complex *work, const int ngrid[3],
-                           int ngrid2) {
+void extract_submatrix_C2R(Float *total, const Float *corr,
+                           const std::array<int, 3> &csize, const Complex *work,
+                           const std::array<int, 3> &ngrid, int ngrid2) {
   // Given a large matrix work[ngrid^3/2],
   // extract out a submatrix of size csize^3, centered on work[0,0,0].
   // The input matrix is Complex * with the half-domain Fourier convention.

@@ -87,6 +87,7 @@ cloud-in-cell to keep up.
 #include <sys/time.h>
 
 #include <algorithm>
+#include <array>
 #include <vector>
 
 // For multi-threading:
@@ -100,7 +101,9 @@ int omp_get_thread_num() { return 0; }
 #endif
 
 #include "STimer.cc"
+#include "array3d.h"
 #include "correlate.h"
+#include "discrete_field.h"
 #include "grid.h"
 #include "read_catalog.h"
 #include "types.h"
@@ -247,7 +250,7 @@ int main(int argc, char *argv[]) {
   int wide_angle_exponent = 0;
   int ngridCube = 256;
   int qperiodic = 0;
-  int ngrid[3] = {-1, -1, -1};
+  std::array<int, 3> ngrid = {-1, -1, -1};
   Float cell_size = -123.0;  // Default to what's implied by the file
   const char default_fname[] = "/tmp/corrRR.dat";
   char *infile = NULL;
@@ -359,8 +362,7 @@ int main(int argc, char *argv[]) {
           int(ceil(posrange[2] / cell_size)));
 
   Grid g(box.posmin(), cell_size);
-  Array3D dens(ngrid);
-  dens.set_value(0);  // Touch the memory.
+  DiscreteField dens(ngrid);
   SurveyReader reader;
   reader.read_galaxies(g, &dens, infile, infile2);
 
@@ -371,9 +373,7 @@ int main(int argc, char *argv[]) {
           totw2 - reader.totw());
   if (qperiodic == 2) {
     // We're asked to set the mean to zero
-    // TODO: make a function of Array3D returning the product of ngrid.
-    Float mean =
-        reader.totw() / dens.ngrid()[0] / dens.ngrid()[1] / dens.ngrid()[2];
+    Float mean = reader.totw() / dens.rsize();
     dens.add_scalar(-mean);
     fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
   }
@@ -435,9 +435,10 @@ int main(int argc, char *argv[]) {
 
   Total.Stop();
   uint64 nfft = 1;
+  uint64 ngrid3 = dens.dsize();
   for (int j = 0; j <= maxell; j += 2) nfft += 2 * (2 * j + 1);
-  nfft *= dens.ngrid3();
+  nfft *= ngrid3;
   fprintf(stdout, "#\n");
-  ReportTimes(stdout, nfft, dens.ngrid3(), reader.count());
+  ReportTimes(stdout, nfft, ngrid3, reader.count());
   return 0;
 }
