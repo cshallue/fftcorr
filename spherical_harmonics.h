@@ -11,7 +11,7 @@
 /* ============== Spherical Harmonic routine ============== */
 
 void makeYlm(Float *Ylm, int ell, int m, const std::array<int, 3> &n, int n1,
-             const Float *xcell, const Float *ycell, const Float *z,
+             const Array1D &xcell, const Array1D &ycell, const Array1D &zcell,
              const Float *dens, int exponent) {
   // We're not actually returning Ylm here.
   // m>0 will return Re(Y_lm)*sqrt(2)
@@ -47,6 +47,7 @@ void makeYlm(Float *Ylm, int ell, int m, const std::array<int, 3> &n, int n1,
     return;
   }
 
+  const Float *z = zcell.data();
   const int cn2 = n[2];  // To help with loop vectorization
   Float *z2, *z3, *z4, *ones;
   int err = posix_memalign((void **)&z2, PAGE, sizeof(Float) * n[2] + PAGE);
