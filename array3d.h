@@ -50,6 +50,7 @@ class Array3D {
   // TODO: this might just become a copy constructor. Then initialize could be
   // in the normal constructor.
   void copy_from(const Array3D &other);
+  void copy_with_scalar_multiply(const Array3D &other, Float s);
 
   void set_all(Float value);
 

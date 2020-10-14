@@ -63,6 +63,30 @@ void Array3D::copy_from(const Array3D &other) {
   // Init.Stop();
 }
 
+void Array3D::copy_with_scalar_multiply(const Array3D &other, Float s) {
+  assert(data_ != NULL);
+  // TODO: check same dimensions.
+  // Init.Start();
+  const Float *other_data = other.data_;
+#ifdef SLAB
+  int nx = shape_[0];
+  const uint64 nyz = size_ / nx;
+#pragma omp parallel for MY_SCHEDULE
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data_ + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] = other_data[i] * s;
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 i = 0; i < size_; i++) {
+    data_[i] = other_data[i] * s;
+  }
+#endif
+  // Init.Stop();
+}
+
 void Array3D::set_all(Float value) {
   // Initialize data_ by setting each element.
   // We want to touch the whole matrix, because in NUMA this defines the

@@ -39,6 +39,8 @@ class DiscreteField {
   }
 
   // TODO: make private and accessible to friend classes only?
+  Array3D& arr() { return arr_; }
+  const Array3D& arr() const { return arr_; }
   Float* data() { return arr_.data(); }
   const Float* data() const { return arr_.data(); }
   Complex* cdata() { return arr_.cdata(); }

@@ -190,8 +190,8 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
     for (int m = -ell; m <= ell; m++) {
       fprintf(stdout, "# Computing %d %2d...", ell, m);
       // Create the Ylm matrix times dens_
-      makeYlm(work.data(), ell, m, ngrid, ngrid2, xcell, ycell, zcell,
-              dens.data(), -wide_angle_exponent);
+      makeYlm(&work.arr(), ell, m, ngrid, ngrid2, xcell, ycell, zcell,
+              &dens.arr(), -wide_angle_exponent);
       fprintf(stdout, "Ylm...");
 
       // FFT in place
@@ -205,8 +205,8 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
       // Extract the anisotropic power spectrum
       // Load the Ylm's and include the CICwindow correction
       // TODO: pass actual Array3D
-      makeYlm(kcorr.data(), ell, m, ksize, ksize[2], kx_cell, ky_cell, kz_cell,
-              CICwindow.data(), wide_angle_exponent);
+      makeYlm(&kcorr, ell, m, ksize, ksize[2], kx_cell, ky_cell, kz_cell,
+              &CICwindow, wide_angle_exponent);
       // Multiply these Ylm by the power result, and then add to total.
       work.extract_submatrix_C2R(kcorr, &ktotal);
 
@@ -217,8 +217,8 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
       // Create Ylm for the submatrix that we'll extract for histogramming
       // The extra multiplication by one here is of negligible cost, since
       // this array is so much smaller than the FFT grid.
-      makeYlm(corr.data(), ell, m, csize, csize[2], cx_cell, cy_cell, cz_cell,
-              NULL, wide_angle_exponent);
+      makeYlm(&corr, ell, m, csize, csize[2], cx_cell, cy_cell, cz_cell, NULL,
+              wide_angle_exponent);
 
       // Multiply these Ylm by the correlation result, and then add to total.
       work.extract_submatrix(corr, &total);

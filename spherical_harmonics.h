@@ -10,9 +10,9 @@
 
 /* ============== Spherical Harmonic routine ============== */
 
-void makeYlm(Float *Ylm, int ell, int m, const std::array<int, 3> &n, int n1,
+void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n, int n1,
              const Array1D &xcell, const Array1D &ycell, const Array1D &zcell,
-             const Float *dens, int exponent) {
+             const Array3D *dens, int exponent) {
   // We're not actually returning Ylm here.
   // m>0 will return Re(Y_lm)*sqrt(2)
   // m<0 will return Im(Y_l|m|)*sqrt(2)
@@ -35,14 +35,14 @@ void makeYlm(Float *Ylm, int ell, int m, const std::array<int, 3> &n, int n1,
   if (m != 0) isqpi *= sqrt(2.0);  // Do this up-front, so we don't forget
   Float tiny = 1e-20;
 
-  const uint64 nc3 = (uint64)n[0] * n[1] * n1;
   if (ell == 0 && m == 0 && exponent == 0) {
     // This case is so easy that we'll do it first and skip the rest of the set
     // up
-    if (dens == NULL)
-      set_matrix(Ylm, 1.0 / sqrt(4.0 * M_PI), nc3, n[0]);
-    else
-      copy_matrix(Ylm, dens, 1.0 / sqrt(4.0 * M_PI), nc3, n[0]);
+    if (dens == NULL) {
+      Ylm->set_all(1.0 / sqrt(4.0 * M_PI));
+    } else {
+      Ylm->copy_with_scalar_multiply(*dens, 1.0 / sqrt(4.0 * M_PI));
+    }
     // YlmTime.Stop();
     return;
   }
@@ -65,7 +65,8 @@ void makeYlm(Float *Ylm, int ell, int m, const std::array<int, 3> &n, int n1,
     ones[k] = 1.0;
   }
 
-  Ylm[0] = -123456.0;  // A sentinal value
+  Ylm->data()[0] = -123456.0;  // A sentinal value
+  const Float *dens_data = dens == NULL ? NULL : dens->data();
 
 #pragma omp parallel for YLM_SCHEDULE
   for (uint64 i = 0; i < n[0]; i++) {
@@ -77,8 +78,8 @@ void makeYlm(Float *Ylm, int ell, int m, const std::array<int, 3> &n, int n1,
     err = posix_memalign((void **)&rpow, PAGE, sizeof(Float) * n[2] + PAGE);
     assert(err == 0);
     Float x = xcell[i], x2 = x * x;
-    Float *Y = Ylm + i * n[1] * n1;
-    const Float *D = dens + i * n[1] * n1;
+    Float *Y = Ylm->data() + i * n[1] * n1;
+    const Float *D = dens_data + i * n[1] * n1;
     Float *R;
     for (int j = 0; j < n[1]; j++, Y += n1, D += n1) {
       if (dens == NULL) D = ones;
@@ -165,7 +166,7 @@ void makeYlm(Float *Ylm, int ell, int m, const std::array<int, 3> &n, int n1,
     free(ir2);
   }
   // This traps whether the user entered an illegal (ell,m)
-  assert(Ylm[0] != 123456.0);
+  assert(Ylm->data()[0] != 123456.0);
   free(z2);
   free(z3);
   free(z4);
