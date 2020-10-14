@@ -5,7 +5,6 @@ DiscreteField::DiscreteField(std::array<int, 3> shape) {
   cshape_ = std::array<int, 3>({shape[0], shape[1], rshape_[2] / 2 + 1});
   rsize_ = (uint64)rshape_[0] * rshape_[1] * rshape_[2];
   csize_ = (uint64)cshape_[0] * cshape_[1] * cshape_[2];
-  is_fourier_space_ = false;
 
   int dsize_z;  // dsize_z pads out the array for the in-place FFT.
 #ifdef FFTSLAB
@@ -155,7 +154,6 @@ void DiscreteField::setup_fft() {
 }
 
 void DiscreteField::execute_fft() {
-  // assert(!is_fourier_space_);
   // TODO: assert that setup has been called. Decide best way to crash with
   // informative message. Same with execute_ifft
   // FFTonly.Start();
@@ -178,12 +176,9 @@ void DiscreteField::execute_fft() {
     // FFTx.Stop();
 #endif
   // FFTonly.Stop();
-
-  is_fourier_space_ = true;
 }
 
 void DiscreteField::execute_ifft() {
-  // assert(is_fourier_space_);
   // FFTonly.Start();
 #ifndef FFTSLAB
   fftw_execute(ifft_);
@@ -205,20 +200,17 @@ void DiscreteField::execute_ifft() {
     // FFTyz.Stop();
 #endif
   // FFTonly.Stop();
-
-  is_fourier_space_ = false;
 }
 
 void DiscreteField::copy_from(const DiscreteField &other) {
   // TODO: check same dimensions.
   arr_.copy_from(other.arr_);
-  is_fourier_space_ = other.is_fourier_space_;
 }
 
 void DiscreteField::restore_from(const DiscreteField &other) {
   // TODO: check same dimensions.
-  Float *this_data = data();
-  const Float *other_data = other.data();
+  Float *this_data = arr_.data();
+  const Float *other_data = other.arr_.data();
   if (other_data[1] != this_data[1] ||
       other_data[1 + dshape()[2]] != this_data[1 + dshape()[2]] ||
       other_data[dsize() - 1] != this_data[dsize() - 1]) {
@@ -228,24 +220,13 @@ void DiscreteField::restore_from(const DiscreteField &other) {
   }
 }
 
-void DiscreteField::add_scalar(Float s) {
-  // assert(!is_fourier_space_);
-  arr_.add_scalar(s);
-}
+void DiscreteField::add_scalar(Float s) { arr_.add_scalar(s); }
 
-Float DiscreteField::sum() const {
-  // assert(!is_fourier_space_);
-  return arr_.sum();
-}
+Float DiscreteField::sum() const { return arr_.sum(); }
 
-Float DiscreteField::sumsq() const {
-  // assert(!is_fourier_space_);
-  return arr_.sumsq();
-}
+Float DiscreteField::sumsq() const { return arr_.sumsq(); }
 
 void DiscreteField::multiply_with_conjugation(const DiscreteField &other) {
-  // assert(is_fourier_space_);
-  // assert(other.is_fourier_space_);
   arr_.multiply_with_conjugation(other.arr_);
 }
 

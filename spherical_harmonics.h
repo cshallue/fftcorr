@@ -63,7 +63,7 @@ void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n,
     ones[k] = 1.0;
   }
 
-  Ylm->data()[0] = -123456.0;  // A sentinal value
+  Ylm->at(0, 0, 0) = -123456.0;  // A sentinal value
 
 #pragma omp parallel for YLM_SCHEDULE
   for (uint64 i = 0; i < n[0]; i++) {
@@ -165,7 +165,7 @@ void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n,
     free(ir2);
   }
   // This traps whether the user entered an illegal (ell,m)
-  assert(Ylm->data()[0] != 123456.0);
+  assert(Ylm->at(0, 0, 0) != 123456.0);
   free(z2);
   free(z3);
   free(z4);

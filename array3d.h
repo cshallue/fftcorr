@@ -46,6 +46,10 @@ class Array3D {
   Array3D();
   ~Array3D();
 
+  // TODO: really it makes more sense to do this in the constructor, which would
+  // save us calling this explicitly and mean we wouldn't have to check for
+  // initialization in all internal operations, but DiscreteField needs to
+  // figure out the size in the body of its constructor.
   void initialize(std::array<int, 3> shape);
   // TODO: this might just become a copy constructor. Then initialize could be
   // in the normal constructor.
@@ -55,17 +59,16 @@ class Array3D {
   void set_all(Float value);
 
   // Indexing.
-  // TODO: might want to only index by flat or 3d index, right now both are
-  // supported. Could change arr.at(i,j,k) to arr(i,j,k).
-  inline uint64 get_index(int ix, int iy, int iz) const {
-    return (uint64)iz + shape_[2] * (iy + ix * shape_[1]);
-  }
   inline Float &at(int ix, int iy, int iz) {
     return data_[get_index(ix, iy, iz)];
   }
   inline const Float &at(int ix, int iy, int iz) const {
     return data_[get_index(ix, iy, iz)];
   }
+
+  // TODO: these are only needed to iterate over the values in an Array3D
+  // (actually, a pair of Array3D with corresponding elements) in the histogram.
+  // Come up with a better way.
   inline Float &operator[](uint64 idx) { return data_[idx]; }
   inline const Float &operator[](uint64 idx) const { return data_[idx]; }
 
@@ -75,23 +78,21 @@ class Array3D {
   Float sum() const;
   Float sumsq() const;
 
-  // Complex-space operations.
-  void multiply_with_conjugation(const Array3D &other);
-
   const std::array<int, 3> &shape() const { return shape_; }
   uint64 size() const { return size_; }
-  // TODO: I think I can remove this as long as DiscreteField and SurveyReader
-  // are friend classes.
+
+ private:
+  inline uint64 get_index(int ix, int iy, int iz) const {
+    return (uint64)iz + shape_[2] * (iy + ix * shape_[1]);
+  }
+
   Float *data() { return data_; }
   const Float *data() const { return data_; }
 
-  // TODO: needed?
-  const std::array<int, 3> &cshape() const { return cshape_; }
-  uint64 csize() const { return csize_; }
-  Complex *cdata() { return (Complex *)data_; }              // TODO: remove?
-  const Complex *cdata() const { return (Complex *)data_; }  // TODO: remove?
+  // Complex-space operations.
+  void multiply_with_conjugation(const Array3D &other);
+  const Complex *cdata() const { return (Complex *)data_; }
 
- private:
   std::array<int, 3> shape_;
   uint64 size_;
   Float *data_;
@@ -99,6 +100,8 @@ class Array3D {
   std::array<int, 3> cshape_;
   uint64 csize_;
   Complex *cdata_;
+
+  friend class DiscreteField;
 };
 
 #endif  // ARRAY3D_H

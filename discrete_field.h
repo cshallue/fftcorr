@@ -27,23 +27,13 @@ class DiscreteField {
   void restore_from(const DiscreteField& other);
 
   const std::array<int, 3>& rshape() const { return rshape_; }
-  const std::array<int, 3>& cshape() const { return cshape_; }
   const std::array<int, 3>& dshape() const { return arr_.shape(); }
 
   uint64 rsize() const { return rsize_; }
-  uint64 csize() const { return csize_; }
   uint64 dsize() const { return arr_.size(); }
 
-  inline uint64 get_index(int ix, int iy, int iz) const {
-    return arr_.get_index(ix, iy, iz);
-  }
-
-  // TODO: make private and accessible to friend classes only?
   Array3D& arr() { return arr_; }
   const Array3D& arr() const { return arr_; }
-  Float* data() { return arr_.data(); }
-  const Float* data() const { return arr_.data(); }
-  Complex* cdata() { return arr_.cdata(); }
 
   // Real-space operations.
   // TODO: sum and sumsq are over padded elements too!
@@ -64,11 +54,6 @@ class DiscreteField {
   uint64 rsize_;
   uint64 csize_;
 
-  // TODO: it would be nice to keep track of this, but currently we just
-  // overwrite data from one space with data from another, so we'd need to take
-  // that into account.
-  bool is_fourier_space_;  // Whether data is in Fourier space
-
   Array3D arr_;
 
 #ifndef FFTSLAB
@@ -80,6 +65,14 @@ class DiscreteField {
   fftw_plan ifftYZ_;
   fftw_plan ifftX_;
 #endif
+
+  // TODO: we could get rid of this, but we'd need to make SurveyReader unaware
+  // of padding. Careful use of arr.at(i,j,k) might be sufficient.
+  friend class SurveyReader;
+  inline uint64 get_index(int ix, int iy, int iz) const {
+    return arr_.get_index(ix, iy, iz);
+  }
+  Float* data() { return arr_.data_; }
 };
 
 #endif  // DISCRETE_FIELD_H
