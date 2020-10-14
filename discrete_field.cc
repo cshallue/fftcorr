@@ -248,3 +248,82 @@ void DiscreteField::multiply_with_conjugation(const DiscreteField &other) {
   // assert(other.is_fourier_space_);
   arr_.multiply_with_conjugation(other.arr_);
 }
+
+void DiscreteField::extract_submatrix(const Array3D &corr,
+                                      Array3D *total) const {
+  // Given a large matrix work[ngrid^3],
+  // extract out a submatrix of size csize^3, centered on work[0,0,0].
+  // Multiply the result by corr[csize^3] and add it onto total[csize^3]
+  // Again, zero lag is mapping to corr(csize/2, csize/2, csize/2),
+  // but it is at (0,0,0) in the FFT grid.
+  // Extract.Start();
+  const std::array<int, 3> &ngrid = rshape_;
+  int ngrid2 = arr_.shape()[2];
+  const std::array<int, 3> &csize = corr.shape();
+  int cx = csize[0] / 2;  // This is the middle of the submatrix
+  int cy = csize[1] / 2;  // This is the middle of the submatrix
+  int cz = csize[2] / 2;  // This is the middle of the submatrix
+  const Float *work = arr_.data();
+  Float *tdata = total->data();
+  const Float *cdata = corr.data();
+#pragma omp parallel for schedule(dynamic, 1)
+  for (uint64 i = 0; i < csize[0]; i++) {
+    uint64 ii = (ngrid[0] - cx + i) % ngrid[0];
+    for (int j = 0; j < csize[1]; j++) {
+      uint64 jj = (ngrid[1] - cy + j) % ngrid[1];
+      Float *t = tdata + (i * csize[1] + j) * csize[2];         // (i,j,0)
+      const Float *cc = cdata + (i * csize[1] + j) * csize[2];  // (i,j,0)
+      const Float *Y = work + (ii * ngrid[1] + jj) * ngrid2 + ngrid[2] - cz;
+      // This is (ii,jj,ngrid[2]-c)
+      for (int k = 0; k < cz; k++) t[k] += cc[k] * Y[k];
+      Y = work + (ii * ngrid[1] + jj) * ngrid2 - cz;
+      // This is (ii,jj,-c)
+      for (int k = cz; k < csize[2]; k++) t[k] += cc[k] * Y[k];
+    }
+  }
+  // Extract.Stop();
+}
+
+void DiscreteField::extract_submatrix_C2R(const Array3D &corr,
+                                          Array3D *total) const {
+  // Given a large matrix work[ngrid^3/2],
+  // extract out a submatrix of size csize^3, centered on work[0,0,0].
+  // The input matrix is Complex * with the half-domain Fourier convention.
+  // We are only summing the real part; the imaginary part always sums to zero.
+  // Need to reflect the -z part around the origin, which also means reflecting
+  // x & y. ngrid[2] and ngrid2 are given as their Float values, not yet divided
+  // by two. Multiply the result by corr[csize^3] and add it onto total[csize^3]
+  // Again, zero lag is mapping to corr(csize/2, csize/2, csize/2),
+  // but it is at (0,0,0) in the FFT grid.
+  // Extract.Start();
+  const std::array<int, 3> &ngrid = rshape_;
+  int ngrid2 = arr_.shape()[2];
+  const std::array<int, 3> &csize = corr.shape();
+  int cx = csize[0] / 2;  // This is the middle of the submatrix
+  int cy = csize[1] / 2;  // This is the middle of the submatrix
+  int cz = csize[2] / 2;  // This is the middle of the submatrix
+  const Complex *work = arr_.cdata();
+  Float *tdata = total->data();
+  const Float *cdata = corr.data();
+#pragma omp parallel for schedule(dynamic, 1)
+  for (uint64 i = 0; i < csize[0]; i++) {
+    uint64 ii = (ngrid[0] - cx + i) % ngrid[0];
+    uint64 iin = (ngrid[0] - ii) % ngrid[0];  // The reflected coord
+    for (int j = 0; j < csize[1]; j++) {
+      uint64 jj = (ngrid[1] - cy + j) % ngrid[1];
+      uint64 jjn = (ngrid[1] - jj) % ngrid[1];           // The reflected coord
+      Float *t = tdata + (i * csize[1] + j) * csize[2];  //  (i,j,0)
+      const Float *cc = cdata + (i * csize[1] + j) * csize[2];  //  (i,j,0)
+      // The positive half-plane (inclusize)
+      const Complex *Y = work + (ii * ngrid[1] + jj) * ngrid2 / 2 - cz;
+      // This is (ii,jj,-cz)
+      for (int k = cz; k < csize[2]; k++) t[k] += cc[k] * std::real(Y[k]);
+      // The negative half-plane (inclusize), reflected.
+      // k=cz-1 should be +1, k=0 should be +cz
+      Y = work + (iin * ngrid[1] + jjn) * ngrid2 / 2 + cz;
+      // This is (iin,jjn,+cz)
+      for (int k = 0; k < cz; k++) t[k] += cc[k] * std::real(Y[-k]);
+    }
+  }
+  // Extract.Stop();
+}

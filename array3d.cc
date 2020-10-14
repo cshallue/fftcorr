@@ -44,6 +44,31 @@ void Array3D::copy_from(const Array3D &other) {
   // Init.Stop();
 }
 
+void Array3D::set_all(Float value) {
+  // Initialize data_ by setting each element.
+  // We want to touch the whole matrix, because in NUMA this defines the
+  // association of logical memory into the physical banks.
+  // Init.Start();
+  assert(data_ != NULL);
+#ifdef SLAB
+  int nx = rshape_[0];
+  const uint64 nyz = size_ / nx;
+#pragma omp parallel for MY_SCHEDULE
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data_ + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] = value;
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 i = 0; i < size_; i++) {
+    data_[i] = value;
+  }
+#endif
+  // Init.Stop();
+}
+
 void Array3D::add_scalar(Float s) {
   assert(data_ != NULL);
 #ifdef SLAB
@@ -60,6 +85,26 @@ void Array3D::add_scalar(Float s) {
 #pragma omp parallel for MY_SCHEDULE
   for (uint64 i = 0; i < size_; ++i) {
     data_[i] += s;
+  }
+#endif
+}
+
+void Array3D::multiply_by(Float s) {
+  assert(data_ != NULL);
+#ifdef SLAB
+  int nx = shape_[0];
+  const uint64 nyz = size_ / nx;
+#pragma omp parallel for MY_SCHEDULE
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data_ + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] *= s;
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 i = 0; i < size_; ++i) {
+    data_[i] *= s;
   }
 #endif
 }
@@ -130,29 +175,4 @@ void Array3D::multiply_with_conjugation(const Array3D &other) {
     cdata_[i] *= std::conj(other.cdata_[i]);
   }
 #endif
-}
-
-void Array3D::set_all(Float value) {
-  // Initialize data_ by setting each element.
-  // We want to touch the whole matrix, because in NUMA this defines the
-  // association of logical memory into the physical banks.
-  // Init.Start();
-  assert(data_ != NULL);
-#ifdef SLAB
-  int nx = rshape_[0];
-  const uint64 nyz = size_ / nx;
-#pragma omp parallel for MY_SCHEDULE
-  for (int x = 0; x < nx; ++x) {
-    Float *slab = data_ + x * nyz;
-    for (uint64 i = 0; i < nyz; ++i) {
-      slab[i] = value;
-    }
-  }
-#else
-#pragma omp parallel for MY_SCHEDULE
-  for (uint64 i = 0; i < size_; i++) {
-    data_[i] = value;
-  }
-#endif
-  // Init.Stop();
 }

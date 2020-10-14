@@ -32,6 +32,8 @@ class Array3D {
   // in the normal constructor.
   void copy_from(const Array3D &other);
 
+  void set_all(Float value);
+
   // Indexing.
   // TODO: might want to only index by flat or 3d index, right now both are
   // supported. Could change arr.at(i,j,k) to arr(i,j,k).
@@ -46,6 +48,7 @@ class Array3D {
 
   // Real-space operations.
   void add_scalar(Float s);
+  void multiply_by(Float s);
   Float sum() const;
   Float sumsq() const;
 
@@ -59,13 +62,13 @@ class Array3D {
   Float *data() { return data_; }
   const Float *data() const { return data_; }
 
+  // TODO: needed?
   const std::array<int, 3> &cshape() const { return cshape_; }
   uint64 csize() const { return csize_; }
-  Complex *cdata() { return (Complex *)data_; }  // TODO: remove?
+  Complex *cdata() { return (Complex *)data_; }              // TODO: remove?
+  const Complex *cdata() const { return (Complex *)data_; }  // TODO: remove?
 
  private:
-  void set_all(Float value);
-
   std::array<int, 3> shape_;
   uint64 size_;
   Float *data_;

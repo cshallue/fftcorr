@@ -55,8 +55,6 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
   assert(csizex % 2 == 1);
   std::array<int, 3> csize = {csizex, csizex, csizex};
 
-  // The number of submatrix cells
-  int csize3 = csize[0] * csize[1] * csize[2];
   // Allocate corr_cell to [csize] and rnorm to [csize**3]
   // The cell centers, relative to zero lag.
   Float *cx_cell = allocate_array(csize[0]);
@@ -100,8 +98,6 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
               "ksize_[%d] to %d\n",
               i, ksize[i]);
     }
-  // The number of submatrix cells.
-  int ksize3 = ksize[0] * ksize[1] * ksize[2];
   // The cell centers, relative to zero lag.
   // Allocate kx_cell to [ksize_] and knorm_ to [ksize_**3]
   Float *kx_cell = allocate_array(ksize[0]);
@@ -174,14 +170,11 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
   work.restore_from(dens);
 
   // Allocate total[csize**3] and corr[csize**3]
-  Float *total = NULL;
-  initialize_matrix(total, csize3, csize[0]);
-  Float *corr = NULL;
-  initialize_matrix(corr, csize3, csize[0]);
-  Float *ktotal = NULL;
-  initialize_matrix(ktotal, ksize3, ksize[0]);
-  Float *kcorr = NULL;
-  initialize_matrix(kcorr, ksize3, ksize[0]);
+  Array3D total, corr, ktotal, kcorr;
+  total.initialize(csize);
+  corr.initialize(csize);
+  ktotal.initialize(ksize);
+  kcorr.initialize(ksize);
 
   // Correlate .Start();  // Starting the main work
   // Now compute the FFT of the density field and conjugate it
@@ -201,8 +194,8 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
   // Loop over each ell to compute the anisotropic correlations
   for (int ell = 0; ell <= maxell; ell += 2) {
     // Initialize the submatrix
-    set_matrix(total, 0.0, csize3, csize[0]);
-    set_matrix(ktotal, 0.0, ksize3, ksize[0]);
+    total.set_all(0.0);
+    ktotal.set_all(0.0);
     // Loop over m
     for (int m = -ell; m <= ell; m++) {
       fprintf(stdout, "# Computing %d %2d...", ell, m);
@@ -222,10 +215,10 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
       // Extract the anisotropic power spectrum
       // Load the Ylm's and include the CICwindow correction
       // TODO: pass actual Array3D
-      makeYlm(kcorr, ell, m, ksize, ksize[2], kx_cell, ky_cell, kz_cell,
+      makeYlm(kcorr.data(), ell, m, ksize, ksize[2], kx_cell, ky_cell, kz_cell,
               CICwindow.data(), wide_angle_exponent);
       // Multiply these Ylm by the power result, and then add to total.
-      extract_submatrix_C2R(ktotal, kcorr, ksize, work.cdata(), ngrid, ngrid2);
+      work.extract_submatrix_C2R(kcorr, &ktotal);
 
       // iFFT the result, in place
       work.execute_ifft();
@@ -234,24 +227,24 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
       // Create Ylm for the submatrix that we'll extract for histogramming
       // The extra multiplication by one here is of negligible cost, since
       // this array is so much smaller than the FFT grid.
-      makeYlm(corr, ell, m, csize, csize[2], cx_cell, cy_cell, cz_cell, NULL,
-              wide_angle_exponent);
+      makeYlm(corr.data(), ell, m, csize, csize[2], cx_cell, cy_cell, cz_cell,
+              NULL, wide_angle_exponent);
 
       // Multiply these Ylm by the correlation result, and then add to total.
-      extract_submatrix(total, corr, csize, work.data(), ngrid, ngrid2);
+      work.extract_submatrix(corr, &total);
 
       fprintf(stdout, "Done!\n");
       fflush(NULL);
     }
 
     // Extract.Start();
-    scale_matrix(total, norm, csize3, csize[0]);
-    scale_matrix(ktotal, Pnorm, ksize3, ksize[0]);
+    total.multiply_by(norm);
+    ktotal.multiply_by(Pnorm);
     // Extract.Stop();
     // Histogram total by rnorm
     // Hist.Start();
-    h.histcorr(ell, rnorm, total);
-    kh.histcorr(ell, knorm, ktotal);
+    h.histcorr(ell, rnorm, &total);
+    kh.histcorr(ell, knorm, &ktotal);
     // Hist.Stop();
   }
 
@@ -265,10 +258,6 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
   free(kx_cell);
   free(ky_cell);
   free(kz_cell);
-  free(corr);
-  free(total);
-  free(kcorr);
-  free(ktotal);
   // Correlate.Stop();
 }
 
