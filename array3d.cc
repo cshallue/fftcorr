@@ -1,5 +1,24 @@
 #include "array3d.h"
 
+Array1D::Array1D(int size) : size_(size), data_(NULL) {
+  // Allocate data_ array.
+  int err = posix_memalign((void **)&data_, PAGE, sizeof(Float) * size_ + PAGE);
+  assert(err == 0);
+  assert(data_ != NULL);
+}
+
+Array1D::~Array1D() {
+  if (data_ != NULL) free(data_);
+}
+
+Array1D range(Float start, Float step, int size) {
+  Array1D arr(size);
+  for (int i = 0; i < size; ++i) {
+    arr[i] = start + i * step;
+  }
+  return arr;
+}
+
 Array3D::Array3D() : data_(NULL), cdata_(NULL) {}
 
 Array3D::~Array3D() {

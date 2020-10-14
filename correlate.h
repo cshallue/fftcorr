@@ -40,13 +40,10 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
 
   // Compute xcell, ycell, zcell, which are the coordinates of the cell centers
   // in each dimension, relative to the origin.
-  Float *xcell = allocate_array(ngrid[0]);
-  Float *ycell = allocate_array(ngrid[1]);
-  Float *zcell = allocate_array(ngrid[2]);
   // Now set up the cell centers relative to the origin, in grid units
-  for (int j = 0; j < ngrid[0]; j++) xcell[j] = 0.5 + j - origin[0];
-  for (int j = 0; j < ngrid[1]; j++) ycell[j] = 0.5 + j - origin[1];
-  for (int j = 0; j < ngrid[2]; j++) zcell[j] = 0.5 + j - origin[2];
+  Array1D xcell = range(0.5 - origin[0], 1, ngrid[0]);
+  Array1D ycell = range(0.5 - origin[1], 1, ngrid[1]);
+  Array1D zcell = range(0.5 - origin[2], 1, ngrid[2]);
 
   // Storage for the r-space submatrices
   int sep_cell = ceil(sep / cell_size);
@@ -57,18 +54,14 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
 
   // Allocate corr_cell to [csize] and rnorm to [csize**3]
   // The cell centers, relative to zero lag.
-  Float *cx_cell = allocate_array(csize[0]);
-  Float *cy_cell = allocate_array(csize[1]);
-  Float *cz_cell = allocate_array(csize[2]);
-  Array3D rnorm;  // The radius of each cell.
-  rnorm.initialize(csize);
-
   // Normalizing by cell_size just so that the Ylm code can do the wide-angle
   // corrections in the same units.
-  for (int i = 0; i < csize[0]; i++) cx_cell[i] = cell_size * (i - sep_cell);
-  for (int i = 0; i < csize[1]; i++) cy_cell[i] = cell_size * (i - sep_cell);
-  for (int i = 0; i < csize[2]; i++) cz_cell[i] = cell_size * (i - sep_cell);
+  Array1D cx_cell = range(-cell_size * sep_cell, cell_size, csize[0]);
+  Array1D cy_cell = range(-cell_size * sep_cell, cell_size, csize[1]);
+  Array1D cz_cell = range(-cell_size * sep_cell, cell_size, csize[2]);
 
+  Array3D rnorm;  // The radius of each cell.
+  rnorm.initialize(csize);
   for (uint64 i = 0; i < csize[0]; i++)
     for (int j = 0; j < csize[1]; j++)
       for (int k = 0; k < csize[2]; k++)
@@ -100,22 +93,19 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
     }
   // The cell centers, relative to zero lag.
   // Allocate kx_cell to [ksize_] and knorm_ to [ksize_**3]
-  Float *kx_cell = allocate_array(ksize[0]);
-  Float *ky_cell = allocate_array(ksize[1]);
-  Float *kz_cell = allocate_array(ksize[2]);
+  Array1D kx_cell = range((-ksize[0] / 2) * 2.0 * k_Nyq / ngrid[0],
+                          2.0 * k_Nyq / ngrid[0], ksize[0]);
+  Array1D ky_cell = range((-ksize[1] / 2) * 2.0 * k_Nyq / ngrid[1],
+                          2.0 * k_Nyq / ngrid[0], ksize[0]);
+  Array1D kz_cell = range((-ksize[1] / 2) * 2.0 * k_Nyq / ngrid[0],
+                          2.0 * k_Nyq / ngrid[0], ksize[1]);
+
   // The wavenumber of each cell, in a flattened submatrix.
   Array3D knorm;
   knorm.initialize(ksize);
   // The inverse of the window function for the CIC cell assignment.
   Array3D CICwindow;
   CICwindow.initialize(ksize);
-
-  for (int i = 0; i < ksize[0]; i++)
-    kx_cell[i] = (i - ksize[0] / 2) * 2.0 * k_Nyq / ngrid[0];
-  for (int i = 0; i < ksize[1]; i++)
-    ky_cell[i] = (i - ksize[1] / 2) * 2.0 * k_Nyq / ngrid[1];
-  for (int i = 0; i < ksize[2]; i++)
-    kz_cell[i] = (i - ksize[2] / 2) * 2.0 * k_Nyq / ngrid[2];
 
   for (uint64 i = 0; i < ksize[0]; i++)
     for (int j = 0; j < ksize[1]; j++)
@@ -200,8 +190,8 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
     for (int m = -ell; m <= ell; m++) {
       fprintf(stdout, "# Computing %d %2d...", ell, m);
       // Create the Ylm matrix times dens_
-      makeYlm(work.data(), ell, m, ngrid, ngrid2, xcell, ycell, zcell,
-              dens.data(), -wide_angle_exponent);
+      makeYlm(work.data(), ell, m, ngrid, ngrid2, xcell.data(), ycell.data(),
+              zcell.data(), dens.data(), -wide_angle_exponent);
       fprintf(stdout, "Ylm...");
 
       // FFT in place
@@ -215,8 +205,9 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
       // Extract the anisotropic power spectrum
       // Load the Ylm's and include the CICwindow correction
       // TODO: pass actual Array3D
-      makeYlm(kcorr.data(), ell, m, ksize, ksize[2], kx_cell, ky_cell, kz_cell,
-              CICwindow.data(), wide_angle_exponent);
+      makeYlm(kcorr.data(), ell, m, ksize, ksize[2], kx_cell.data(),
+              ky_cell.data(), kz_cell.data(), CICwindow.data(),
+              wide_angle_exponent);
       // Multiply these Ylm by the power result, and then add to total.
       work.extract_submatrix_C2R(kcorr, &ktotal);
 
@@ -227,8 +218,8 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
       // Create Ylm for the submatrix that we'll extract for histogramming
       // The extra multiplication by one here is of negligible cost, since
       // this array is so much smaller than the FFT grid.
-      makeYlm(corr.data(), ell, m, csize, csize[2], cx_cell, cy_cell, cz_cell,
-              NULL, wide_angle_exponent);
+      makeYlm(corr.data(), ell, m, csize, csize[2], cx_cell.data(),
+              cy_cell.data(), cz_cell.data(), NULL, wide_angle_exponent);
 
       // Multiply these Ylm by the correlation result, and then add to total.
       work.extract_submatrix(corr, &total);
@@ -247,17 +238,6 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
     kh.histcorr(ell, knorm, &ktotal);
     // Hist.Stop();
   }
-
-  /* ------------------- Clean up -------------------*/
-  free(zcell);
-  free(ycell);
-  free(xcell);
-  free(cx_cell);
-  free(cy_cell);
-  free(cz_cell);
-  free(kx_cell);
-  free(ky_cell);
-  free(kz_cell);
   // Correlate.Stop();
 }
 

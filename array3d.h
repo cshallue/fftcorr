@@ -5,6 +5,25 @@
 
 #include "types.h"
 
+// TODO: rename this file arrays.h
+class Array1D {
+ public:
+  Array1D(int size);
+  ~Array1D();
+
+  inline Float &operator[](int idx) { return data_[idx]; }
+  inline const Float &operator[](int idx) const { return data_[idx]; }
+
+  const Float *data() const { return data_; }  // TODO: remove?
+
+ private:
+  int size_;
+  Float *data_;
+};
+
+// TODO: make this a static function of Array1D?
+Array1D range(Float start, Float step, int size);
+
 // This class allocates and owns a 3D grid of Floats, stored in a flattened
 // array in row-major order.
 //
