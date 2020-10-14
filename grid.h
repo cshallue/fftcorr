@@ -1,13 +1,6 @@
 #ifndef GRID_H
 #define GRID_H
 
-#include "array3d.h"
-#include "d12.cpp"
-#include "galaxy.h"
-#include "histogram.h"
-#include "matrix_utils.h"
-#include "merge_sort_omp.cpp"
-#include "spherical_harmonics.h"
 #include "types.h"
 
 class Grid {

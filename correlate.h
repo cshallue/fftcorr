@@ -7,7 +7,8 @@
 
 #include "discrete_field.h"
 #include "grid.h"
-#include "matrix_utils.h"
+#include "histogram.h"
+#include "spherical_harmonics.h"
 #include "types.h"
 
 void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,

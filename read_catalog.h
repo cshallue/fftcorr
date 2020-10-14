@@ -5,8 +5,11 @@
 
 #include <array>
 
+#include "d12.cpp"
 #include "discrete_field.h"
+#include "galaxy.h"
 #include "grid.h"
+#include "merge_sort_omp.cpp"
 #include "types.h"
 
 #define FILE_BUFFER_SIZE 512

@@ -5,7 +5,6 @@
 
 #include <array>
 
-#include "matrix_utils.h"
 #include "types.h"
 
 /* ============== Spherical Harmonic routine ============== */

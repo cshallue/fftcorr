@@ -78,6 +78,20 @@ cloud-in-cell to keep up.
 // #define FFTSLAB  	// Do the FFTs in 2D, then 1D
 // #define OPENMP	// Turn on the OPENMP items
 
+#ifndef OPENMP
+#undef SLAB  // We probably don't want to do this if single threaded
+#endif
+#ifdef SLAB
+// Try treating the matrices explicitly by x slab;
+// this might allow NUMA memory to be closer to the socket running the thread.
+#define MY_SCHEDULE schedule(static, 1)
+#define YLM_SCHEDULE schedule(static, 1)
+#else
+// Just treat the matrices as one big object
+#define MY_SCHEDULE schedule(dynamic, 512)
+#define YLM_SCHEDULE schedule(dynamic, 1)
+#endif
+
 /* ======================= Preamble ================= */
 #include <assert.h>
 #include <math.h>
@@ -105,6 +119,7 @@ int omp_get_thread_num() { return 0; }
 #include "correlate.h"
 #include "discrete_field.h"
 #include "grid.h"
+#include "histogram.h"
 #include "read_catalog.h"
 #include "types.h"
 
