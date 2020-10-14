@@ -19,7 +19,6 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
 
   // TODO: rename these things something better.
   std::array<int, 3> ngrid = dens.rshape();
-  int ngrid2 = dens.dshape()[2];  // TODO: abstract away?
   Float cell_size = g.cell_size();
 
   // Compute the origin, in grid units.
@@ -190,8 +189,8 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
     for (int m = -ell; m <= ell; m++) {
       fprintf(stdout, "# Computing %d %2d...", ell, m);
       // Create the Ylm matrix times dens_
-      makeYlm(&work.arr(), ell, m, ngrid, ngrid2, xcell, ycell, zcell,
-              &dens.arr(), -wide_angle_exponent);
+      makeYlm(&work.arr(), ell, m, ngrid, xcell, ycell, zcell, &dens.arr(),
+              -wide_angle_exponent);
       fprintf(stdout, "Ylm...");
 
       // FFT in place
@@ -205,8 +204,8 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
       // Extract the anisotropic power spectrum
       // Load the Ylm's and include the CICwindow correction
       // TODO: pass actual Array3D
-      makeYlm(&kcorr, ell, m, ksize, ksize[2], kx_cell, ky_cell, kz_cell,
-              &CICwindow, wide_angle_exponent);
+      makeYlm(&kcorr, ell, m, ksize, kx_cell, ky_cell, kz_cell, &CICwindow,
+              wide_angle_exponent);
       // Multiply these Ylm by the power result, and then add to total.
       work.extract_submatrix_C2R(kcorr, &ktotal);
 
@@ -217,7 +216,7 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
       // Create Ylm for the submatrix that we'll extract for histogramming
       // The extra multiplication by one here is of negligible cost, since
       // this array is so much smaller than the FFT grid.
-      makeYlm(&corr, ell, m, csize, csize[2], cx_cell, cy_cell, cz_cell, NULL,
+      makeYlm(&corr, ell, m, csize, cx_cell, cy_cell, cz_cell, NULL,
               wide_angle_exponent);
 
       // Multiply these Ylm by the correlation result, and then add to total.

@@ -10,7 +10,7 @@
 
 /* ============== Spherical Harmonic routine ============== */
 
-void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n, int n1,
+void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n,
              const Array1D &xcell, const Array1D &ycell, const Array1D &zcell,
              const Array3D *dens, int exponent) {
   // We're not actually returning Ylm here.
@@ -21,9 +21,8 @@ void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n, int n1,
   // using them in matched squares.
   //
   // Input x[n[0]], y[n[1]], z[n[2]] are the x,y,z centers of this row of bins
-  // n1 is supplied so that Ylm[n[0]][n[1]][n1] can be handled flexibly
   //
-  // If dens!=NULL, then it should point to a [n[0]][n[1]][n1] vector that will
+  // If dens!=NULL, then it should point to a [n[0]][n[1]][n2] vector that will
   // be multiplied element-wise onto the results.  This can save a store/load to
   // main memory.
   //
@@ -66,7 +65,6 @@ void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n, int n1,
   }
 
   Ylm->data()[0] = -123456.0;  // A sentinal value
-  const Float *dens_data = dens == NULL ? NULL : dens->data();
 
 #pragma omp parallel for YLM_SCHEDULE
   for (uint64 i = 0; i < n[0]; i++) {
@@ -78,11 +76,13 @@ void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n, int n1,
     err = posix_memalign((void **)&rpow, PAGE, sizeof(Float) * n[2] + PAGE);
     assert(err == 0);
     Float x = xcell[i], x2 = x * x;
-    Float *Y = Ylm->data() + i * n[1] * n1;
-    const Float *D = dens_data + i * n[1] * n1;
     Float *R;
-    for (int j = 0; j < n[1]; j++, Y += n1, D += n1) {
-      if (dens == NULL) D = ones;
+    Float *Y;
+    const Float *D;
+    for (int j = 0; j < n[1]; j++) {
+      // Important to use .at() for when Ylm and dens are internally padded.
+      Y = &Ylm->at(i, j, 0);                           // (i, j, 0)
+      D = (dens == NULL) ? ones : &dens->at(i, j, 0);  // (i, j, 0)
       Float y = ycell[j], y2 = y * y, y3 = y2 * y, y4 = y3 * y;
       for (int k = 0; k < cn2; k++) ir2[k] = 1.0 / (x2 + y2 + z2[k] + tiny);
       // Now figure out the exponent r^n

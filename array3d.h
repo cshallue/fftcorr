@@ -63,6 +63,9 @@ class Array3D {
   inline Float &at(int ix, int iy, int iz) {
     return data_[get_index(ix, iy, iz)];
   }
+  inline const Float &at(int ix, int iy, int iz) const {
+    return data_[get_index(ix, iy, iz)];
+  }
   inline Float &operator[](uint64 idx) { return data_[idx]; }
   inline const Float &operator[](uint64 idx) const { return data_[idx]; }
 
