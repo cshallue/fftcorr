@@ -44,13 +44,13 @@ class Histogram {
   // TODO: Might consider creating more flexible ways to select a binning.
   inline int r2bin(Float r) { return floor(r / binsize); }
 
-  void histcorr(int ell, int n, Float *rnorm, Float *total) {
+  void histcorr(int ell, const Array3D &rnorm, Float *total) {
     // Histogram into bins by rnorm[n], adding up weighting by total[n].
     // Add to multipole ell.
     if (ell == 0) {
       for (int j = 0; j < nbins; j++) cnt[j] = 0.0;
       for (int j = 0; j < nbins; j++) hist[j] = 0.0;
-      for (int j = 0; j < n; j++) {
+      for (int j = 0; j < rnorm.size(); j++) {
         int b = r2bin(rnorm[j]);
         if (rnorm[j] < binsize * 1e-6) {
           zerolag = total[j];
@@ -63,7 +63,7 @@ class Histogram {
       // ell>0
       Float *h = hist + ell / 2 * nbins;
       for (int j = 0; j < nbins; j++) h[j] = 0.0;
-      for (int j = 0; j < n; j++) {
+      for (int j = 0; j < rnorm.size(); j++) {
         int b = r2bin(rnorm[j]);
         if (b >= nbins || b < 0) continue;
         h[b] += total[j];

@@ -34,8 +34,8 @@ class DiscreteField {
   uint64 csize() const { return csize_; }
   uint64 dsize() const { return arr_.size(); }
 
-  inline uint64 to_flat_index(uint64 ix, uint64 iy, uint64 iz) const {
-    return arr_.to_flat_index(ix, iy, iz);
+  inline uint64 get_index(int ix, int iy, int iz) const {
+    return arr_.get_index(ix, iy, iz);
   }
 
   // TODO: make private and accessible to friend classes only?

@@ -126,7 +126,7 @@ class SurveyReader {
         b = buffer_;
         for (int j = 0; j < nread; j += 4, b += 4) {
           grid.change_to_grid_coords(b);
-          index = field->to_flat_index(floor(b[0]), floor(b[1]), floor(b[2]));
+          index = field->get_index(floor(b[0]), floor(b[1]), floor(b[2]));
           gal_.push_back(Galaxy(b, index));
           ++thiscount;
           totw_ += b[3];

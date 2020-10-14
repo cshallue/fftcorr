@@ -13,6 +13,7 @@ void Array3D::initialize(std::array<int, 3> shape) {
   int err = posix_memalign((void **)&data_, PAGE, sizeof(Float) * size_ + PAGE);
   assert(err == 0);
   assert(data_ != NULL);
+  set_all(0.0);
 
   cshape_ = std::array<int, 3>({shape_[0], shape_[1], shape_[2] / 2});
   csize_ = (uint64)cshape_[0] * cshape_[1] * cshape_[2];
@@ -38,31 +39,6 @@ void Array3D::copy_from(const Array3D &other) {
 #pragma omp parallel for MY_SCHEDULE
   for (uint64 i = 0; i < size_; i++) {
     data_[i] = other_data[i];
-  }
-#endif
-  // Init.Stop();
-}
-
-void Array3D::set_value(Float value) {
-  // Initialize data_ by setting each element.
-  // We want to touch the whole matrix, because in NUMA this defines the
-  // association of logical memory into the physical banks.
-  // Init.Start();
-  assert(data_ != NULL);
-#ifdef SLAB
-  int nx = rshape_[0];
-  const uint64 nyz = size_ / nx;
-#pragma omp parallel for MY_SCHEDULE
-  for (int x = 0; x < nx; ++x) {
-    Float *slab = data_ + x * nyz;
-    for (uint64 i = 0; i < nyz; ++i) {
-      slab[i] = value;
-    }
-  }
-#else
-#pragma omp parallel for MY_SCHEDULE
-  for (uint64 i = 0; i < size_; i++) {
-    data_[i] = value;
   }
 #endif
   // Init.Stop();
@@ -154,4 +130,29 @@ void Array3D::multiply_with_conjugation(const Array3D &other) {
     cdata_[i] *= std::conj(other.cdata_[i]);
   }
 #endif
+}
+
+void Array3D::set_all(Float value) {
+  // Initialize data_ by setting each element.
+  // We want to touch the whole matrix, because in NUMA this defines the
+  // association of logical memory into the physical banks.
+  // Init.Start();
+  assert(data_ != NULL);
+#ifdef SLAB
+  int nx = rshape_[0];
+  const uint64 nyz = size_ / nx;
+#pragma omp parallel for MY_SCHEDULE
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data_ + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] = value;
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 i = 0; i < size_; i++) {
+    data_[i] = value;
+  }
+#endif
+  // Init.Stop();
 }

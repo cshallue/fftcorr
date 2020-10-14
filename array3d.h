@@ -32,12 +32,17 @@ class Array3D {
   // in the normal constructor.
   void copy_from(const Array3D &other);
 
-  void set_value(Float value);
-
-  // TODO: make this class indexable?
-  inline uint64 to_flat_index(uint64 ix, uint64 iy, uint64 iz) const {
-    return iz + shape_[2] * (iy + ix * shape_[1]);
+  // Indexing.
+  // TODO: might want to only index by flat or 3d index, right now both are
+  // supported.
+  inline uint64 get_index(int ix, int iy, int iz) const {
+    return (uint64)iz + shape_[2] * (iy + ix * shape_[1]);
   }
+  inline Float &at(int ix, int iy, int iz) {
+    return data_[get_index(ix, iy, iz)];
+  }
+  inline Float &operator[](uint64 idx) { return data_[idx]; }
+  inline const Float &operator[](uint64 idx) const { return data_[idx]; }
 
   // Real-space operations.
   void add_scalar(Float s);
@@ -59,6 +64,8 @@ class Array3D {
   Complex *cdata() { return (Complex *)data_; }  // TODO: remove?
 
  private:
+  void set_all(Float value);
+
   std::array<int, 3> shape_;
   uint64 size_;
   Float *data_;

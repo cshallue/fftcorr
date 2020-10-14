@@ -62,8 +62,8 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
   Float *cx_cell = allocate_array(csize[0]);
   Float *cy_cell = allocate_array(csize[1]);
   Float *cz_cell = allocate_array(csize[2]);
-  Float *rnorm = NULL;  // The radius of each cell, in a flattened submatrix.
-  initialize_matrix(rnorm, csize3, csize[0]);
+  Array3D rnorm;  // The radius of each cell.
+  rnorm.initialize(csize);
 
   // Normalizing by cell_size just so that the Ylm code can do the wide-angle
   // corrections in the same units.
@@ -74,10 +74,9 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
   for (uint64 i = 0; i < csize[0]; i++)
     for (int j = 0; j < csize[1]; j++)
       for (int k = 0; k < csize[2]; k++)
-        rnorm[k + csize[2] * (j + i * csize[1])] =
-            cell_size * sqrt((i - sep_cell) * (i - sep_cell) +
-                             (j - sep_cell) * (j - sep_cell) +
-                             (k - sep_cell) * (k - sep_cell));
+        rnorm.at(i, j, k) = cell_size * sqrt((i - sep_cell) * (i - sep_cell) +
+                                             (j - sep_cell) * (j - sep_cell) +
+                                             (k - sep_cell) * (k - sep_cell));
   fprintf(stdout, "# Done setting up the separation submatrix of size +-%d\n",
           sep_cell);
 
@@ -109,8 +108,8 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
   Float *ky_cell = allocate_array(ksize[1]);
   Float *kz_cell = allocate_array(ksize[2]);
   // The wavenumber of each cell, in a flattened submatrix.
-  Float *knorm = NULL;
-  initialize_matrix(knorm, ksize3, ksize[0]);
+  Array3D knorm;
+  knorm.initialize(ksize);
   // The inverse of the window function for the CIC cell assignment.
   Float *CICwindow = NULL;
   initialize_matrix(CICwindow, ksize3, ksize[0]);
@@ -125,7 +124,7 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
   for (uint64 i = 0; i < ksize[0]; i++)
     for (int j = 0; j < ksize[1]; j++)
       for (int k = 0; k < ksize[2]; k++) {
-        knorm[k + ksize[2] * (j + i * ksize[1])] =
+        knorm.at(i, j, k) =
             sqrt(kx_cell[i] * kx_cell[i] + ky_cell[j] * ky_cell[j] +
                  kz_cell[k] * kz_cell[k]);
         // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
@@ -250,8 +249,8 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
     // Extract.Stop();
     // Histogram total by rnorm
     // Hist.Start();
-    h.histcorr(ell, csize3, rnorm, total);
-    kh.histcorr(ell, ksize3, knorm, ktotal);
+    h.histcorr(ell, rnorm, total);
+    kh.histcorr(ell, knorm, ktotal);
     // Hist.Stop();
   }
 
@@ -259,11 +258,9 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
   free(zcell);
   free(ycell);
   free(xcell);
-  free(rnorm);
   free(cx_cell);
   free(cy_cell);
   free(cz_cell);
-  free(knorm);
   free(kx_cell);
   free(ky_cell);
   free(kz_cell);
