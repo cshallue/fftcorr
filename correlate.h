@@ -111,8 +111,8 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
   Array3D knorm;
   knorm.initialize(ksize);
   // The inverse of the window function for the CIC cell assignment.
-  Float *CICwindow = NULL;
-  initialize_matrix(CICwindow, ksize3, ksize[0]);
+  Array3D CICwindow;
+  CICwindow.initialize(ksize);
 
   for (int i = 0; i < ksize[0]; i++)
     kx_cell[i] = (i - ksize[0] / 2) * 2.0 * k_Nyq / ngrid[0];
@@ -147,7 +147,7 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
         // For this case, the window is unity
         window = 1.0;
 #endif
-        CICwindow[k + ksize[2] * (j + i * ksize[1])] = 1.0 / window;
+        CICwindow.at(i, j, k) = 1.0 / window;
         // We will divide the power spectrum by the square of the window
       }
 
@@ -221,8 +221,9 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
 
       // Extract the anisotropic power spectrum
       // Load the Ylm's and include the CICwindow correction
+      // TODO: pass actual Array3D
       makeYlm(kcorr, ell, m, ksize, ksize[2], kx_cell, ky_cell, kz_cell,
-              CICwindow, wide_angle_exponent);
+              CICwindow.data(), wide_angle_exponent);
       // Multiply these Ylm by the power result, and then add to total.
       extract_submatrix_C2R(ktotal, kcorr, ksize, work.cdata(), ngrid, ngrid2);
 
@@ -264,7 +265,6 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
   free(kx_cell);
   free(ky_cell);
   free(kz_cell);
-  free(CICwindow);
   free(corr);
   free(total);
   free(kcorr);

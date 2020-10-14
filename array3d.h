@@ -34,7 +34,7 @@ class Array3D {
 
   // Indexing.
   // TODO: might want to only index by flat or 3d index, right now both are
-  // supported.
+  // supported. Could change arr.at(i,j,k) to arr(i,j,k).
   inline uint64 get_index(int ix, int iy, int iz) const {
     return (uint64)iz + shape_[2] * (iy + ix * shape_[1]);
   }
