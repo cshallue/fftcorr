@@ -47,10 +47,13 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
 
   // Storage for the r-space submatrices
   int sep_cell = ceil(sep / cell_size);
+  fprintf(stderr, "sep = %f, cell_size = %f, sep_cell =%d\n", sep, cell_size,
+          sep_cell);
   // How many cells we must extract as a submatrix to do the histogramming.
   int csizex = 2 * sep_cell + 1;
   assert(csizex % 2 == 1);
   std::array<int, 3> csize = {csizex, csizex, csizex};
+  fprintf(stderr, "csize size = [%d, %d, %d]\n", csize[0], csize[1], csize[2]);
 
   // Allocate corr_cell to [csize] and rnorm to [csize**3]
   // The cell centers, relative to zero lag.
@@ -140,6 +143,7 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
   fprintf(stdout,
           "# Done setting up the wavevector submatrix of size +-%d, %d, %d\n",
           ksize[0] / 2, ksize[1] / 2, ksize[2] / 2);
+  fprintf(stderr, "ksize size = [%d, %d, %d]\n", ksize[0], ksize[1], ksize[2]);
 
   // Setup.Stop();
 

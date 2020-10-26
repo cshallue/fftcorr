@@ -353,6 +353,7 @@ int main(int argc, char *argv[]) {
   Float posrange[3];
   for (int i = 0; i < 3; i++) {
     posrange[i] = box.posmax()[i] - box.posmin()[i];
+    fprintf(stderr, "posrange[%d] = %f\n", i, posrange[i]);
   }
   // Compute the box size required in each direction.
   if (cell_size <= 0) {
@@ -377,7 +378,11 @@ int main(int argc, char *argv[]) {
           int(ceil(posrange[2] / cell_size)));
 
   Grid g(box.posmin(), cell_size);
+  fprintf(stderr, "sep = %f, cell_size = %f, ngrid =%d\n", sep, cell_size,
+          ngrid[0]);
   DiscreteField dens(ngrid);
+  fprintf(stderr, "dens size = [%d, %d, %d\n", dens.dshape()[0],
+          dens.dshape()[1], dens.dshape()[2]);
   SurveyReader reader;
   reader.read_galaxies(g, &dens, infile, infile2);
 

@@ -202,7 +202,7 @@ void Array3D::multiply_with_conjugation(const Array3D &other) {
   // Element-wise multiply by conjugate of other
   // TODO: check same dimensions.
 #ifdef SLAB
-  int nx = shape_[0];
+  int nx = cshape_[0];
   const uint64 nyz = csize_ / nx;
 #pragma omp parallel for MY_SCHEDULE
   for (int x = 0; x < nx; ++x) {

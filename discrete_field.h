@@ -45,6 +45,7 @@ class DiscreteField {
   void multiply_with_conjugation(const DiscreteField& other);
 
   // TODO: rename arguments something more general.
+  // TODO: do these belong in here?
   void extract_submatrix(const Array3D& corr, Array3D* total) const;
   void extract_submatrix_C2R(const Array3D& corr, Array3D* total) const;
 
