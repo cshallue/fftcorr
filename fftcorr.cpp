@@ -446,7 +446,7 @@ int main(int argc, char *argv[]) {
   h.print(stdout, 0);
   // We want to use the correlation at zero lag as the I normalization
   // factor in the FKP power spectrum.
-  fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", h.zerolag);
+  fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", h.zerolag());
   // Integral of power spectrum needs a d^3k/(2 pi)^3, which is (1/L)^3 =
   // (1/(cell_size*ngrid))^3
   fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",
