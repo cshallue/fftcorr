@@ -11,10 +11,14 @@ class Histogram {
       : maxell_(maxell),
         sep_(sep),
         binsize_(dsep),
-        zerolag_(-12345.0),
         nbins_(floor(sep_ / binsize_)),
         cnt_(nbins_),
-        hist_(maxell_ / 2 + 1, nbins_) {}
+        hist_(maxell_ / 2 + 1, nbins_) {
+    // TODO: once we merge Array1D and Array3D, this should be done in their
+    // constructors.
+    cnt_.set_all(0.0);
+    hist_.set_all(0.0);
+  }
 
   // TODO: Might consider creating more flexible ways to select a binning.
   inline int r2bin(Float r) { return floor(r / binsize_); }
@@ -22,13 +26,8 @@ class Histogram {
   void histcorr(int ell, const Array3D &rnorm, const Array3D &total) {
     // Histogram into bins by rnorm[n], adding up weighting by total[n].
     // Add to multipole ell.
-    // Zero the histogram in row ell.
     int ih = ell / 2;
-    for (int jh = 0; jh < nbins_; ++jh) {
-      hist_.at(ih, jh) = 0.0;
-    }
     if (ell == 0) {
-      cnt_.set_all(0.0);
       // TODO: really we only care about rnorm and total as flattened arrays.
       // There are a few possibilities to simplify this: have a wrapper class
       // that treats the array as flat (e.g. pass rnorm.flatten() into this
@@ -38,9 +37,6 @@ class Histogram {
       for (int i = 0; i < rnorm.shape(0); ++i) {
         for (int j = 0; j < rnorm.shape(1); ++j) {
           for (int k = 0; k < rnorm.shape(2); ++k) {
-            if (rnorm.at(i, j, k) < binsize_ * 1e-6) {
-              zerolag_ = total.at(i, j, k);
-            }
             int b = r2bin(rnorm.at(i, j, k));
             if (b >= nbins_ || b < 0) continue;
             hist_.at(ih, b) += total.at(i, j, k);
@@ -89,13 +85,10 @@ class Histogram {
     }
   }
 
-  Float zerolag() { return zerolag_; }
-
  private:
   int maxell_;
   Float sep_;
   Float binsize_;
-  Float zerolag_;  // The value at zero lag
 
   int nbins_;
   Array1D cnt_;

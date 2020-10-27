@@ -436,8 +436,10 @@ int main(int argc, char *argv[]) {
 
   Histogram h(maxell, sep, dsep);
   Histogram kh(maxell, kmax, dk);
+  Float zerolag = -12345.0;
   fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-  correlate(g, dens, sep, kmax, maxell, h, kh, wide_angle_exponent, qperiodic);
+  correlate(g, dens, sep, kmax, maxell, wide_angle_exponent, qperiodic, &h, &kh,
+            &zerolag);
 
   Ylm_count.print(stdout);
   fprintf(stdout, "# Anisotropic power spectrum:\n");
@@ -446,7 +448,7 @@ int main(int argc, char *argv[]) {
   h.print(stdout, 0);
   // We want to use the correlation at zero lag as the I normalization
   // factor in the FKP power spectrum.
-  fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", h.zerolag());
+  fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", zerolag);
   // Integral of power spectrum needs a d^3k/(2 pi)^3, which is (1/L)^3 =
   // (1/(cell_size*ngrid))^3
   fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",

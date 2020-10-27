@@ -12,8 +12,8 @@
 #include "types.h"
 
 void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
-               int maxell, Histogram &h, Histogram &kh, int wide_angle_exponent,
-               int qperiodic) {
+               int maxell, int wide_angle_exponent, int qperiodic, Histogram *h,
+               Histogram *kh, Float *zerolag) {
   // Set up the sub-matrix information, assuming that we'll extract
   // -sep..+sep cells around zero-lag.
   // Setup.Start();
@@ -73,6 +73,8 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
                                              (k - sep_cell) * (k - sep_cell));
   fprintf(stdout, "# Done setting up the separation submatrix of size +-%d\n",
           sep_cell);
+  // Index of r=0.
+  std::array<int, 3> zerosep = {sep_cell, sep_cell, sep_cell};
 
   // Our box has cubic-sized cells, so k_Nyquist is the same in all
   // directions. The spacing of modes is therefore 2*k_Nyq/ngrid
@@ -236,9 +238,12 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
     // Extract.Stop();
     // Histogram total by rnorm
     // Hist.Start();
-    h.histcorr(ell, rnorm, total);
-    kh.histcorr(ell, knorm, ktotal);
+    h->histcorr(ell, rnorm, total);
+    kh->histcorr(ell, knorm, ktotal);
     // Hist.Stop();
+    if (ell == 0) {
+      *zerolag = total.at(zerosep[0], zerosep[1], zerosep[2]);
+    }
   }
   // Correlate.Stop();
 }
