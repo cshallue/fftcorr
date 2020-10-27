@@ -53,7 +53,7 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
   int csizex = 2 * sep_cell + 1;
   assert(csizex % 2 == 1);
   std::array<int, 3> csize = {csizex, csizex, csizex};
-  fprintf(stderr, "csize size = [%d, %d, %d]\n", csize[0], csize[1], csize[2]);
+  fprintf(stderr, "csize = [%d, %d, %d]\n", csize[0], csize[1], csize[2]);
 
   // Allocate corr_cell to [csize] and rnorm to [csize**3]
   // The cell centers, relative to zero lag.
@@ -143,7 +143,7 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
   fprintf(stdout,
           "# Done setting up the wavevector submatrix of size +-%d, %d, %d\n",
           ksize[0] / 2, ksize[1] / 2, ksize[2] / 2);
-  fprintf(stderr, "ksize size = [%d, %d, %d]\n", ksize[0], ksize[1], ksize[2]);
+  fprintf(stderr, "ksize = [%d, %d, %d]\n", ksize[0], ksize[1], ksize[2]);
 
   // Setup.Stop();
 
@@ -208,7 +208,6 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
 
       // Extract the anisotropic power spectrum
       // Load the Ylm's and include the CICwindow correction
-      // TODO: pass actual Array3D
       makeYlm(&kcorr, ell, m, ksize, kx_cell, ky_cell, kz_cell, &CICwindow,
               wide_angle_exponent);
       // Multiply these Ylm by the power result, and then add to total.
@@ -237,8 +236,8 @@ void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
     // Extract.Stop();
     // Histogram total by rnorm
     // Hist.Start();
-    h.histcorr(ell, rnorm, &total);
-    kh.histcorr(ell, knorm, &ktotal);
+    h.histcorr(ell, rnorm, total);
+    kh.histcorr(ell, knorm, ktotal);
     // Hist.Stop();
   }
   // Correlate.Stop();

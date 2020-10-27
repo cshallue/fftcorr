@@ -96,6 +96,8 @@ class TestCorrelateCPP(BaseTest):
         ref_nn_outfile = os.path.join(self.ref_data_dir, "corrDD.dat.out")
         ref_rr_outfile = os.path.join(self.ref_data_dir, "corrRR.dat.out")
         with tempfile.TemporaryDirectory() as test_dir:
+            test_dir = "/Users/shallue/tmp/fftcorr-test3/{}/{}/".format(
+                self.hemisphere, self.periodic)
             # Copy the CPP inputs.
             # TODO: don't do this once the python code is refactored.
             dd_infile = os.path.join(test_dir, "corrDD.dat")

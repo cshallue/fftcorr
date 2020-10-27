@@ -1,63 +1,63 @@
 #ifndef HISTOGRAM_H
 #define HISTOGRAM_H
 
+#include "array3d.h"
 #include "types.h"
 
 class Histogram {
   // This should set up the binning and the space to hold the answers
  public:
-  Histogram(int maxell, Float sep, Float dsep) {
-    int err;
-    maxell_ = maxell;
-    sep_ = sep;
-    binsize_ = dsep;
-    zerolag_ = -12345.0;
-    nbins_ = floor(sep_ / binsize_);
-    fprintf(stderr, "nbins_ = %d\n", nbins_);
-    // Too big probably means data entry error.
-    assert(nbins_ > 0 && nbins_ < 1e6);
-
-    // Allocate cnt_[nbins_], hist_[maxell/2+1, nbins_]
-    err = posix_memalign((void **)&cnt_, PAGE, sizeof(Float) * nbins_);
-    assert(err == 0);
-    err = posix_memalign((void **)&hist_, PAGE,
-                         sizeof(Float) * nbins_ * (maxell_ / 2 + 1));
-    assert(err == 0);
-    assert(cnt_ != NULL);
-    assert(hist_ != NULL);
-  }
-  ~Histogram() {
-    // For some reason, these cause a crash!  Weird!
-    // free(hist_);
-    // free(cnt_);
-  }
+  Histogram(int maxell, Float sep, Float dsep)
+      : maxell_(maxell),
+        sep_(sep),
+        binsize_(dsep),
+        zerolag_(-12345.0),
+        nbins_(floor(sep_ / binsize_)),
+        cnt_(nbins_),
+        hist_(maxell_ / 2 + 1, nbins_) {}
 
   // TODO: Might consider creating more flexible ways to select a binning.
   inline int r2bin(Float r) { return floor(r / binsize_); }
 
-  void histcorr(int ell, const Array3D &rnorm, Array3D *total) {
+  void histcorr(int ell, const Array3D &rnorm, const Array3D &total) {
     // Histogram into bins by rnorm[n], adding up weighting by total[n].
     // Add to multipole ell.
+    // Zero the histogram in row ell.
+    int ih = ell / 2;
+    for (int jh = 0; jh < nbins_; ++jh) {
+      hist_.at(ih, jh) = 0.0;
+    }
     if (ell == 0) {
-      for (int j = 0; j < nbins_; j++) cnt_[j] = 0.0;
-      for (int j = 0; j < nbins_; j++) hist_[j] = 0.0;
-      for (int j = 0; j < rnorm.size(); j++) {
-        int b = r2bin(rnorm[j]);
-        if (rnorm[j] < binsize_ * 1e-6) {
-          zerolag_ = (*total)[j];
+      cnt_.set_all(0.0);
+      // TODO: really we only care about rnorm and total as flattened arrays.
+      // There are a few possibilities to simplify this: have a wrapper class
+      // that treats the array as flat (e.g. pass rnorm.flatten() into this
+      // function); make Array3D iterable; make Array3D indexable by a row-major
+      // index (but this is confusing because it's also indexable by a 3-tuple
+      // index).
+      for (int i = 0; i < rnorm.shape(0); ++i) {
+        for (int j = 0; j < rnorm.shape(1); ++j) {
+          for (int k = 0; k < rnorm.shape(2); ++k) {
+            if (rnorm.at(i, j, k) < binsize_ * 1e-6) {
+              zerolag_ = total.at(i, j, k);
+            }
+            int b = r2bin(rnorm.at(i, j, k));
+            if (b >= nbins_ || b < 0) continue;
+            hist_.at(ih, b) += total.at(i, j, k);
+            cnt_[b]++;
+          }
         }
-        if (b >= nbins_ || b < 0) continue;
-        cnt_[b]++;
-        hist_[b] += (*total)[j];
       }
     } else {
       // ell>0
-      Float *h = hist_ + ell / 2 * nbins_;
-      for (int j = 0; j < nbins_; j++) h[j] = 0.0;
-      for (int j = 0; j < rnorm.size(); j++) {
-        int b = r2bin(rnorm[j]);
-        if (b >= nbins_ || b < 0) continue;
-        h[b] += (*total)[j];
+      for (int i = 0; i < rnorm.shape(0); ++i) {
+        for (int j = 0; j < rnorm.shape(1); ++j) {
+          for (int k = 0; k < rnorm.shape(2); ++k) {
+            int b = r2bin(rnorm.at(i, j, k));
+            if (b >= nbins_ || b < 0) continue;
+            hist_.at(ih, b) += total.at(i, j, k);
+          }
+        }
       }
     }
   }
@@ -65,7 +65,7 @@ class Histogram {
   Float sum() {
     // Add up the histogram values for ell=0
     Float total = 0.0;
-    for (int j = 0; j < nbins_; j++) total += hist_[j];
+    for (int j = 0; j < nbins_; j++) total += hist_.at(0, j);
     return total;
   }
 
@@ -84,7 +84,7 @@ class Histogram {
       else
         denom = 1.0;
       for (int k = 0; k <= maxell_ / 2; k++)
-        fprintf(fp, " %16.9e", hist_[k * nbins_ + j] / denom);
+        fprintf(fp, " %16.9e", hist_.at(k, j) / denom);
       fprintf(fp, "\n");
     }
   }
@@ -94,12 +94,12 @@ class Histogram {
  private:
   int maxell_;
   Float sep_;
-  int nbins_;
-
-  Float *cnt_;
-  Float *hist_;
   Float binsize_;
   Float zerolag_;  // The value at zero lag
-};                 // end Histogram
+
+  int nbins_;
+  Array1D cnt_;
+  Array2D hist_;
+};  // end Histogram
 
 #endif  // HISTOGRAM_H

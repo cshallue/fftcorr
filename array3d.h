@@ -11,7 +11,16 @@
 template <std::size_t N>
 class ArrayBase {
  public:
-  ArrayBase(const std::array<int, N> shape);
+  // TODO: These can be out of line if subclasses don't explicitly call it.
+  ArrayBase(const std::array<int, N> shape)
+      : shape_(shape), size_(1), data_(NULL) {
+    for (int nx : shape_) size_ *= nx;
+    // Allocate data_ array.
+    int err =
+        posix_memalign((void **)&data_, PAGE, sizeof(Float) * size_ + PAGE);
+    assert(err == 0);
+    assert(data_ != NULL);
+  }
   ~ArrayBase() {
     if (data_ != NULL) free(data_);
   }
@@ -20,9 +29,9 @@ class ArrayBase {
   Float size() { return size_; }
   const Float *data() const { return data_; }  // TODO: remove?
 
-  // TODO: not needed/desired for N>1?
-  inline Float &operator[](int idx) { return data_[idx]; }
-  inline const Float &operator[](int idx) const { return data_[idx]; }
+  void set_all(Float value) {
+    for (int i = 0; i < size_; ++i) data_[i] = value;
+  }
 
  protected:
   // TODO: private?
@@ -31,16 +40,28 @@ class ArrayBase {
   Float *data_;
 };
 
+// TODO: not needed? Just use ArrayBase directly and rename it ArrayNd?
 class Array1D : public ArrayBase<1> {
  public:
   Array1D(int size) : ArrayBase({size}) {}
+
+  // TODO: at(), for consistency?
+  inline Float &operator[](int idx) { return data_[idx]; }
+  inline const Float &operator[](int idx) const { return data_[idx]; }
 };
 
 // TODO: make this a static function of Array1D?
+// Then we can remove the operator[] from Array1D
 Array1D range(Float start, Float step, int size);
 
 // TODO: not needed? Just use ArrayBase directly and rename it ArrayNd?
-class Array2D : public ArrayBase<2> {};
+class Array2D : public ArrayBase<2> {
+ public:
+  Array2D(int nx, int ny) : ArrayBase({nx, ny}) {}
+
+  // Indexing.
+  inline Float &at(int ix, int iy) { return data_[iy + ix * shape_[1]]; }
+};
 
 // This class allocates and owns a 3D grid of Floats, stored in a flattened
 // array in row-major order.
@@ -87,12 +108,6 @@ class Array3D {
     return data_[get_index(ix, iy, iz)];
   }
 
-  // TODO: these are only needed to iterate over the values in an Array3D
-  // (actually, a pair of Array3D with corresponding elements) in the
-  // histogram. Come up with a better way.
-  inline Float &operator[](uint64 idx) { return data_[idx]; }
-  inline const Float &operator[](uint64 idx) const { return data_[idx]; }
-
   // Real-space operations.
   void add_scalar(Float s);
   void multiply_by(Float s);
@@ -100,6 +115,7 @@ class Array3D {
   Float sumsq() const;
 
   const std::array<int, 3> &shape() const { return shape_; }
+  int shape(int i) const { return shape_[i]; }
   uint64 size() const { return size_; }
 
  private:
