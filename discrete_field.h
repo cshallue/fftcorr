@@ -26,6 +26,7 @@ class DiscreteField {
   // setup_fft, (c) restore_from
   void restore_from(const DiscreteField& other);
 
+  // TODO: add shape(int i)?
   const std::array<int, 3>& rshape() const { return rshape_; }
   const std::array<int, 3>& dshape() const { return arr_.shape(); }
 

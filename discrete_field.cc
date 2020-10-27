@@ -103,7 +103,7 @@ void DiscreteField::setup_fft() {
   // Since dsize_z is always even, this will trick
   // FFTW to assume dsize_z/2 Complex numbers in the result, while
   // fulfilling that nfft[2]>=ngrid[2].
-  nfft[2] = arr_.shape()[2];
+  nfft[2] = arr_.shape(2);
   nfftc[2] = nfft[2] / 2;
   int howmany = 1;  // Only one forward and inverse FFT.
   int dist = 0;     // Unused because howmany = 1.
@@ -117,7 +117,7 @@ void DiscreteField::setup_fft() {
 #else
   // If we wanted to split into 2D and 1D by hand (and therefore handle the OMP
   // aspects ourselves), then we need to have two plans each.
-  int dsize_z = arr_.shape()[2];
+  int dsize_z = arr_.shape(2);
   int nfft2[2], nfft2c[2];
   nfft2[0] = nfft2c[0] = rshape_[1];
   nfft2[1] = dsize_z;  // Since dsize_z is always even, this will trick
@@ -162,7 +162,7 @@ void DiscreteField::execute_fft() {
 #else
   // FFTyz.Start();
   // Then need to call this for every slab.  Can OMP these lines
-  int dsize_z = arr_.shape()[2];
+  int dsize_z = arr_.shape(2);
 #pragma omp parallel for MY_SCHEDULE
   for (uint64 x = 0; x < rshape_[0]; x++)
     fftw_execute_dft_r2c(fftYZ_, data + x * rshape_[1] * dsize_z,
@@ -185,7 +185,7 @@ void DiscreteField::execute_ifft() {
 #else
   // FFTx.Start();
   // Then need to call this for every slab.  Can OMP these lines
-  int dsize_z = arr_.shape()[2];
+  int dsize_z = arr_.shape(2);
 #pragma omp parallel for schedule(dynamic, 1)
   for (uint64 y = 0; y < rshape_[1]; y++)
     fftw_execute_dft(ifftX_, (fftw_complex *)data + y * dsize_z / 2,
@@ -239,7 +239,7 @@ void DiscreteField::extract_submatrix(const Array3D &corr,
   // but it is at (0,0,0) in the FFT grid.
   // Extract.Start();
   const std::array<int, 3> &ngrid = rshape_;
-  int ngrid2 = arr_.shape()[2];
+  int ngrid2 = arr_.shape(2);
   const std::array<int, 3> &csize = corr.shape();
   int cx = csize[0] / 2;  // This is the middle of the submatrix
   int cy = csize[1] / 2;  // This is the middle of the submatrix
@@ -278,7 +278,7 @@ void DiscreteField::extract_submatrix_C2R(const Array3D &corr,
   // but it is at (0,0,0) in the FFT grid.
   // Extract.Start();
   const std::array<int, 3> &ngrid = rshape_;
-  int ngrid2 = arr_.shape()[2];
+  int ngrid2 = arr_.shape(2);
   const std::array<int, 3> &csize = corr.shape();
   int cx = csize[0] / 2;  // This is the middle of the submatrix
   int cy = csize[1] / 2;  // This is the middle of the submatrix
