@@ -452,8 +452,8 @@ int main(int argc, char *argv[]) {
   // Integral of power spectrum needs a d^3k/(2 pi)^3, which is (1/L)^3 =
   // (1/(cell_size*ngrid))^3
   fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",
-          kh.sum() / (g.cell_size() * g.cell_size() * g.cell_size() * ngrid[0] *
-                      ngrid[1] * ngrid[2]));
+          kh.sum(0) / (g.cell_size() * g.cell_size() * g.cell_size() *
+                       ngrid[0] * ngrid[1] * ngrid[2]));
 
   Total.Stop();
   uint64 nfft = 1;

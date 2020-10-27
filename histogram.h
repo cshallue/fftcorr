@@ -45,10 +45,11 @@ class Histogram {
     }
   }
 
-  Float sum() {
-    // Add up the histogram values for ell=0
+  Float sum(int ell) {
+    // Add up the histogram values for ell
+    int i = ell / 2;
     Float total = 0.0;
-    for (int j = 0; j < nbins_; j++) total += hist_.at(0, j);
+    for (int j = 0; j < nbins_; j++) total += hist_.at(i, j);
     return total;
   }
 
