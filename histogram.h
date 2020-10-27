@@ -5,7 +5,6 @@
 #include "types.h"
 
 class Histogram {
-  // This should set up the binning and the space to hold the answers
  public:
   Histogram(int maxell, Float sep, Float dsep)
       : maxell_(maxell),
@@ -79,8 +78,8 @@ class Histogram {
   Float binsize_;
 
   int nbins_;
-  Array1D cnt_;
-  Array2D hist_;
-};  // end Histogram
+  Array1D cnt_;   // (rbin)
+  Array2D hist_;  // (ell, rbin)
+};
 
 #endif  // HISTOGRAM_H

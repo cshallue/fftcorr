@@ -11,6 +11,9 @@
 #include "spherical_harmonics.h"
 #include "types.h"
 
+// zerolag is needed because that information is not in the output histograms
+// (small but nonzero separations are put in the same bin as the zero
+// separation)
 void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
                int maxell, int wide_angle_exponent, int qperiodic, Histogram *h,
                Histogram *kh, Float *zerolag) {
