@@ -6,23 +6,41 @@
 #include "types.h"
 
 // TODO: rename this file arrays.h
-class Array1D {
- public:
-  Array1D(int size);
-  ~Array1D();
 
+// TODO: make this directly instantiable as Array or ArrayNd?
+template <std::size_t N>
+class ArrayBase {
+ public:
+  ArrayBase(const std::array<int, N> shape);
+  ~ArrayBase() {
+    if (data_ != NULL) free(data_);
+  }
+
+  const std::array<int, N> &shape() const { return shape_; }
+  Float size() { return size_; }
+  const Float *data() const { return data_; }  // TODO: remove?
+
+  // TODO: not needed/desired for N>1?
   inline Float &operator[](int idx) { return data_[idx]; }
   inline const Float &operator[](int idx) const { return data_[idx]; }
 
-  const Float *data() const { return data_; }  // TODO: remove?
-
- private:
-  int size_;
+ protected:
+  // TODO: private?
+  const std::array<int, N> shape_;
+  uint64 size_;
   Float *data_;
+};
+
+class Array1D : public ArrayBase<1> {
+ public:
+  Array1D(int size) : ArrayBase({size}) {}
 };
 
 // TODO: make this a static function of Array1D?
 Array1D range(Float start, Float step, int size);
+
+// TODO: not needed? Just use ArrayBase directly and rename it ArrayNd?
+class Array2D : public ArrayBase<2> {};
 
 // This class allocates and owns a 3D grid of Floats, stored in a flattened
 // array in row-major order.
@@ -35,20 +53,23 @@ Array1D range(Float start, Float step, int size);
 //
 // It would be nice to separate out the real and complex operations into
 // separate classes (which could be backed by the same underlying Array3D).
-// Doing this properly would be a little involved because our real-space arrays
-// sometimes - but not always - have a different logical shape to the data grid
-// due to padding for in-place FFTs. So we would ideally change the operations
-// (like sum()) to be operate only the logical sub-grid, and change other parts
-// of the code that assume the padded structure. Such a change might be worth it
-// because it would abstract away the FFT padding from the rest of the code.
+// Doing this properly would be a little involved because our real-space
+// arrays sometimes - but not always - have a different logical shape to the
+// data grid due to padding for in-place FFTs. So we would ideally change the
+// operations (like sum()) to be operate only the logical sub-grid, and change
+// other parts of the code that assume the padded structure. Such a change
+// might be worth it because it would abstract away the FFT padding from the
+// rest of the code.
+
+// TODO: inherit from base Array class
 class Array3D {
  public:
   Array3D();
   ~Array3D();
 
-  // TODO: really it makes more sense to do this in the constructor, which would
-  // save us calling this explicitly and mean we wouldn't have to check for
-  // initialization in all internal operations, but DiscreteField needs to
+  // TODO: really it makes more sense to do this in the constructor, which
+  // would save us calling this explicitly and mean we wouldn't have to check
+  // for initialization in all internal operations, but DiscreteField needs to
   // figure out the size in the body of its constructor.
   void initialize(std::array<int, 3> shape);
   // TODO: this might just become a copy constructor. Then initialize could be
@@ -67,8 +88,8 @@ class Array3D {
   }
 
   // TODO: these are only needed to iterate over the values in an Array3D
-  // (actually, a pair of Array3D with corresponding elements) in the histogram.
-  // Come up with a better way.
+  // (actually, a pair of Array3D with corresponding elements) in the
+  // histogram. Come up with a better way.
   inline Float &operator[](uint64 idx) { return data_[idx]; }
   inline const Float &operator[](uint64 idx) const { return data_[idx]; }
 
