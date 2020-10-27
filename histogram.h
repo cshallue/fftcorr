@@ -27,32 +27,19 @@ class Histogram {
     // Histogram into bins by rnorm[n], adding up weighting by total[n].
     // Add to multipole ell.
     int ih = ell / 2;
-    if (ell == 0) {
-      // TODO: really we only care about rnorm and total as flattened arrays.
-      // There are a few possibilities to simplify this: have a wrapper class
-      // that treats the array as flat (e.g. pass rnorm.flatten() into this
-      // function); make Array3D iterable; make Array3D indexable by a row-major
-      // index (but this is confusing because it's also indexable by a 3-tuple
-      // index).
-      for (int i = 0; i < rnorm.shape(0); ++i) {
-        for (int j = 0; j < rnorm.shape(1); ++j) {
-          for (int k = 0; k < rnorm.shape(2); ++k) {
-            int b = r2bin(rnorm.at(i, j, k));
-            if (b >= nbins_ || b < 0) continue;
-            hist_.at(ih, b) += total.at(i, j, k);
-            cnt_[b]++;
-          }
-        }
-      }
-    } else {
-      // ell>0
-      for (int i = 0; i < rnorm.shape(0); ++i) {
-        for (int j = 0; j < rnorm.shape(1); ++j) {
-          for (int k = 0; k < rnorm.shape(2); ++k) {
-            int b = r2bin(rnorm.at(i, j, k));
-            if (b >= nbins_ || b < 0) continue;
-            hist_.at(ih, b) += total.at(i, j, k);
-          }
+    // TODO: really we only care about rnorm and total as flattened arrays.
+    // There are a few possibilities to simplify this: have a wrapper class
+    // that treats the array as flat (e.g. pass rnorm.flatten() into this
+    // function); make Array3D iterable; make Array3D indexable by a row-major
+    // index (but this is confusing because it's also indexable by a 3-tuple
+    // index).
+    for (int i = 0; i < rnorm.shape(0); ++i) {
+      for (int j = 0; j < rnorm.shape(1); ++j) {
+        for (int k = 0; k < rnorm.shape(2); ++k) {
+          int b = r2bin(rnorm.at(i, j, k));
+          if (b >= nbins_ || b < 0) continue;
+          if (ell == 0) cnt_[b]++;
+          hist_.at(ih, b) += total.at(i, j, k);
         }
       }
     }
