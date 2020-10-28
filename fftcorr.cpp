@@ -453,8 +453,9 @@ int main(int argc, char *argv[]) {
   Histogram kh(maxell, kmax, dk);
   Float zerolag = -12345.0;
   fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-  correlate(dens, observer, cell_size, sep, kmax, maxell, wide_angle_exponent,
-            &h, &kh, &zerolag);
+  Correlator corr;
+  corr.correlate_aniso(dens, observer, cell_size, sep, kmax, maxell,
+                       wide_angle_exponent, &h, &kh, &zerolag);
 
   Ylm_count.print(stdout);
   fprintf(stdout, "# Anisotropic power spectrum:\n");
