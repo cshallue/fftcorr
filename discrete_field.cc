@@ -230,36 +230,24 @@ void DiscreteField::multiply_with_conjugation(const DiscreteField &other) {
   arr_.multiply_with_conjugation(other.arr_);
 }
 
-void DiscreteField::extract_submatrix(const Array3D &corr,
-                                      Array3D *total) const {
-  // Given a large matrix work[ngrid^3],
-  // extract out a submatrix of size csize^3, centered on work[0,0,0].
-  // Multiply the result by corr[csize^3] and add it onto total[csize^3]
-  // Again, zero lag is mapping to corr(csize/2, csize/2, csize/2),
-  // but it is at (0,0,0) in the FFT grid.
+void DiscreteField::extract_submatrix(const Array3D &mult, Array3D *out) const {
+  // Extract out a submatrix, centered on [0,0,0] of this array
+  // Multiply elementwise by mult.
   // Extract.Start();
   const std::array<int, 3> &ngrid = rshape_;
-  int ngrid2 = arr_.shape(2);
-  const std::array<int, 3> &csize = corr.shape();
-  int cx = csize[0] / 2;  // This is the middle of the submatrix
-  int cy = csize[1] / 2;  // This is the middle of the submatrix
-  int cz = csize[2] / 2;  // This is the middle of the submatrix
-  const Float *work = arr_.data();
-  Float *tdata = total->data();
-  const Float *cdata = corr.data();
+  const std::array<int, 3> &oshape = out->shape();
+  int cx = oshape[0] / 2;  // This is the middle of the submatrix
+  int cy = oshape[1] / 2;  // This is the middle of the submatrix
+  int cz = oshape[2] / 2;  // This is the middle of the submatrix
 #pragma omp parallel for schedule(dynamic, 1)
-  for (uint64 i = 0; i < csize[0]; i++) {
+  for (uint64 i = 0; i < oshape[0]; ++i) {
     uint64 ii = (ngrid[0] - cx + i) % ngrid[0];
-    for (int j = 0; j < csize[1]; j++) {
+    for (int j = 0; j < oshape[1]; ++j) {
       uint64 jj = (ngrid[1] - cy + j) % ngrid[1];
-      Float *t = tdata + (i * csize[1] + j) * csize[2];         // (i,j,0)
-      const Float *cc = cdata + (i * csize[1] + j) * csize[2];  // (i,j,0)
-      const Float *Y = work + (ii * ngrid[1] + jj) * ngrid2 + ngrid[2] - cz;
-      // This is (ii,jj,ngrid[2]-c)
-      for (int k = 0; k < cz; k++) t[k] += cc[k] * Y[k];
-      Y = work + (ii * ngrid[1] + jj) * ngrid2 - cz;
-      // This is (ii,jj,-c)
-      for (int k = cz; k < csize[2]; k++) t[k] += cc[k] * Y[k];
+      for (int k = 0; k < oshape[2]; ++k) {
+        uint64 kk = (ngrid[2] - cz + k) % ngrid[2];
+        out->at(i, j, k) += mult.at(i, j, k) * arr_.at(ii, jj, kk);
+      }
     }
   }
   // Extract.Stop();
