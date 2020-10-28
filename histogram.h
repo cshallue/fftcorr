@@ -22,6 +22,9 @@ class Histogram {
   // TODO: Might consider creating more flexible ways to select a binning.
   inline int r2bin(Float r) { return floor(r / binsize_); }
 
+  // TODO: we might want the histogram to own rnorm? If it creates and owns
+  // rnorm, then it makes sense for it to be able to keep track of zerolag
+  // (since it'll know the index corresponding to exactly zero separation).
   void histcorr(int ell, const Array3D &rnorm, const Array3D &total) {
     // Histogram into bins by rnorm[n], adding up weighting by total[n].
     // Add to multipole ell.

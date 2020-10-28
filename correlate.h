@@ -14,32 +14,15 @@
 // zerolag is needed because that information is not in the output histograms
 // (small but nonzero separations are put in the same bin as the zero
 // separation)
-void correlate(const Grid &g, const DiscreteField &dens, Float sep, Float kmax,
-               int maxell, int wide_angle_exponent, int qperiodic, Histogram *h,
-               Histogram *kh, Float *zerolag) {
+void correlate(const DiscreteField &dens, std::array<Float, 3> origin,
+               Float cell_size, Float sep, Float kmax, int maxell,
+               int wide_angle_exponent, Histogram *h, Histogram *kh,
+               Float *zerolag) {
   // Set up the sub-matrix information, assuming that we'll extract
   // -sep..+sep cells around zero-lag.
   // Setup.Start();
 
-  // TODO: rename these things something better.
-  std::array<int, 3> ngrid = dens.rshape();
-  Float cell_size = g.cell_size();
-
-  // Compute the origin, in grid units.
-  // TODO: might want to put the origin inside the Grid class
-  std::array<Float, 3> origin;
-  if (qperiodic) {
-    // In this case, we'll place the observer centered in the grid, but
-    // then displaced far away in the -x direction
-    for (int j = 0; j < 3; j++) {
-      origin[j] = ngrid[j] / 2.0;
-    }
-    origin[0] -= ngrid[0] * 1e6;  // Observer far away!
-  } else {
-    for (int j = 0; j < 3; j++) {
-      origin[j] = (0.0 - g.posmin()[j]) / cell_size;
-    }
-  }
+  std::array<int, 3> ngrid = dens.rshape();  // TODO: rename?
 
   // Compute xcell, ycell, zcell, which are the coordinates of the cell centers
   // in each dimension, relative to the origin.

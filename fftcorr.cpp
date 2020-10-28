@@ -377,6 +377,21 @@ int main(int argc, char *argv[]) {
           int(ceil(posrange[1] / cell_size)),
           int(ceil(posrange[2] / cell_size)));
 
+  // Compute the location of the observer, in grid units.
+  std::array<Float, 3> observer;
+  if (qperiodic) {
+    // In this case, we'll place the observer centered in the grid, but
+    // then displaced far away in the -x direction
+    for (int j = 0; j < 3; j++) {
+      observer[j] = ngrid[j] / 2.0;
+    }
+    observer[0] -= ngrid[0] * 1e6;  // Observer far away!
+  } else {
+    for (int j = 0; j < 3; j++) {
+      observer[j] = -box.posmin()[j] / cell_size;
+    }
+  }
+
   Grid g(box.posmin(), cell_size);
   fprintf(stderr, "sep = %f, cell_size = %f, ngrid =%d\n", sep, cell_size,
           ngrid[0]);
@@ -438,8 +453,8 @@ int main(int argc, char *argv[]) {
   Histogram kh(maxell, kmax, dk);
   Float zerolag = -12345.0;
   fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-  correlate(g, dens, sep, kmax, maxell, wide_angle_exponent, qperiodic, &h, &kh,
-            &zerolag);
+  correlate(dens, observer, cell_size, sep, kmax, maxell, wide_angle_exponent,
+            &h, &kh, &zerolag);
 
   Ylm_count.print(stdout);
   fprintf(stdout, "# Anisotropic power spectrum:\n");
