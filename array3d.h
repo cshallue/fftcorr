@@ -1,6 +1,8 @@
 #ifndef ARRAY3D_H
 #define ARRAY3D_H
 
+#include <assert.h>
+
 #include <array>
 
 #include "types.h"
