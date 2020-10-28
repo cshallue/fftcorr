@@ -45,8 +45,7 @@ class DiscreteField {
   // Complex-space operations.
   void multiply_with_conjugation(const DiscreteField& other);
 
-  // TODO: rename arguments something more general.
-  // TODO: do these belong in here?
+  void extract_submatrix(Array3D* out) const;
   void extract_submatrix(const Array3D& mult, Array3D* out) const;
   void extract_submatrix_C2R(const Array3D& corr, Array3D* total) const;
 

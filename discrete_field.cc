@@ -230,9 +230,8 @@ void DiscreteField::multiply_with_conjugation(const DiscreteField &other) {
   arr_.multiply_with_conjugation(other.arr_);
 }
 
-void DiscreteField::extract_submatrix(const Array3D &mult, Array3D *out) const {
+void DiscreteField::extract_submatrix(Array3D *out) const {
   // Extract out a submatrix, centered on [0,0,0] of this array
-  // Multiply elementwise by mult.
   // Extract.Start();
   const std::array<int, 3> &ngrid = rshape_;
   const std::array<int, 3> &oshape = out->shape();
@@ -246,6 +245,29 @@ void DiscreteField::extract_submatrix(const Array3D &mult, Array3D *out) const {
       uint64 jj = (ngrid[1] - cy + j) % ngrid[1];
       for (int k = 0; k < oshape[2]; ++k) {
         uint64 kk = (ngrid[2] - cz + k) % ngrid[2];
+        out->at(i, j, k) += arr_.at(ii, jj, kk);
+      }
+    }
+  }
+  // Extract.Stop();
+}
+
+// TODO: could unify this with the above with probably minimal overhead.
+void DiscreteField::extract_submatrix(const Array3D &mult, Array3D *out) const {
+  // Extract out a submatrix, centered on [0,0,0] of this array
+  // Multiply elementwise by mult.
+  // Extract.Start();
+  const std::array<int, 3> &oshape = out->shape();
+  int cx = oshape[0] / 2;  // This is the middle of the submatrix
+  int cy = oshape[1] / 2;  // This is the middle of the submatrix
+  int cz = oshape[2] / 2;  // This is the middle of the submatrix
+#pragma omp parallel for schedule(dynamic, 1)
+  for (uint64 i = 0; i < oshape[0]; ++i) {
+    uint64 ii = (rshape_[0] - cx + i) % rshape_[0];
+    for (int j = 0; j < oshape[1]; ++j) {
+      uint64 jj = (rshape_[1] - cy + j) % rshape_[1];
+      for (int k = 0; k < oshape[2]; ++k) {
+        uint64 kk = (rshape_[2] - cz + k) % rshape_[2];
         out->at(i, j, k) += mult.at(i, j, k) * arr_.at(ii, jj, kk);
       }
     }
@@ -253,6 +275,7 @@ void DiscreteField::extract_submatrix(const Array3D &mult, Array3D *out) const {
   // Extract.Stop();
 }
 
+// TODO: simplify this like the above.
 void DiscreteField::extract_submatrix_C2R(const Array3D &corr,
                                           Array3D *total) const {
   // Given a large matrix work[ngrid^3/2],
