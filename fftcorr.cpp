@@ -240,6 +240,7 @@ void usage() {
   fprintf(stderr,
           "   -zeromean (or -z): Configure for cubic periodic box and set mean "
           "density to zero.\n");
+  fprintf(stderr, "   -iso: Isotropic correlations.\n");
   fprintf(stderr, "   -in <filename>:  Input file name\n");
   fprintf(stderr, "   -in2 <filename>: Second input file name\n");
   fprintf(stderr, "   -out <filename>: Output file name, default to stdout\n");
@@ -265,6 +266,7 @@ int main(int argc, char *argv[]) {
   int wide_angle_exponent = 0;
   int ngridCube = 256;
   int qperiodic = 0;
+  bool isotropic = false;
   std::array<int, 3> ngrid = {-1, -1, -1};
   Float cell_size = -123.0;  // Default to what's implied by the file
   const char default_fname[] = "/tmp/corrRR.dat";
@@ -304,6 +306,8 @@ int main(int argc, char *argv[]) {
       qperiodic = 1;
     else if (!strcmp(argv[i], "-zeromean") || !strcmp(argv[i], "-z"))
       qperiodic = 2;
+    else if (!strcmp(argv[i], "-iso"))
+      isotropic = true;
     else
       usage();
     i++;
@@ -449,27 +453,50 @@ int main(int argc, char *argv[]) {
 
   // The input grid is now in g.dens
 
-  Histogram h(maxell, sep, dsep);
-  Histogram kh(maxell, kmax, dk);
-  Float zerolag = -12345.0;
-  fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-  Correlator corr;
-  corr.correlate_aniso(dens, observer, cell_size, sep, kmax, maxell,
-                       wide_angle_exponent, &h, &kh, &zerolag);
+  if (isotropic) {
+    Histogram1D h(sep, dsep);
+    Histogram1D kh(kmax, dk);
+    Float zerolag = -12345.0;
+    Correlator corr;
+    corr.correlate_iso(&dens, observer, cell_size, sep, kmax, &h, &kh,
+                       &zerolag);
 
-  Ylm_count.print(stdout);
-  fprintf(stdout, "# Anisotropic power spectrum:\n");
-  kh.print(stdout, 1);
-  fprintf(stdout, "# Anisotropic correlations:\n");
-  h.print(stdout, 0);
-  // We want to use the correlation at zero lag as the I normalization
-  // factor in the FKP power spectrum.
-  fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", zerolag);
-  // Integral of power spectrum needs a d^3k/(2 pi)^3, which is (1/L)^3 =
-  // (1/(cell_size*ngrid))^3
-  fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",
-          kh.sum(0) / (g.cell_size() * g.cell_size() * g.cell_size() *
-                       ngrid[0] * ngrid[1] * ngrid[2]));
+    Ylm_count.print(stdout);
+    fprintf(stdout, "# Anisotropic power spectrum:\n");
+    kh.print(stdout, 1);
+    fprintf(stdout, "# Anisotropic correlations:\n");
+    h.print(stdout, 0);
+    // We want to use the correlation at zero lag as the I normalization
+    // factor in the FKP power spectrum.
+    fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", zerolag);
+    // Integral of power spectrum needs a d^3k/(2 pi)^3, which is (1/L)^3 =
+    // (1/(cell_size*ngrid))^3
+    fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",
+            kh.sum(0) / (g.cell_size() * g.cell_size() * g.cell_size() *
+                         ngrid[0] * ngrid[1] * ngrid[2]));
+  } else {
+    Histogram2D h(maxell, sep, dsep);
+    Histogram2D kh(maxell, kmax, dk);
+    Float zerolag = -12345.0;
+    fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
+    Correlator corr;
+    corr.correlate_aniso(dens, observer, cell_size, sep, kmax, maxell,
+                         wide_angle_exponent, &h, &kh, &zerolag);
+
+    Ylm_count.print(stdout);
+    fprintf(stdout, "# Anisotropic power spectrum:\n");
+    kh.print(stdout, 1);
+    fprintf(stdout, "# Anisotropic correlations:\n");
+    h.print(stdout, 0);
+    // We want to use the correlation at zero lag as the I normalization
+    // factor in the FKP power spectrum.
+    fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", zerolag);
+    // Integral of power spectrum needs a d^3k/(2 pi)^3, which is (1/L)^3 =
+    // (1/(cell_size*ngrid))^3
+    fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",
+            kh.sum(0) / (g.cell_size() * g.cell_size() * g.cell_size() *
+                         ngrid[0] * ngrid[1] * ngrid[2]));
+  }
 
   Total.Stop();
   uint64 nfft = 1;

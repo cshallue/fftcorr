@@ -4,9 +4,9 @@
 #include "array3d.h"
 #include "types.h"
 
-class Histogram {
+class Histogram2D {
  public:
-  Histogram(int maxell, Float sep, Float dsep)
+  Histogram2D(int maxell, Float sep, Float dsep)
       : maxell_(maxell),
         sep_(sep),
         binsize_(dsep),
@@ -83,6 +83,15 @@ class Histogram {
   int nbins_;
   Array1D cnt_;   // (rbin)
   Array2D hist_;  // (ell, rbin)
+};
+
+class Histogram1D : public Histogram2D {
+ public:
+  Histogram1D(Float sep, Float dsep) : Histogram2D(0, sep, dsep) {}
+
+  void histcorr(const Array3D &rnorm, const Array3D &total) {
+    Histogram2D::histcorr(0, rnorm, total);
+  }
 };
 
 #endif  // HISTOGRAM_H
