@@ -148,7 +148,8 @@ class Correlator {
     fflush(NULL);
     dens->multiply_with_conjugation(*dens);
 
-    // TODO: extract power spectrum into kcorr.
+    // Extract power spectrum.
+    dens->extract_submatrix(&kcorr);
 
     // iFFT the result, in place
     fprintf(stdout, "IFFT...");
