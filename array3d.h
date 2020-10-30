@@ -124,13 +124,21 @@ class Array3D {
   inline uint64 get_index(int ix, int iy, int iz) const {
     return (uint64)iz + shape_[2] * (iy + ix * shape_[1]);
   }
+  inline uint64 get_cindex(int ix, int iy, int iz) const {
+    return (uint64)iz + cshape_[2] * (iy + ix * cshape_[1]);
+  }
+  inline Complex &cat(int ix, int iy, int iz) {
+    return cdata_[get_cindex(ix, iy, iz)];
+  }
+  inline const Complex &cat(int ix, int iy, int iz) const {
+    return cdata_[get_cindex(ix, iy, iz)];
+  }
 
   Float *data() { return data_; }
   const Float *data() const { return data_; }
 
   // Complex-space operations.
   void multiply_with_conjugation(const Array3D &other);
-  const Complex *cdata() const { return (Complex *)data_; }
 
   std::array<int, 3> shape_;
   uint64 size_;

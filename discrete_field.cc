@@ -235,16 +235,16 @@ void DiscreteField::extract_submatrix(Array3D *out) const {
   // Extract.Start();
   const std::array<int, 3> &ngrid = rshape_;
   const std::array<int, 3> &oshape = out->shape();
-  int cx = oshape[0] / 2;  // This is the middle of the submatrix
-  int cy = oshape[1] / 2;  // This is the middle of the submatrix
-  int cz = oshape[2] / 2;  // This is the middle of the submatrix
+  int ox = oshape[0] / 2;  // This is the middle of the submatrix
+  int oy = oshape[1] / 2;  // This is the middle of the submatrix
+  int oz = oshape[2] / 2;  // This is the middle of the submatrix
 #pragma omp parallel for schedule(dynamic, 1)
   for (uint64 i = 0; i < oshape[0]; ++i) {
-    uint64 ii = (ngrid[0] - cx + i) % ngrid[0];
+    uint64 ii = (ngrid[0] - ox + i) % ngrid[0];
     for (int j = 0; j < oshape[1]; ++j) {
-      uint64 jj = (ngrid[1] - cy + j) % ngrid[1];
+      uint64 jj = (ngrid[1] - oy + j) % ngrid[1];
       for (int k = 0; k < oshape[2]; ++k) {
-        uint64 kk = (ngrid[2] - cz + k) % ngrid[2];
+        uint64 kk = (ngrid[2] - oz + k) % ngrid[2];
         out->at(i, j, k) += arr_.at(ii, jj, kk);
       }
     }
@@ -258,16 +258,16 @@ void DiscreteField::extract_submatrix(const Array3D &mult, Array3D *out) const {
   // Multiply elementwise by mult.
   // Extract.Start();
   const std::array<int, 3> &oshape = out->shape();
-  int cx = oshape[0] / 2;  // This is the middle of the submatrix
-  int cy = oshape[1] / 2;  // This is the middle of the submatrix
-  int cz = oshape[2] / 2;  // This is the middle of the submatrix
+  int ox = oshape[0] / 2;  // This is the middle of the submatrix
+  int oy = oshape[1] / 2;  // This is the middle of the submatrix
+  int oz = oshape[2] / 2;  // This is the middle of the submatrix
 #pragma omp parallel for schedule(dynamic, 1)
   for (uint64 i = 0; i < oshape[0]; ++i) {
-    uint64 ii = (rshape_[0] - cx + i) % rshape_[0];
+    uint64 ii = (rshape_[0] - ox + i) % rshape_[0];
     for (int j = 0; j < oshape[1]; ++j) {
-      uint64 jj = (rshape_[1] - cy + j) % rshape_[1];
+      uint64 jj = (rshape_[1] - oy + j) % rshape_[1];
       for (int k = 0; k < oshape[2]; ++k) {
-        uint64 kk = (rshape_[2] - cz + k) % rshape_[2];
+        uint64 kk = (rshape_[2] - oz + k) % rshape_[2];
         out->at(i, j, k) += mult.at(i, j, k) * arr_.at(ii, jj, kk);
       }
     }
@@ -276,8 +276,8 @@ void DiscreteField::extract_submatrix(const Array3D &mult, Array3D *out) const {
 }
 
 // TODO: simplify this like the above.
-void DiscreteField::extract_submatrix_C2R(const Array3D &corr,
-                                          Array3D *total) const {
+void DiscreteField::extract_submatrix_C2R(const Array3D &mult,
+                                          Array3D *out) const {
   // Given a large matrix work[ngrid^3/2],
   // extract out a submatrix of size csize^3, centered on work[0,0,0].
   // The input matrix is Complex * with the half-domain Fourier convention.
@@ -288,33 +288,30 @@ void DiscreteField::extract_submatrix_C2R(const Array3D &corr,
   // Again, zero lag is mapping to corr(csize/2, csize/2, csize/2),
   // but it is at (0,0,0) in the FFT grid.
   // Extract.Start();
-  const std::array<int, 3> &ngrid = rshape_;
-  int ngrid2 = arr_.shape(2);
-  const std::array<int, 3> &csize = corr.shape();
-  int cx = csize[0] / 2;  // This is the middle of the submatrix
-  int cy = csize[1] / 2;  // This is the middle of the submatrix
-  int cz = csize[2] / 2;  // This is the middle of the submatrix
-  const Complex *work = arr_.cdata();
-  Float *tdata = total->data();
-  const Float *cdata = corr.data();
+  const std::array<int, 3> &oshape = out->shape();
+  int ox = oshape[0] / 2;  // This is the middle of the submatrix
+  int oy = oshape[1] / 2;  // This is the middle of the submatrix
+  int oz = oshape[2] / 2;  // This is the middle of the submatrix
 #pragma omp parallel for schedule(dynamic, 1)
-  for (uint64 i = 0; i < csize[0]; i++) {
-    uint64 ii = (ngrid[0] - cx + i) % ngrid[0];
-    uint64 iin = (ngrid[0] - ii) % ngrid[0];  // The reflected coord
-    for (int j = 0; j < csize[1]; j++) {
-      uint64 jj = (ngrid[1] - cy + j) % ngrid[1];
-      uint64 jjn = (ngrid[1] - jj) % ngrid[1];           // The reflected coord
-      Float *t = tdata + (i * csize[1] + j) * csize[2];  //  (i,j,0)
-      const Float *cc = cdata + (i * csize[1] + j) * csize[2];  //  (i,j,0)
-      // The positive half-plane (inclusize)
-      const Complex *Y = work + (ii * ngrid[1] + jj) * ngrid2 / 2 - cz;
-      // This is (ii,jj,-cz)
-      for (int k = cz; k < csize[2]; k++) t[k] += cc[k] * std::real(Y[k]);
+  for (uint64 i = 0; i < oshape[0]; ++i) {
+    uint64 ii = (cshape_[0] - ox + i) % cshape_[0];
+    uint64 iin = (cshape_[0] - ii) % cshape_[0];  // The reflected coord
+    for (int j = 0; j < oshape[1]; ++j) {
+      uint64 jj = (cshape_[1] - oy + j) % cshape_[1];
+      uint64 jjn = (cshape_[1] - jj) % cshape_[1];  // The reflected coord
       // The negative half-plane (inclusize), reflected.
-      // k=cz-1 should be +1, k=0 should be +cz
-      Y = work + (iin * ngrid[1] + jjn) * ngrid2 / 2 + cz;
-      // This is (iin,jjn,+cz)
-      for (int k = 0; k < cz; k++) t[k] += cc[k] * std::real(Y[-k]);
+      // k=oz-1 should be +1, k=0 should be +oz
+      // This is (iin,jjn,+oz)
+      for (int k = 0; k < oz; ++k) {
+        out->at(i, j, k) +=
+            mult.at(i, j, k) * std::real(arr_.cat(iin, jjn, oz - k));
+      }
+      // The positive half-plane (inclusize)
+      // This is (ii,jj,-oz)
+      for (int k = oz; k < oshape[2]; ++k) {
+        out->at(i, j, k) +=
+            mult.at(i, j, k) * std::real(arr_.cat(ii, jj, k - oz));
+      }
     }
   }
   // Extract.Stop();
