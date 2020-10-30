@@ -139,9 +139,10 @@ class Correlator {
 
     // TODO: we should use the quick FFTW setup, since we only FFT and inverse
     // FFT once.
-    fprintf(stdout, "# Computing the density FFT...");
-
     dens->setup_fft();
+
+    fprintf(stdout, "# Computing the density FFT...");
+    dens->execute_fft();
 
     fprintf(stdout, "# Multiply...");
     fflush(NULL);
