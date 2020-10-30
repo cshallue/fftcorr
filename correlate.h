@@ -14,17 +14,10 @@
 // TODO: share common code between correlate_iso and correlate_aniso.
 class Correlator {
  public:
-  void correlate_iso(DiscreteField *dens, std::array<Float, 3> origin,
-                     Float cell_size, Float sep, Float kmax, Histogram1D *h,
-                     Histogram1D *kh, Float *zerolag) {
+  void correlate_iso(DiscreteField *dens, Float cell_size, Float sep,
+                     Float kmax, Histogram1D *h, Histogram1D *kh,
+                     Float *zerolag) {
     std::array<int, 3> ngrid = dens->rshape();  // TODO: rename?
-
-    // Compute xcell, ycell, zcell, which are the coordinates of the cell
-    // centers in each dimension, relative to the origin. Now set up the cell
-    // centers relative to the origin, in grid units
-    Array1D xcell = range(0.5 - origin[0], 1, ngrid[0]);
-    Array1D ycell = range(0.5 - origin[1], 1, ngrid[1]);
-    Array1D zcell = range(0.5 - origin[2], 1, ngrid[2]);
 
     // Storage for the r-space submatrices
     int sep_cell = ceil(sep / cell_size);
@@ -35,14 +28,6 @@ class Correlator {
     assert(csizex % 2 == 1);
     std::array<int, 3> csize = {csizex, csizex, csizex};
     fprintf(stderr, "csize = [%d, %d, %d]\n", csize[0], csize[1], csize[2]);
-
-    // Allocate corr_cell to [csize] and rnorm to [csize**3]
-    // The cell centers, relative to zero lag.
-    // Normalizing by cell_size just so that the Ylm code can do the wide-angle
-    // corrections in the same units.
-    Array1D cx_cell = range(-cell_size * sep_cell, cell_size, csize[0]);
-    Array1D cy_cell = range(-cell_size * sep_cell, cell_size, csize[1]);
-    Array1D cz_cell = range(-cell_size * sep_cell, cell_size, csize[2]);
 
     Array3D rnorm;  // The radius of each cell.
     rnorm.initialize(csize);
@@ -69,7 +54,7 @@ class Correlator {
     assert(ksize[0] % 2 == 1);
     assert(ksize[1] % 2 == 1);
     assert(ksize[2] % 2 == 1);
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++) {
       if (ksize[i] > ngrid[i]) {
         ksize[i] = 2 * floor(ngrid[i] / 2) + 1;
         fprintf(stdout,
@@ -77,51 +62,11 @@ class Correlator {
                 "ksize_[%d] to %d\n",
                 i, ksize[i]);
       }
-    // The cell centers, relative to zero lag.
-    // Allocate kx_cell to [ksize_] and knorm_ to [ksize_**3]
-    Array1D kx_cell = range((-ksize[0] / 2) * 2.0 * k_Nyq / ngrid[0],
-                            2.0 * k_Nyq / ngrid[0], ksize[0]);
-    Array1D ky_cell = range((-ksize[1] / 2) * 2.0 * k_Nyq / ngrid[1],
-                            2.0 * k_Nyq / ngrid[0], ksize[0]);
-    Array1D kz_cell = range((-ksize[1] / 2) * 2.0 * k_Nyq / ngrid[0],
-                            2.0 * k_Nyq / ngrid[0], ksize[1]);
+    }
 
     // The wavenumber of each cell, in a flattened submatrix.
     Array3D knorm;
     knorm.initialize(ksize);
-    // The inverse of the window function for the CIC cell assignment.
-    Array3D CICwindow;
-    CICwindow.initialize(ksize);
-
-    for (uint64 i = 0; i < ksize[0]; i++)
-      for (int j = 0; j < ksize[1]; j++)
-        for (int k = 0; k < ksize[2]; k++) {
-          knorm.at(i, j, k) =
-              sqrt(kx_cell[i] * kx_cell[i] + ky_cell[j] * ky_cell[j] +
-                   kz_cell[k] * kz_cell[k]);
-          // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
-          Float sinkxL = sin(kx_cell[i] * cell_size / 2.0);
-          Float sinkyL = sin(ky_cell[j] * cell_size / 2.0);
-          Float sinkzL = sin(kz_cell[k] * cell_size / 2.0);
-          sinkxL *= sinkxL;
-          sinkyL *= sinkyL;
-          sinkzL *= sinkzL;
-          Float Wx, Wy, Wz;
-          Wx = 1 - sinkxL + 2.0 / 15.0 * sinkxL * sinkxL;
-          Wy = 1 - sinkyL + 2.0 / 15.0 * sinkyL * sinkyL;
-          Wz = 1 - sinkzL + 2.0 / 15.0 * sinkzL * sinkzL;
-          Float window = Wx * Wy * Wz;  // This is the square of the window
-#ifdef NEAREST_CELL
-          // For this case, the window is unity
-          window = 1.0;
-#endif
-#ifdef WAVELET
-          // For this case, the window is unity
-          window = 1.0;
-#endif
-          CICwindow.at(i, j, k) = 1.0 / window;
-          // We will divide the power spectrum by the square of the window
-        }
 
     fprintf(stdout,
             "# Done setting up the wavevector submatrix of size +-%d, %d, %d\n",
@@ -149,6 +94,7 @@ class Correlator {
     dens->multiply_with_conjugation(*dens);
 
     // Extract power spectrum.
+    // TODO: should this include a CICwindow correction like the aniso case?
     dens->extract_submatrix(&kcorr);
 
     // iFFT the result, in place
@@ -241,7 +187,7 @@ class Correlator {
     assert(ksize[0] % 2 == 1);
     assert(ksize[1] % 2 == 1);
     assert(ksize[2] % 2 == 1);
-    for (int i = 0; i < 3; i++)
+    for (int i = 0; i < 3; i++) {
       if (ksize[i] > ngrid[i]) {
         ksize[i] = 2 * floor(ngrid[i] / 2) + 1;
         fprintf(stdout,
@@ -249,6 +195,7 @@ class Correlator {
                 "ksize_[%d] to %d\n",
                 i, ksize[i]);
       }
+    }
     // The cell centers, relative to zero lag.
     // Allocate kx_cell to [ksize_] and knorm_ to [ksize_**3]
     Array1D kx_cell = range((-ksize[0] / 2) * 2.0 * k_Nyq / ngrid[0],
