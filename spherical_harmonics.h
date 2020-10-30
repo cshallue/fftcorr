@@ -11,7 +11,7 @@
 
 void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n,
              const Array1D &xcell, const Array1D &ycell, const Array1D &zcell,
-             const Array3D *dens, int exponent) {
+             const Array3D *mult, int exponent) {
   // We're not actually returning Ylm here.
   // m>0 will return Re(Y_lm)*sqrt(2)
   // m<0 will return Im(Y_l|m|)*sqrt(2)
@@ -21,7 +21,7 @@ void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n,
   //
   // Input x[n[0]], y[n[1]], z[n[2]] are the x,y,z centers of this row of bins
   //
-  // If dens!=NULL, then it should point to a [n[0]][n[1]][n2] vector that will
+  // If mult!=NULL, then it should point to a [n[0]][n[1]][n2] vector that will
   // be multiplied element-wise onto the results.  This can save a store/load to
   // main memory.
   //
@@ -36,10 +36,10 @@ void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n,
   if (ell == 0 && m == 0 && exponent == 0) {
     // This case is so easy that we'll do it first and skip the rest of the set
     // up
-    if (dens == NULL) {
+    if (mult == NULL) {
       Ylm->set_all(1.0 / sqrt(4.0 * M_PI));
     } else {
-      Ylm->copy_with_scalar_multiply(*dens, 1.0 / sqrt(4.0 * M_PI));
+      Ylm->copy_with_scalar_multiply(*mult, 1.0 / sqrt(4.0 * M_PI));
     }
     // YlmTime.Stop();
     return;
@@ -79,9 +79,9 @@ void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n,
     Float *Y;
     const Float *D;
     for (int j = 0; j < n[1]; j++) {
-      // Important to use .at() for when Ylm and dens are internally padded.
+      // Important to use .at() for when Ylm and mult are internally padded.
       Y = &Ylm->at(i, j, 0);                           // (i, j, 0)
-      D = (dens == NULL) ? ones : &dens->at(i, j, 0);  // (i, j, 0)
+      D = (mult == NULL) ? ones : &mult->at(i, j, 0);  // (i, j, 0)
       Float y = ycell[j], y2 = y * y, y3 = y2 * y, y4 = y3 * y;
       for (int k = 0; k < cn2; k++) ir2[k] = 1.0 / (x2 + y2 + z2[k] + tiny);
       // Now figure out the exponent r^n
