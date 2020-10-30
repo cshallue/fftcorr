@@ -46,8 +46,9 @@ class DiscreteField {
   void multiply_with_conjugation(const DiscreteField& other);
 
   void extract_submatrix(Array3D* out) const;
-  void extract_submatrix(const Array3D& mult, Array3D* out) const;
-  void extract_submatrix_C2R(const Array3D& corr, Array3D* total) const;
+  void extract_submatrix(Array3D* out, const Array3D* mult) const;
+  void extract_submatrix_C2R(Array3D* out) const;
+  void extract_submatrix_C2R(Array3D* out, const Array3D* mult) const;
 
  private:
   std::array<int, 3> rshape_;  // Shape as a real array.

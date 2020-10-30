@@ -231,29 +231,10 @@ void DiscreteField::multiply_with_conjugation(const DiscreteField &other) {
 }
 
 void DiscreteField::extract_submatrix(Array3D *out) const {
-  // Extract out a submatrix, centered on [0,0,0] of this array
-  // Extract.Start();
-  const std::array<int, 3> &ngrid = rshape_;
-  const std::array<int, 3> &oshape = out->shape();
-  int ox = oshape[0] / 2;  // This is the middle of the submatrix
-  int oy = oshape[1] / 2;  // This is the middle of the submatrix
-  int oz = oshape[2] / 2;  // This is the middle of the submatrix
-#pragma omp parallel for schedule(dynamic, 1)
-  for (uint64 i = 0; i < oshape[0]; ++i) {
-    uint64 ii = (ngrid[0] - ox + i) % ngrid[0];
-    for (int j = 0; j < oshape[1]; ++j) {
-      uint64 jj = (ngrid[1] - oy + j) % ngrid[1];
-      for (int k = 0; k < oshape[2]; ++k) {
-        uint64 kk = (ngrid[2] - oz + k) % ngrid[2];
-        out->at(i, j, k) += arr_.at(ii, jj, kk);
-      }
-    }
-  }
-  // Extract.Stop();
+  extract_submatrix(out, NULL);
 }
 
-// TODO: could unify this with the above with probably minimal overhead.
-void DiscreteField::extract_submatrix(const Array3D &mult, Array3D *out) const {
+void DiscreteField::extract_submatrix(Array3D *out, const Array3D *mult) const {
   // Extract out a submatrix, centered on [0,0,0] of this array
   // Multiply elementwise by mult.
   // Extract.Start();
@@ -268,16 +249,23 @@ void DiscreteField::extract_submatrix(const Array3D &mult, Array3D *out) const {
       uint64 jj = (rshape_[1] - oy + j) % rshape_[1];
       for (int k = 0; k < oshape[2]; ++k) {
         uint64 kk = (rshape_[2] - oz + k) % rshape_[2];
-        out->at(i, j, k) += mult.at(i, j, k) * arr_.at(ii, jj, kk);
+        if (mult) {
+          out->at(i, j, k) += mult->at(i, j, k) * arr_.at(ii, jj, kk);
+        } else {
+          out->at(i, j, k) += arr_.at(ii, jj, kk);
+        }
       }
     }
   }
   // Extract.Stop();
 }
 
-// TODO: simplify this like the above.
-void DiscreteField::extract_submatrix_C2R(const Array3D &mult,
-                                          Array3D *out) const {
+void DiscreteField::extract_submatrix_C2R(Array3D *out) const {
+  extract_submatrix_C2R(out, NULL);
+}
+
+void DiscreteField::extract_submatrix_C2R(Array3D *out,
+                                          const Array3D *mult) const {
   // Given a large matrix work[ngrid^3/2],
   // extract out a submatrix of size csize^3, centered on work[0,0,0].
   // The input matrix is Complex * with the half-domain Fourier convention.
@@ -303,14 +291,22 @@ void DiscreteField::extract_submatrix_C2R(const Array3D &mult,
       // k=oz-1 should be +1, k=0 should be +oz
       // This is (iin,jjn,+oz)
       for (int k = 0; k < oz; ++k) {
-        out->at(i, j, k) +=
-            mult.at(i, j, k) * std::real(arr_.cat(iin, jjn, oz - k));
+        if (mult) {
+          out->at(i, j, k) +=
+              mult->at(i, j, k) * std::real(arr_.cat(iin, jjn, oz - k));
+        } else {
+          out->at(i, j, k) += std::real(arr_.cat(iin, jjn, oz - k));
+        }
       }
       // The positive half-plane (inclusize)
       // This is (ii,jj,-oz)
       for (int k = oz; k < oshape[2]; ++k) {
-        out->at(i, j, k) +=
-            mult.at(i, j, k) * std::real(arr_.cat(ii, jj, k - oz));
+        if (mult) {
+          out->at(i, j, k) +=
+              mult->at(i, j, k) * std::real(arr_.cat(ii, jj, k - oz));
+        } else {
+          out->at(i, j, k) += std::real(arr_.cat(ii, jj, k - oz));
+        }
       }
     }
   }

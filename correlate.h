@@ -365,7 +365,7 @@ class Correlator {
         makeYlm(&kcorr, ell, m, ksize, kx_cell, ky_cell, kz_cell, &CICwindow,
                 wide_angle_exponent);
         // Multiply these Ylm by the power result, and then add to total.
-        work.extract_submatrix_C2R(kcorr, &ktotal);
+        work.extract_submatrix_C2R(&ktotal, &kcorr);
 
         // iFFT the result, in place
         work.execute_ifft();
@@ -378,7 +378,7 @@ class Correlator {
                 wide_angle_exponent);
 
         // Multiply these Ylm by the correlation result, and then add to total.
-        work.extract_submatrix(corr, &total);
+        work.extract_submatrix(&total, &corr);
 
         fprintf(stdout, "Done!\n");
         fflush(NULL);
