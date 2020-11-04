@@ -1,0 +1,78 @@
+# Running single threaded.
+# Reading file /tmp/corrDD.dat.  max_sep=171492.078731
+# Adopting cell_size=6.701843 for ngrid=256, 256, 256
+# Adopted boxsize: 1715.7 1715.7 1715.7
+# Input pos range: 1714.9 1715.7 1296.7
+# Minimum ngrid=256, 256, 194
+# Using ngrid2=258 for FFT r2c padding
+# Using wide-angle exponent 0
+# Reading from file 0 named /tmp/corrDD.dat
+# Found 2198 galaxies in this file
+# Reading from file 1 named /tmp/corrRR.dat
+# Found 10531 galaxies in this file
+# Found 12729 particles. Total weight -2.8025e-12.
+# Sum of grid is 7.3783e-14 (delta = 2.8763e-12)
+# Sum of squares of density =  3.1637911e+02
+# Sum of squares of weights (divide by I for Pshot) =  3.1796767e+02
+# Using D12 wavelet
+# Estimate of I (denominator) =  1.0510539e+00 -  1.0563313e+00 = -5.2774095e-03
+# Chosen separation 200.000000 vs max 171492.078731
+# Done setting up the separation submatrix of size +-30
+# Storing wavenumbers up to 0.0300, with k_Nyq = 0.4688
+# Done setting up the wavevector submatrix of size +-9, 9, 9
+# Planning the FFTs...Reading wisdom_fftw...Done!
+# Computing the density FFT...Done!
+# Computing 0  0...Ylm...FFT...Done!
+# Computing 2 -2...Ylm...FFT...Done!
+# Computing 2 -1...Ylm...FFT...Done!
+# Computing 2  0...Ylm...FFT...Done!
+# Computing 2  1...Ylm...FFT...Done!
+# Computing 2  2...Ylm...FFT...Done!
+# Thread  0 = 1680
+# Anisotropic power spectrum:
+1  0.0050       81  2.409835231e+02 -1.202675487e+02
+1  0.0150      610  3.543444105e+02 -2.836125720e+01
+1  0.0250     1634  3.413985971e+02  2.731919248e+01
+# Anisotropic correlations:
+0   5.00       19  3.222508728e+02 -3.805785445e+00
+0  15.00       74  8.004793755e+00 -1.097117847e-01
+0  25.00      296  3.689812304e+00  4.257383501e+00
+0  35.00      506  9.002549566e+00  2.266732742e+01
+0  45.00      848  7.371309416e+00 -1.305525401e+01
+0  55.00     1226 -2.389604128e+00  1.076199075e+01
+0  65.00     1832  1.542795138e+01 -7.992549835e+00
+0  75.00     2322  3.243066800e+00 -7.817233594e+00
+0  85.00     3008 -1.696161314e+01 -1.357953940e+01
+0  95.00     3818  1.386925109e+01 -9.043885315e+00
+0 105.00     4664 -1.426354357e+01 -3.507771077e+00
+0 115.00     5258  9.560160704e+00 -2.749671047e+01
+0 125.00     6776 -3.868514424e+01  1.036246633e+00
+0 135.00     7514 -2.897053734e+00 -2.326641159e+00
+0 145.00     8736  9.939778043e+00 -2.996648893e+01
+0 155.00    10154 -4.994819381e+01 -1.781245399e+01
+0 165.00    11264 -1.162941898e+01 -1.587231338e+01
+0 175.00    12674  2.180216375e+01  7.105330685e+01
+0 185.00    14444  1.858552618e+01 -6.614594634e+01
+0 195.00    15890  1.063997470e+01 -3.203398859e+00
+#
+# Zero-lag correlations are  3.1637911e+02
+#
+# Integral of power spectrum is  1.5712760e-04
+#
+#
+# Timing Report: 
+# Setup time:         0.0010 s
+# I/O time:           0.0005 s, 27.141 Mparticles/sec, 868.50 MB/sec Read
+# CIC Grid time:      0.0158 s,  0.808 Mparticles/sec,   0.35 GB/sec
+#        Sorting:     0.0007 s
+#        Merging:     0.0000 s
+#            CIC:     0.0151 s
+# FFTW Prep time:     0.0072 s
+# Array Init time:    0.1544 s,  4.381 GB/s
+# Correlate time:     2.2393 s
+#       FFT time:     1.6264 s, 135.147 Mcells/s,  6.487 GB/s,  8.113 GFLOPS/s
+#       Ylm time:     0.1494 s, 10.863 GB/s
+#      Hist time:     0.0015 s
+#   Extract time:     0.0036 s
+#      A*Bt time:     0.4582 s, 221.387 M/s of A=A*Bt,  5.313 GB/s
+# Total time:         2.4660 s
