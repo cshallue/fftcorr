@@ -39,6 +39,7 @@ class DiscreteField {
   // Real-space operations.
   // TODO: sum and sumsq are over padded elements too!
   void add_scalar(Float s);
+  void multiply_by(Float s);
   Float sum() const;
   Float sumsq() const;
 

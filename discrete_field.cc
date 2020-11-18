@@ -222,6 +222,8 @@ void DiscreteField::restore_from(const DiscreteField &other) {
 
 void DiscreteField::add_scalar(Float s) { arr_.add_scalar(s); }
 
+void DiscreteField::multiply_by(Float s) { arr_.multiply_by(s); }
+
 Float DiscreteField::sum() const { return arr_.sum(); }
 
 Float DiscreteField::sumsq() const { return arr_.sumsq(); }

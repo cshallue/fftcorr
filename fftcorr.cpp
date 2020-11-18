@@ -395,11 +395,16 @@ int main(int argc, char *argv[]) {
   Float totw2 = dens.sum();
   fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
           totw2 - reader.totw());
-  if (qperiodic == 2) {
+  if (qperiodic >= 2) {
     // We're asked to set the mean to zero
     Float mean = reader.totw() / dens.rsize();
     dens.add_scalar(-mean);
     fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
+    if (qperiodic == 3) {
+      // Also divide by the mean.
+      dens.multiply_by(1.0 / mean);
+      fprintf(stdout, "# Also dividing by mean cell density %10.4e\n", mean);
+    }
   }
 
   Float sumsq_dens = dens.sumsq();
