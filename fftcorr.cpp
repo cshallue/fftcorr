@@ -240,6 +240,9 @@ void usage() {
   fprintf(stderr,
           "   -zeromean (or -z): Configure for cubic periodic box and set mean "
           "density to zero.\n");
+  fprintf(stderr,
+          "   -normalize: Configure for cubic periodic box, set mean "
+          "density to zero and divide by the mean.\n");
   fprintf(stderr, "   -iso: Isotropic correlations.\n");
   fprintf(stderr, "   -in <filename>:  Input file name\n");
   fprintf(stderr, "   -in2 <filename>: Second input file name\n");
@@ -306,10 +309,11 @@ int main(int argc, char *argv[]) {
       qperiodic = 1;
     else if (!strcmp(argv[i], "-zeromean") || !strcmp(argv[i], "-z"))
       qperiodic = 2;
-    else if (!strcmp(argv[i], "-iso")) {
+    else if (!strcmp(argv[i], "-normalize"))
+      qperiodic = 3;
+    else if (!strcmp(argv[i], "-iso"))
       isotropic = true;
-      qperiodic = 3;  // TODO: consider this
-    } else
+    else
       usage();
     i++;
   }
