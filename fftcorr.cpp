@@ -306,9 +306,10 @@ int main(int argc, char *argv[]) {
       qperiodic = 1;
     else if (!strcmp(argv[i], "-zeromean") || !strcmp(argv[i], "-z"))
       qperiodic = 2;
-    else if (!strcmp(argv[i], "-iso"))
+    else if (!strcmp(argv[i], "-iso")) {
       isotropic = true;
-    else
+      qperiodic = 3;  // TODO: consider this
+    } else
       usage();
     i++;
   }
