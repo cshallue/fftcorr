@@ -107,11 +107,10 @@ class Correlator {
 
     dens->extract_submatrix(&corr);
 
-    // Multiply total by 4*pi, to match SE15 normalization
     // Include the FFTW normalization
-    // Float norm = 4.0 * M_PI / ngrid[0] / ngrid[1] / ngrid[2];
+    Float norm = 1.0 / ngrid[0] / ngrid[1] / ngrid[2];
+    corr.multiply_by(norm);
     // Float Pnorm = 4.0 * M_PI;
-    // corr.multiply_by(norm);
 
     // Correlate .Start();  // Starting the main work
 
