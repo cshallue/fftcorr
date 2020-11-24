@@ -107,8 +107,11 @@ class Correlator {
 
     dens->extract_submatrix(&corr);
 
-    // Include the FFTW normalization
-    Float norm = 1.0 / ngrid[0] / ngrid[1] / ngrid[2];
+    // We must divide by two factors of ncells: the first one completes the
+    // inverse FFT (FFTW doesn't include this factor automatically) and the
+    // second is the factor converting the autocorrelation to the 2PCF.
+    Float ncells = ngrid[0] * ngrid[1] * ngrid[2];
+    Float norm = 1.0 / ncells / ncells;
     corr.multiply_by(norm);
     // Float Pnorm = 4.0 * M_PI;
 

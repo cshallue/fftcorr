@@ -37,7 +37,9 @@ class DiscreteField {
   const Array3D& arr() const { return arr_; }
 
   // Real-space operations.
-  // TODO: sum and sumsq are over padded elements too!
+  // TODO: sum and sumsq are over padded elements too! This actually matters if
+  // we normalize the density field, but currently that just affects some
+  // printed info, not the correlations or power spectrum.
   void add_scalar(Float s);
   void multiply_by(Float s);
   Float sum() const;

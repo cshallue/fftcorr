@@ -71,7 +71,7 @@ cloud-in-cell to keep up.
 */
 
 /* ======================= Compile-time user flags ================= */
-// #define NEAREST_CELL   // To turn-off triangular CIC, e.g., for comparing to
+// #define NEAREST_CELL  // To turn-off triangular CIC, e.g., for comparing to
 // python
 #define WAVELET  // To turn on a D12 wavelet density assignment
 // #define SLAB		// Handle the arrays by associating threads to x-slabs
@@ -400,6 +400,7 @@ int main(int argc, char *argv[]) {
   Float totw2 = dens.sum();
   fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
           totw2 - reader.totw());
+  fprintf(stdout, "# Sum of squares of grid is %10.4e \n", dens.sumsq());
   if (qperiodic >= 2) {
     // We're asked to set the mean to zero
     Float mean = reader.totw() / dens.rsize();
@@ -427,7 +428,7 @@ int main(int argc, char *argv[]) {
 #ifdef WAVELET
   fprintf(stdout, "# Using D12 wavelet\n");
 #else
-  totwsq *= 0.55 * 0.55 * 0.55;
+  totwsq *= 0.55 * 0.55 * 0.55;  // TODO: fix this
   fprintf(stdout, "# Using triangular cloud-in-cell\n");
 #endif
 #else
