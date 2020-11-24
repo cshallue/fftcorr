@@ -3,7 +3,6 @@ channels:
   - defaults
 dependencies:
   - fftw
-  - corrfunc  # for comparison purposes
   - make
   - autopep8
   - numpy
