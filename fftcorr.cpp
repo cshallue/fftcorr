@@ -121,6 +121,7 @@ int omp_get_thread_num() { return 0; }
 #include "grid.h"
 #include "histogram.h"
 #include "read_catalog.h"
+#include "survey_box.h"
 #include "types.h"
 
 STimer IO, Setup, FFTW, Correlate, YlmTime, Total, CIC, Misc, FFTonly, Hist,

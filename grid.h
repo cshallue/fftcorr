@@ -1,6 +1,8 @@
 #ifndef GRID_H
 #define GRID_H
 
+#include <array>
+
 #include "types.h"
 
 class Grid {
@@ -8,13 +10,8 @@ class Grid {
   // Positions need to arrive in a coordinate system that has the observer at
   // the origin
 
-  Grid(const Float posmin[3], Float cell_size) {
-    // TODO: here and elsewhere in the code, use std::array
-    for (int j = 0; j < 3; j++) {
-      posmin_[j] = posmin[j];
-    }
-    cell_size_ = cell_size;
-  }
+  Grid(std::array<Float, 3> posmin, Float cell_size)
+      : posmin_(posmin), cell_size_(cell_size) {}
 
   /* ------------------------------------------------------------------- */
 
@@ -31,13 +28,13 @@ class Grid {
   /* ------------------------------------------------------------------- */
 
   Float cell_size() const { return cell_size_; }
-  const Float *posmin() const { return posmin_; }
+  const std::array<Float, 3>& posmin() const { return posmin_; }
 
  private:
   // Inputs
-  Float posmin_[3];  // Including the border; we don't support periodic wrapping
-                     // in CIC
-  Float cell_size_;  // The size of the cubic cells
+  std::array<Float, 3> posmin_;  // Including the border; we don't support
+                                 // periodic wrapping in CIC
+  Float cell_size_;              // The size of the cubic cells
 };
 
 #endif  // GRID_H
