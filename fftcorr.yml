@@ -1,0 +1,16 @@
+name: fftcorr
+channels:
+  - defaults
+dependencies:
+  - fftw
+  - corrfunc  # for comparison purposes
+  - make
+  - autopep8
+  - numpy
+  - scipy
+  - pylint
+  - astropy
+  - jupyterlab
+  - matplotlib
+  - pandas
+prefix: /Users/shallue/miniconda3/envs/fftcorr
