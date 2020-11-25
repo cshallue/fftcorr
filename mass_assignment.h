@@ -48,9 +48,8 @@ class MassAssignor {
     // Let's sort the particles by x.
     // Need to supply an equal amount of temporary space to merge sort.
     // Do this by another vector.
-    std::vector<Galaxy> tmp;
-    tmp.reserve(galsize);
-    mergesort_parallel_omp(gal_.data(), galsize, tmp.data(),
+    buf_.reserve(galsize);
+    mergesort_parallel_omp(gal_.data(), galsize, buf_.data(),
                            omp_get_max_threads());
     // This just falls back to std::sort if omp_get_max_threads==1
 
@@ -258,6 +257,7 @@ class MassAssignor {
   DiscreteField *field_;
 
   std::vector<Galaxy> gal_;
+  std::vector<Galaxy> buf_;  // Used for mergesort.
 };
 
 #endif  // MASS_ASSIGNMENT_H
