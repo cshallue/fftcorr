@@ -71,9 +71,6 @@ cloud-in-cell to keep up.
 */
 
 /* ======================= Compile-time user flags ================= */
-// #define NEAREST_CELL  // To turn-off triangular CIC, e.g., for comparing to
-// python
-#define WAVELET  // To turn on a D12 wavelet density assignment
 // #define SLAB		// Handle the arrays by associating threads to x-slabs
 // #define FFTSLAB  	// Do the FFTs in 2D, then 1D
 // #define OPENMP	// Turn on the OPENMP items
@@ -124,6 +121,7 @@ int omp_get_thread_num() { return 0; }
 #include "read_catalog.h"
 #include "survey_box.h"
 #include "types.h"
+#include "window_functions.h"
 
 STimer IO, Setup, FFTW, Correlate, YlmTime, Total, CIC, Misc, FFTonly, Hist,
     Extract, AtimesB, Init, FFTyz, FFTx;
@@ -246,6 +244,9 @@ void usage() {
           "   -normalize: Configure for cubic periodic box, set mean "
           "density to zero and divide by the mean.\n");
   fprintf(stderr, "   -iso: Isotropic correlations.\n");
+  fprintf(stderr,
+          "   -w <int> (or -window): Window function for mass assignment. See "
+          "enum WindowType.\n");
   fprintf(stderr, "   -in <filename>:  Input file name\n");
   fprintf(stderr, "   -in2 <filename>: Second input file name\n");
   fprintf(stderr, "   -out <filename>: Output file name, default to stdout\n");
@@ -271,6 +272,7 @@ int main(int argc, char *argv[]) {
   int wide_angle_exponent = 0;
   int ngridCube = 256;
   int qperiodic = 0;
+  WindowType window_type = kWavelet;
   bool isotropic = false;
   std::array<int, 3> ngrid = {-1, -1, -1};
   Float cell_size = -123.0;  // Default to what's implied by the file
@@ -315,6 +317,8 @@ int main(int argc, char *argv[]) {
       qperiodic = 3;
     else if (!strcmp(argv[i], "-iso"))
       isotropic = true;
+    else if (!strcmp(argv[i], "-window") || !strcmp(argv[i], "-w"))
+      window_type = WindowType(atoi(argv[++i]));
     else
       usage();
     i++;
@@ -394,7 +398,7 @@ int main(int argc, char *argv[]) {
   DiscreteField dens(ngrid);
   fprintf(stderr, "dens size = [%d, %d, %d\n", dens.dshape()[0],
           dens.dshape()[1], dens.dshape()[2]);
-  MassAssignor mass_assignor(g, &dens);
+  MassAssignor mass_assignor(g, &dens, window_type);
   SurveyReader reader(&mass_assignor);
   reader.read_galaxies(infile);
   if (infile2 != NULL) {
@@ -423,31 +427,31 @@ int main(int argc, char *argv[]) {
     }
   }
 
+  Float totwsq = reader.totwsq();
   Float sumsq_dens = dens.sumsq();
   fprintf(stdout, "# Sum of squares of density = %14.7e\n", sumsq_dens);
   fprintf(stdout,
           "# Sum of squares of weights (divide by I for Pshot) = %14.7e\n",
-          reader.totwsq());
-// When run with N=D-R, this divided by I would be the shot noise.
+          totwsq);
+  // When run with N=D-R, this divided by I would be the shot noise.
 
-// Meanwhile, an estimate of I when running with only R is
-// (sum of R^2)/Vcell - (11/20)**3*(sum_R w^2)/Vcell
-// The latter is correcting the estimate for shot noise
-// The 11/20 factor is for triangular cloud in cell.
-#ifndef NEAREST_CELL
-#ifdef WAVELET
-  fprintf(stdout, "# Using D12 wavelet\n");
-#else
-  totwsq *= 0.55 * 0.55 * 0.55;  // TODO: fix this
-  fprintf(stdout, "# Using triangular cloud-in-cell\n");
-#endif
-#else
-  fprintf(stdout, "# Using nearest cell method\n");
-#endif
+  // Meanwhile, an estimate of I when running with only R is
+  // (sum of R^2)/Vcell - (11/20)**3*(sum_R w^2)/Vcell
+  // The latter is correcting the estimate for shot noise
+  // The 11/20 factor is for triangular cloud in cell.
+  switch (window_type) {
+    case kNearestCell:
+      fprintf(stdout, "# Using nearest cell method\n");
+    case kCloudInCell:
+      totwsq *= 0.55 * 0.55 * 0.55;
+      fprintf(stdout, "# Using triangular cloud-in-cell\n");
+    case kWavelet:
+      fprintf(stdout, "# Using D12 wavelet\n");
+  }
+
   Float Vcell = cell_size * cell_size * cell_size;
   fprintf(stdout, "# Estimate of I (denominator) = %14.7e - %14.7e = %14.7e\n",
-          sumsq_dens / Vcell, reader.totwsq() / Vcell,
-          (sumsq_dens - reader.totwsq()) / Vcell);
+          sumsq_dens / Vcell, totwsq / Vcell, (sumsq_dens - totwsq) / Vcell);
 
   // In the limit of infinite homogeneous particles in a periodic box:
   // If W=sum(w), then each particle has w = W/N.  totwsq = N*(W/N)^2 =
@@ -464,7 +468,8 @@ int main(int argc, char *argv[]) {
     Histogram1D kh(kmax, dk);
     Float zerolag = -12345.0;
     Correlator corr;
-    corr.correlate_iso(&dens, cell_size, sep, kmax, &h, &kh, &zerolag);
+    corr.correlate_iso(&dens, cell_size, sep, kmax, window_type, &h, &kh,
+                       &zerolag);
 
     Ylm_count.print(stdout);
     fprintf(stdout, "# Anisotropic power spectrum:\n");
@@ -501,7 +506,7 @@ int main(int argc, char *argv[]) {
     fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
     Correlator corr;
     corr.correlate_aniso(dens, observer, cell_size, sep, kmax, maxell,
-                         wide_angle_exponent, &h, &kh, &zerolag);
+                         wide_angle_exponent, window_type, &h, &kh, &zerolag);
 
     Ylm_count.print(stdout);
     fprintf(stdout, "# Anisotropic power spectrum:\n");

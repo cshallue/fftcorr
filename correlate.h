@@ -10,13 +10,14 @@
 #include "histogram.h"
 #include "spherical_harmonics.h"
 #include "types.h"
+#include "window_functions.h"
 
 // TODO: share common code between correlate_iso and correlate_aniso.
 class Correlator {
  public:
   void correlate_iso(DiscreteField *dens, Float cell_size, Float sep,
-                     Float kmax, Histogram1D *h, Histogram1D *kh,
-                     Float *zerolag) {
+                     Float kmax, WindowType window_type, Histogram1D *h,
+                     Histogram1D *kh, Float *zerolag) {
     std::array<int, 3> ngrid = dens->rshape();  // TODO: rename?
 
     // Storage for the r-space submatrices
@@ -131,8 +132,8 @@ class Correlator {
   // separation)
   void correlate_aniso(const DiscreteField &dens, std::array<Float, 3> origin,
                        Float cell_size, Float sep, Float kmax, int maxell,
-                       int wide_angle_exponent, Histogram2D *h, Histogram2D *kh,
-                       Float *zerolag) {
+                       int wide_angle_exponent, WindowType window_type,
+                       Histogram2D *h, Histogram2D *kh, Float *zerolag) {
     // Set up the sub-matrix information, assuming that we'll extract
     // -sep..+sep cells around zero-lag.
     // Setup.Start();
@@ -220,26 +221,27 @@ class Correlator {
           knorm.at(i, j, k) =
               sqrt(kx_cell[i] * kx_cell[i] + ky_cell[j] * ky_cell[j] +
                    kz_cell[k] * kz_cell[k]);
-          // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
-          Float sinkxL = sin(kx_cell[i] * cell_size / 2.0);
-          Float sinkyL = sin(ky_cell[j] * cell_size / 2.0);
-          Float sinkzL = sin(kz_cell[k] * cell_size / 2.0);
-          sinkxL *= sinkxL;
-          sinkyL *= sinkyL;
-          sinkzL *= sinkzL;
-          Float Wx, Wy, Wz;
-          Wx = 1 - sinkxL + 2.0 / 15.0 * sinkxL * sinkxL;
-          Wy = 1 - sinkyL + 2.0 / 15.0 * sinkyL * sinkyL;
-          Wz = 1 - sinkzL + 2.0 / 15.0 * sinkzL * sinkzL;
-          Float window = Wx * Wy * Wz;  // This is the square of the window
-#ifdef NEAREST_CELL
-          // For this case, the window is unity
-          window = 1.0;
-#endif
-#ifdef WAVELET
-          // For this case, the window is unity
-          window = 1.0;
-#endif
+          Float window;
+          switch (window_type) {
+            case kNearestCell:
+              window = 1.0;
+            case kCloudInCell: {
+              // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
+              Float sinkxL = sin(kx_cell[i] * cell_size / 2.0);
+              Float sinkyL = sin(ky_cell[j] * cell_size / 2.0);
+              Float sinkzL = sin(kz_cell[k] * cell_size / 2.0);
+              sinkxL *= sinkxL;
+              sinkyL *= sinkyL;
+              sinkzL *= sinkzL;
+              Float Wx, Wy, Wz;
+              Wx = 1 - sinkxL + 2.0 / 15.0 * sinkxL * sinkxL;
+              Wy = 1 - sinkyL + 2.0 / 15.0 * sinkyL * sinkyL;
+              Wz = 1 - sinkzL + 2.0 / 15.0 * sinkzL * sinkzL;
+              window = Wx * Wy * Wz;  // This is the square of the window
+            }
+            case kWavelet:
+              window = 1.0;
+          }
           CICwindow.at(i, j, k) = 1.0 / window;
           // We will divide the power spectrum by the square of the window
         }
