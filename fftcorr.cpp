@@ -120,6 +120,7 @@ int omp_get_thread_num() { return 0; }
 #include "discrete_field.h"
 #include "grid.h"
 #include "histogram.h"
+#include "mass_assignment.h"
 #include "read_catalog.h"
 #include "survey_box.h"
 #include "types.h"
@@ -393,8 +394,9 @@ int main(int argc, char *argv[]) {
   DiscreteField dens(ngrid);
   fprintf(stderr, "dens size = [%d, %d, %d\n", dens.dshape()[0],
           dens.dshape()[1], dens.dshape()[2]);
-  SurveyReader reader;
-  reader.read_galaxies(g, &dens, infile, infile2);
+  MassAssignor mass_assignor(g, &dens);
+  SurveyReader reader(&mass_assignor);
+  reader.read_galaxies(infile, infile2);
 
   fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n",
           reader.count(), reader.totw());

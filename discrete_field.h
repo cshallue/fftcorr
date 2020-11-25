@@ -71,9 +71,8 @@ class DiscreteField {
   fftw_plan ifftX_;
 #endif
 
-  // TODO: we could get rid of this, but we'd need to make SurveyReader unaware
-  // of padding. Careful use of arr.at(i,j,k) might be sufficient.
-  friend class SurveyReader;
+  // Methods used by the MassAssignor.
+  friend class MassAssignor;
   inline uint64 get_index(int ix, int iy, int iz) const {
     return arr_.get_index(ix, iy, iz);
   }
