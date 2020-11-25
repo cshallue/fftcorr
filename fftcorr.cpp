@@ -396,7 +396,14 @@ int main(int argc, char *argv[]) {
           dens.dshape()[1], dens.dshape()[2]);
   MassAssignor mass_assignor(g, &dens);
   SurveyReader reader(&mass_assignor);
-  reader.read_galaxies(infile, infile2);
+  reader.read_galaxies(infile);
+  if (infile2 != NULL) {
+    reader.read_galaxies(infile2);
+  }
+  // TODO: it should be the same if this goes at the end of read_galaxies(), but
+  // right now it causes different behavior! Figure this out: does the same
+  // thing happen with NEAREST_CELL?
+  mass_assignor.flush_to_density_field();
 
   fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n",
           reader.count(), reader.totw());

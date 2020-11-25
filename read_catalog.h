@@ -8,6 +8,8 @@
 
 #define BUFFER_SIZE 512
 
+// TODO: rename this file, or class, or both. Possibly combine with SurveyBox
+// again.
 class SurveyReader {
  public:
   SurveyReader(MassAssignor *mass_assignor)
@@ -18,7 +20,7 @@ class SurveyReader {
   Float totwsq() { return totwsq_; }
 
   // TODO: this function only needs to read one file at a time.
-  void read_galaxies(const char filename[], const char filename2[]) {
+  void read_galaxies(const char filename[]) {
     // filename and filename2 are the input particles. filename2==NULL
     // will skip that one
     // Read to the end of the file, bringing in x,y,z,w points.
@@ -29,36 +31,28 @@ class SurveyReader {
     double *b;
 
     // IO.Start();
-    for (int file = 0; file < 2; file++) {
-      char *fn;
-      int thiscount = 0;
-      if (file == 0)
-        fn = (char *)filename;
-      else
-        fn = (char *)filename2;
-      if (fn == NULL) continue;  // No file!
-      fprintf(stdout, "# Reading from file %d named %s\n", file, fn);
-      FILE *fp = fopen(fn, "rb");
-      assert(fp != NULL);
-      int nread = fread(tmp, sizeof(double), 8, fp);
-      assert(nread == 8);  // Skip the header
-      while ((nread = fread(&buffer_, sizeof(double), BUFFER_SIZE, fp)) > 0) {
-        b = buffer_;
-        for (int j = 0; j < nread; j += 4, b += 4) {
-          mass_assignor_->add_galaxy(b);
-          ++thiscount;
-          totw_ += b[3];
-          totwsq_ += b[3] * b[3];
-        }
-        if (nread != BUFFER_SIZE) break;
+    int thiscount = 0;
+    fprintf(stdout, "# Reading from file named %s\n", filename);
+    FILE *fp = fopen(filename, "rb");
+    assert(fp != NULL);
+    int nread = fread(tmp, sizeof(double), 8, fp);
+    assert(nread == 8);  // Skip the header
+    while ((nread = fread(&buffer_, sizeof(double), BUFFER_SIZE, fp)) > 0) {
+      b = buffer_;
+      for (int j = 0; j < nread; j += 4, b += 4) {
+        mass_assignor_->add_galaxy(b);
+        ++thiscount;
+        totw_ += b[3];
+        totwsq_ += b[3] * b[3];
       }
-      count_ += thiscount;
-      fprintf(stdout, "# Found %d galaxies in this file\n", thiscount);
-      fclose(fp);
+      if (nread != BUFFER_SIZE) break;
     }
+    count_ += thiscount;
+    fprintf(stdout, "# Found %d galaxies in this file\n", thiscount);
+    fclose(fp);
     // IO.Stop();
     // Add the remaining galaxies to the grid
-    mass_assignor_->flush_to_density_field();
+    // mass_assignor_->flush_to_density_field();
   }
 
  private:
