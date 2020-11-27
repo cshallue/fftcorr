@@ -225,6 +225,7 @@ class Correlator {
           switch (window_type) {
             case kNearestCell:
               window = 1.0;
+              break;
             case kCloudInCell: {
               // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
               Float sinkxL = sin(kx_cell[i] * cell_size / 2.0);
@@ -238,9 +239,11 @@ class Correlator {
               Wy = 1 - sinkyL + 2.0 / 15.0 * sinkyL * sinkyL;
               Wz = 1 - sinkzL + 2.0 / 15.0 * sinkzL * sinkzL;
               window = Wx * Wy * Wz;  // This is the square of the window
+              break;
             }
             case kWavelet:
               window = 1.0;
+              break;
           }
           CICwindow.at(i, j, k) = 1.0 / window;
           // We will divide the power spectrum by the square of the window

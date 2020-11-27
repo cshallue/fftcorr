@@ -396,7 +396,7 @@ int main(int argc, char *argv[]) {
   fprintf(stderr, "sep = %f, cell_size = %f, ngrid =%d\n", sep, cell_size,
           ngrid[0]);
   DiscreteField dens(ngrid);
-  fprintf(stderr, "dens size = [%d, %d, %d\n", dens.dshape()[0],
+  fprintf(stderr, "dens size = [%d, %d, %d]\n", dens.dshape()[0],
           dens.dshape()[1], dens.dshape()[2]);
   MassAssignor mass_assignor(g, &dens, window_type);
   SurveyReader reader(&mass_assignor);
@@ -442,11 +442,14 @@ int main(int argc, char *argv[]) {
   switch (window_type) {
     case kNearestCell:
       fprintf(stdout, "# Using nearest cell method\n");
+      break;
     case kCloudInCell:
       totwsq *= 0.55 * 0.55 * 0.55;
       fprintf(stdout, "# Using triangular cloud-in-cell\n");
+      break;
     case kWavelet:
       fprintf(stdout, "# Using D12 wavelet\n");
+      break;
   }
 
   Float Vcell = cell_size * cell_size * cell_size;

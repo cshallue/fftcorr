@@ -212,10 +212,13 @@ std::unique_ptr<WindowFunction> make_window_function(WindowType type) {
   switch (type) {
     case kNearestCell:
       func = new NearestCellWindow();
+      break;
     case kCloudInCell:
       func = new CloudInCellWindow();
+      break;
     case kWavelet:
       func = new WaveletWindow();
+      break;
   }
   return std::unique_ptr<WindowFunction>(func);
 }
