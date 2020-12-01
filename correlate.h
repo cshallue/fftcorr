@@ -57,6 +57,8 @@ class Correlator {
     assert(ksize[2] % 2 == 1);
     for (int i = 0; i < 3; i++) {
       if (ksize[i] > ngrid[i]) {
+        // TODO: in the corner case of kmax ~= k_Nyq, this can be greater than
+        // ngrid[i].
         ksize[i] = 2 * floor(ngrid[i] / 2) + 1;
         fprintf(stdout,
                 "# WARNING: Requested wavenumber is too big.  Truncating "
@@ -68,6 +70,25 @@ class Correlator {
     // The wavenumber of each cell, in a flattened submatrix.
     Array3D knorm;
     knorm.initialize(ksize);
+
+    // The cell centers, relative to zero lag.
+    // Allocate kx_cell to [ksize_] and knorm_ to [ksize_**3]
+    Array1D kx_cell = range((-ksize[0] / 2) * 2.0 * k_Nyq / ngrid[0],
+                            2.0 * k_Nyq / ngrid[0], ksize[0]);
+    Array1D ky_cell = range((-ksize[1] / 2) * 2.0 * k_Nyq / ngrid[1],
+                            2.0 * k_Nyq / ngrid[0], ksize[0]);
+    Array1D kz_cell = range((-ksize[1] / 2) * 2.0 * k_Nyq / ngrid[0],
+                            2.0 * k_Nyq / ngrid[0], ksize[1]);
+
+    for (uint64 i = 0; i < ksize[0]; i++) {
+      for (int j = 0; j < ksize[1]; j++) {
+        for (int k = 0; k < ksize[2]; k++) {
+          knorm.at(i, j, k) =
+              sqrt(kx_cell[i] * kx_cell[i] + ky_cell[j] * ky_cell[j] +
+                   kz_cell[k] * kz_cell[k]);
+        }
+      }
+    }
 
     fprintf(stdout,
             "# Done setting up the wavevector submatrix of size +-%d, %d, %d\n",
