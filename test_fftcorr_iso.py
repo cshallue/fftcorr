@@ -12,11 +12,12 @@ DATA_DIR = "./test_data/abacus/smallmass/"
 
 def read_outfile(filename):
     data = np.loadtxt(filename)
-    corr = data[data[:, 0] == 0]  # corr indicated by 0 in first col
-    return corr
+    pspec = data[data[:, 0] == 1]
+    corr = data[data[:, 0] == 0]
+    return pspec, corr
 
 
-# TODO: test power spectrum, nonperiodic.
+# TODO: test nonperiodic, other window functions.
 class TestCorrelateCPP(unittest.TestCase):
     def test_correlate_cpp(self):
         # TODO: rename these from DD?
@@ -24,18 +25,19 @@ class TestCorrelateCPP(unittest.TestCase):
         ref_outfile = os.path.join(DATA_DIR, "corrDD.dat.out")
         with tempfile.TemporaryDirectory() as test_dir:
             outfile = os.path.join(test_dir, "corrDD.dat.out")
-            cmd = ("{}/fftcorr -in {} -out {} -dr 5 -n 256 -p -r 250.00 -iso "
-                   "-normalize -w 0").format(os.getcwd(), infile, outfile)
+            cmd = ("{}/fftcorr -in {} -out {} -n 256 -p -r 250.00 -dr 5 "
+                   "-kmax 0.4 -dk 0.002 -w 0 -iso -normalize").format(
+                       os.getcwd(), infile, outfile)
             print(cmd)
             self.assertEqual(subprocess.call(shlex.split(cmd)), 0)
 
-            corr = read_outfile(outfile)
-            ref_corr = read_outfile(ref_outfile)
+            pspec, corr = read_outfile(outfile)
+            ref_pspec, ref_corr = read_outfile(ref_outfile)
+            np.testing.assert_allclose(pspec,
+                                       ref_pspec,
+                                       err_msg="Power spectrum does not match")
             np.testing.assert_allclose(
-                corr,
-                ref_corr,
-                err_msg="Correlation function does not match {}".format(
-                    ref_outfile))
+                corr, ref_corr, err_msg="Correlation function does not match")
 
 
 if __name__ == "__main__":
