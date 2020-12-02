@@ -117,7 +117,7 @@ class Correlator {
 
     // Extract power spectrum.
     // TODO: should this include a CICwindow correction like the aniso case?
-    dens->extract_submatrix(&kcorr);
+    dens->extract_submatrix_C2R(&kcorr);
 
     // iFFT the result, in place
     fprintf(stdout, "IFFT...");
@@ -135,7 +135,12 @@ class Correlator {
     Float ncells = ngrid[0] * ngrid[1] * ngrid[2];
     Float norm = 1.0 / ncells / ncells;
     corr.multiply_by(norm);
-    // Float Pnorm = 4.0 * M_PI;
+
+    // We must divide by ncells^2: DFT differs from Fourier series coefficients
+    // by a factor of ncells, and we've squared the DFT result.
+    // TODO: there are too many variables called 'norm'.
+    Float pnorm = 1.0 / ncells / ncells;
+    kcorr.multiply_by(pnorm);
 
     // Correlate .Start();  // Starting the main work
 
@@ -282,7 +287,7 @@ class Correlator {
     // Multiply total by 4*pi, to match SE15 normalization
     // Include the FFTW normalization
     Float norm = 4.0 * M_PI / ngrid[0] / ngrid[1] / ngrid[2];
-    Float Pnorm = 4.0 * M_PI;
+    Float pnorm = 4.0 * M_PI;
 
     // Allocate the work matrix and load it with the density
     // Ensure that the array is touched before FFT planning
@@ -362,7 +367,7 @@ class Correlator {
 
       // Extract.Start();
       total.multiply_by(norm);
-      ktotal.multiply_by(Pnorm);
+      ktotal.multiply_by(pnorm);
       // Extract.Stop();
       // Histogram total by rnorm
       // Hist.Start();
