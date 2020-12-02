@@ -476,9 +476,9 @@ int main(int argc, char *argv[]) {
 
     Ylm_count.print(stdout);
     fprintf(stdout, "# Anisotropic power spectrum:\n");
-    kh.print(stdout, 1);
+    kh.print(stdout, 1, true);
     fprintf(stdout, "# Anisotropic correlations:\n");
-    h.print(stdout, 0);
+    h.print(stdout, 0, true);
     // We want to use the correlation at zero lag as the I normalization
     // factor in the FKP power spectrum.
     fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", zerolag);
@@ -513,9 +513,9 @@ int main(int argc, char *argv[]) {
 
     Ylm_count.print(stdout);
     fprintf(stdout, "# Anisotropic power spectrum:\n");
-    kh.print(stdout, 1);
+    kh.print(stdout, 1, true);
     fprintf(stdout, "# Anisotropic correlations:\n");
-    h.print(stdout, 0);
+    h.print(stdout, 0, false);
     // We want to use the correlation at zero lag as the I normalization
     // factor in the FKP power spectrum.
     fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", zerolag);

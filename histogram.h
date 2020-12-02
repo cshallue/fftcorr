@@ -55,12 +55,12 @@ class Histogram2D {
     return total;
   }
 
-  void print(FILE *fp, int norm) {
+  void print(FILE *fp, int prefix, bool norm) {
     // Print out the results
     // If norm==1, divide by counts
     Float denom;
     for (int j = 0; j < nbins_; j++) {
-      fprintf(fp, "%1d ", norm);
+      fprintf(fp, "%1d ", prefix);
       if (sep_ > 2)
         fprintf(fp, "%6.2f %8.0f", (j + 0.5) * binsize_, cnt_[j]);
       else
