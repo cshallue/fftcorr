@@ -72,6 +72,7 @@ class DiscreteField {
 #endif
 
   // Methods used by the MassAssignor.
+  // TODO: just pass arr_ to the MassAssignor?
   friend class MassAssignor;
   inline uint64 get_index(int ix, int iy, int iz) const {
     return arr_.get_index(ix, iy, iz);

@@ -224,12 +224,77 @@ void DiscreteField::add_scalar(Float s) { arr_.add_scalar(s); }
 
 void DiscreteField::multiply_by(Float s) { arr_.multiply_by(s); }
 
-Float DiscreteField::sum() const { return arr_.sum(); }
+Float DiscreteField::sum() const {
+  Float *data = arr_.data_;
+  assert(data != NULL);
+  Float tot = 0.0;
+#ifdef SLAB
+  int nx = shape_[0];
+  const uint64 nyz = arr_.size_ / nx;
+#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      tot += slab[i];
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
+  for (uint64 i = 0; i < arr_.size_; ++i) {
+    tot += data[i];
+  }
+#endif
+  return tot;
+}
 
-Float DiscreteField::sumsq() const { return arr_.sumsq(); }
+// TODO: come up with a way to template these parallelizable ops
+Float DiscreteField::sumsq() const {
+  Float *data = arr_.data_;
+  assert(data != NULL);
+  Float tot = 0.0;
+#ifdef SLAB
+  int nx = shape_[0];
+  const uint64 nyz = arr_.size_ / nx;
+#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      tot += slab[i];
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
+  for (uint64 i = 0; i < arr_.size_; ++i) {
+    tot += data[i] * data[i];
+  }
+#endif
+  return tot;
+}
 
 void DiscreteField::multiply_with_conjugation(const DiscreteField &other) {
-  arr_.multiply_with_conjugation(other.arr_);
+  Complex *cdata = (Complex *)arr_.data_;
+  Complex *other_cdata = (Complex *)other.arr_.data_;
+  assert(cdata != NULL);
+  assert(other_cdata != NULL);
+  // Element-wise multiply by conjugate of other
+  // TODO: check same dimensions.
+#ifdef SLAB
+  int nx = cshape_[0];
+  const uint64 nyz = csize_ / nx;
+#pragma omp parallel for MY_SCHEDULE
+  for (int x = 0; x < nx; ++x) {
+    Complex *slab = cdata + x * nyz;
+    Complex *other_slab = other.cdata + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] *= std::conj(other_slab[i]);
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 i = 0; i < csize_; ++i) {
+    cdata[i] *= std::conj(other_cdata[i]);
+  }
+#endif
 }
 
 void DiscreteField::extract_submatrix(Array3D *out) const {

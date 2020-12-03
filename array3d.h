@@ -113,8 +113,6 @@ class Array3D {
   // Real-space operations.
   void add_scalar(Float s);
   void multiply_by(Float s);
-  Float sum() const;
-  Float sumsq() const;
 
   const std::array<int, 3> &shape() const { return shape_; }
   int shape(int i) const { return shape_[i]; }
@@ -136,9 +134,6 @@ class Array3D {
 
   Float *data() { return data_; }
   const Float *data() const { return data_; }
-
-  // Complex-space operations.
-  void multiply_with_conjugation(const Array3D &other);
 
   std::array<int, 3> shape_;
   uint64 size_;
