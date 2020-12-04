@@ -154,30 +154,17 @@ class Array3D {
   inline uint64 get_index(int ix, int iy, int iz) const {
     return arr_->get_index(ix, iy, iz);
   }
-  inline uint64 get_cindex(int ix, int iy, int iz) const {
-    return carr_->get_index(ix, iy, iz);
-  }
-  inline Complex &cat(int ix, int iy, int iz) {
-    return cdata_[get_cindex(ix, iy, iz)];
-  }
-  inline const Complex &cat(int ix, int iy, int iz) const {
-    return cdata_[get_cindex(ix, iy, iz)];
-  }
 
   Float *data() { return data_; }
   const Float *data() const { return data_; }
 
   Float *data_;
-  Complex *cdata_;
 
   std::array<int, 3> shape_;
   uint64 size_;
 
   // TODO: allocate on stack not heap? Need an initialize() method then.
   RowMajorArray<Float> *arr_;
-  RowMajorArray<Complex> *carr_;
-
-  friend class DiscreteField;
 };
 
 #endif  // ARRAY3D_H

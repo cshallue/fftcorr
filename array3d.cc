@@ -17,12 +17,11 @@ Array1D range(Float start, Float step, int size) {
   return arr;
 }
 
-Array3D::Array3D() : data_(NULL), cdata_(NULL), arr_(NULL), carr_(NULL) {}
+Array3D::Array3D() : data_(NULL), arr_(NULL) {}
 
 Array3D::~Array3D() {
   if (data_ != NULL) free(data_);
   if (arr_ != NULL) delete arr_;
-  if (carr_ != NULL) delete carr_;
 }
 
 void Array3D::initialize(std::array<int, 3> shape) {
@@ -34,10 +33,6 @@ void Array3D::initialize(std::array<int, 3> shape) {
   assert(data_ != NULL);
 
   arr_ = new RowMajorArray<Float>(data_, shape);
-
-  cdata_ = (Complex *)data_;
-  carr_ =
-      new RowMajorArray<Complex>(cdata_, {shape[0], shape[1], shape[2] / 2});
 
   set_all(0.0);
 
