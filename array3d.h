@@ -55,6 +55,7 @@ class ArrayBase {
         posix_memalign((void **)&data_, PAGE, sizeof(Float) * size_ + PAGE);
     assert(err == 0);
     assert(data_ != NULL);
+    set_all(0.0);  // TODO: needed?
   }
   ~ArrayBase() {
     if (data_ != NULL) free(data_);
@@ -118,16 +119,11 @@ class Array2D : public ArrayBase<2> {
 // rest of the code.
 
 // TODO: inherit from base Array class
-class Array3D {
+class Array3D : public ArrayBase<3> {
  public:
-  Array3D();
+  // TODO: add Array3D(nx, ny, nz)?
+  Array3D(std::array<int, 3> shape);
   ~Array3D();
-
-  // TODO: really it makes more sense to do this in the constructor, which
-  // would save us calling this explicitly and mean we wouldn't have to check
-  // for initialization in all internal operations, but DiscreteField needs to
-  // figure out the size in the body of its constructor.
-  void initialize(std::array<int, 3> shape);
 
   void set_all(Float value);
 
@@ -157,11 +153,6 @@ class Array3D {
 
   Float *data() { return data_; }
   const Float *data() const { return data_; }
-
-  Float *data_;
-
-  std::array<int, 3> shape_;
-  uint64 size_;
 
   // TODO: allocate on stack not heap? Need an initialize() method then.
   RowMajorArray<Float> *arr_;

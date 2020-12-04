@@ -30,14 +30,14 @@ class Correlator {
     std::array<int, 3> csize = {csizex, csizex, csizex};
     fprintf(stderr, "csize = [%d, %d, %d]\n", csize[0], csize[1], csize[2]);
 
-    Array3D rnorm;  // The radius of each cell.
-    rnorm.initialize(csize);
+    Array3D rnorm(csize);  // The radius of each cell.
     for (uint64 i = 0; i < csize[0]; i++)
       for (int j = 0; j < csize[1]; j++)
-        for (int k = 0; k < csize[2]; k++)
+        for (int k = 0; k < csize[2]; k++) {
           rnorm.at(i, j, k) = cell_size * sqrt((i - sep_cell) * (i - sep_cell) +
                                                (j - sep_cell) * (j - sep_cell) +
                                                (k - sep_cell) * (k - sep_cell));
+        }
     fprintf(stdout, "# Done setting up the separation submatrix of size +-%d\n",
             sep_cell);
     // Index of r=0.
@@ -68,8 +68,7 @@ class Correlator {
     }
 
     // The wavenumber of each cell, in a flattened submatrix.
-    Array3D knorm;
-    knorm.initialize(ksize);
+    Array3D knorm(ksize);
 
     // The cell centers, relative to zero lag.
     // Allocate kx_cell to [ksize_] and knorm_ to [ksize_**3]
@@ -96,9 +95,8 @@ class Correlator {
     fprintf(stderr, "ksize = [%d, %d, %d]\n", ksize[0], ksize[1], ksize[2]);
 
     // Allocate total[csize**3] and corr[csize**3]
-    Array3D corr, kcorr;
-    corr.initialize(csize);
-    kcorr.initialize(ksize);
+    Array3D corr(csize);
+    Array3D kcorr(ksize);
 
     // Setup.Stop();
 
@@ -191,8 +189,7 @@ class Correlator {
     Array1D cy_cell = range(-cell_size * sep_cell, cell_size, csize[1]);
     Array1D cz_cell = range(-cell_size * sep_cell, cell_size, csize[2]);
 
-    Array3D rnorm;  // The radius of each cell.
-    rnorm.initialize(csize);
+    Array3D rnorm(csize);  // The radius of each cell.
     for (uint64 i = 0; i < csize[0]; i++)
       for (int j = 0; j < csize[1]; j++)
         for (int k = 0; k < csize[2]; k++)
@@ -235,11 +232,9 @@ class Correlator {
                             2.0 * k_Nyq / ngrid[0], ksize[1]);
 
     // The wavenumber of each cell, in a flattened submatrix.
-    Array3D knorm;
-    knorm.initialize(ksize);
+    Array3D knorm(ksize);
     // The inverse of the window function for the CIC cell assignment.
-    Array3D CICwindow;
-    CICwindow.initialize(ksize);
+    Array3D CICwindow(ksize);
 
     for (uint64 i = 0; i < ksize[0]; i++)
       for (int j = 0; j < ksize[1]; j++)
@@ -299,11 +294,10 @@ class Correlator {
     work.restore_from(dens);
 
     // Allocate total[csize**3] and corr[csize**3]
-    Array3D total, corr, ktotal, kcorr;
-    total.initialize(csize);
-    corr.initialize(csize);
-    ktotal.initialize(ksize);
-    kcorr.initialize(ksize);
+    Array3D total(csize);
+    Array3D corr(csize);
+    Array3D ktotal(ksize);
+    Array3D kcorr(ksize);
 
     // Correlate .Start();  // Starting the main work
     // Now compute the FFT of the density field and conjugate it
