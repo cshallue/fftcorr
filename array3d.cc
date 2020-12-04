@@ -17,24 +17,33 @@ Array1D range(Float start, Float step, int size) {
   return arr;
 }
 
-Array3D::Array3D() : data_(NULL), cdata_(NULL) {}
+Array3D::Array3D() : data_(NULL), cdata_(NULL), arr_(NULL), carr_(NULL) {}
 
 Array3D::~Array3D() {
   if (data_ != NULL) free(data_);
+  if (arr_ != NULL) delete arr_;
+  if (carr_ != NULL) delete carr_;
 }
 
 void Array3D::initialize(std::array<int, 3> shape) {
   shape_ = shape;
-  size_ = (uint64)shape_[0] * shape_[1] * shape_[2];
+  size_ = (uint64)shape[0] * shape[1] * shape[2];
   // Allocate data_ array.
   int err = posix_memalign((void **)&data_, PAGE, sizeof(Float) * size_ + PAGE);
   assert(err == 0);
   assert(data_ != NULL);
+
+  arr_ = new RowMajorArray<Float>(data_, shape);
+
+  cdata_ = (Complex *)data_;
+  carr_ =
+      new RowMajorArray<Complex>(cdata_, {shape[0], shape[1], shape[2] / 2});
+
   set_all(0.0);
 
-  cshape_ = std::array<int, 3>({shape_[0], shape_[1], shape_[2] / 2});
-  csize_ = (uint64)cshape_[0] * cshape_[1] * cshape_[2];
-  cdata_ = (Complex *)data_;
+  // cshape_ = std::array<int, 3>({shape_[0], shape_[1], shape_[2] / 2});
+  // csize_ = (uint64)cshape_[0] * cshape_[1] * cshape_[2];
+  // cdata_ = (Complex *)data_;
 }
 
 void Array3D::copy_from(const Array3D &other) {

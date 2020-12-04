@@ -9,6 +9,36 @@
 
 // TODO: rename this file arrays.h
 
+// TODO: make this multidimensional?
+template <typename dtype>
+class RowMajorArray {
+ public:
+  RowMajorArray(dtype *data, std::array<int, 3> shape)
+      : data_(data),
+        shape_(shape),
+        size_((uint64)shape_[0] * shape_[1] * shape_[2]) {}
+
+  const std::array<int, 3> &shape() const { return shape_; }
+  uint64 size() const { return size_; }
+
+  // Indexing.
+  inline uint64 get_index(int ix, int iy, int iz) const {
+    return (uint64)iz + shape_[2] * (iy + ix * shape_[1]);
+  }
+  inline Float &at(int ix, int iy, int iz) {
+    return data_[get_index(ix, iy, iz)];
+  }
+  inline const Float &at(int ix, int iy, int iz) const {
+    return data_[get_index(ix, iy, iz)];
+  }
+  Float *get_row(int ix, int iy) { return &at(ix, iy, 0); }
+
+ private:
+  dtype *data_;
+  std::array<int, 3> shape_;
+  uint64 size_;
+};
+
 // TODO: make this directly instantiable as Array or ArrayNd?
 template <std::size_t N>
 class ArrayBase {
@@ -120,10 +150,10 @@ class Array3D {
 
  private:
   inline uint64 get_index(int ix, int iy, int iz) const {
-    return (uint64)iz + shape_[2] * (iy + ix * shape_[1]);
+    return arr_->get_index(ix, iy, iz);
   }
   inline uint64 get_cindex(int ix, int iy, int iz) const {
-    return (uint64)iz + cshape_[2] * (iy + ix * cshape_[1]);
+    return carr_->get_index(ix, iy, iz);
   }
   inline Complex &cat(int ix, int iy, int iz) {
     return cdata_[get_cindex(ix, iy, iz)];
@@ -135,13 +165,15 @@ class Array3D {
   Float *data() { return data_; }
   const Float *data() const { return data_; }
 
+  Float *data_;
+  Complex *cdata_;
+
   std::array<int, 3> shape_;
   uint64 size_;
-  Float *data_;
 
-  std::array<int, 3> cshape_;
-  uint64 csize_;
-  Complex *cdata_;
+  // TODO: allocate on stack not heap? Need an initialize() method then.
+  RowMajorArray<Float> *arr_;
+  RowMajorArray<Complex> *carr_;
 
   friend class DiscreteField;
 };
