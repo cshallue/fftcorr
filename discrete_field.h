@@ -18,8 +18,8 @@ class DiscreteField {
   void execute_fft();
   void execute_ifft();
 
-  // TODO: this should be a copy constructor. Then initialize could be
-  // in the normal constructor.
+  // TODO: there's actually usually only one object we need to be a
+  // DiscreteField; the other objects are just plain data.
   void copy_from(const DiscreteField& other);
   // TODO: this could be private if DiscreteField initializes the FFTs in its
   // copy constructor, and it is a friend class. Then it would (a) copy, (b)
@@ -74,14 +74,6 @@ class DiscreteField {
   fftw_plan ifftYZ_;
   fftw_plan ifftX_;
 #endif
-
-  // Methods used by the MassAssignor.
-  // TODO: just pass arr_ to the MassAssignor?
-  friend class MassAssignor;
-  inline uint64 get_index(int ix, int iy, int iz) const {
-    return arr_->get_index(ix, iy, iz);
-  }
-  Float* data() { return data_; }
 };
 
 #endif  // DISCRETE_FIELD_H

@@ -4,6 +4,7 @@
 #include <array>
 #include <memory>
 
+#include "array3d.h"
 #include "d12.cpp"  // TODO: possibly incorporate into this file
 #include "galaxy.h"
 #include "types.h"
@@ -18,31 +19,32 @@ class WindowFunction {
  public:
   virtual ~WindowFunction() {}
   virtual int width() = 0;
-  virtual void add_galaxy_to_density_field(const Galaxy& g, Float* dens,
-                                           const std::array<int, 3>& ngrid,
-                                           int ngrid2) = 0;
+  virtual void add_galaxy_to_density_field(const Galaxy& g,
+                                           RowMajorArray<Float>* dens,
+                                           const std::array<int, 3>& ngrid) = 0;
 };
 
 class NearestCellWindow : public WindowFunction {
   int width() override { return 1; }
 
-  void add_galaxy_to_density_field(const Galaxy& g, Float* dens,
-                                   const std::array<int, 3>& ngrid,
-                                   int ngrid2) override {
+  void add_galaxy_to_density_field(const Galaxy& g, RowMajorArray<Float>* dens,
+                                   const std::array<int, 3>& ngrid) override {
     uint64 ix = floor(g.x);
     uint64 iy = floor(g.y);
     uint64 iz = floor(g.z);
-    uint64 index = iz + ngrid2 * (iy + ix * ngrid[1]);
-    dens[index] += g.w;
+    dens->at(ix, iy, iz) += g.w;
   }
 };
 
 class CloudInCellWindow : public WindowFunction {
   int width() override { return 3; }
 
-  void add_galaxy_to_density_field(const Galaxy& g, Float* dens,
-                                   const std::array<int, 3>& ngrid,
-                                   int ngrid2) override {
+  void add_galaxy_to_density_field(const Galaxy& g, RowMajorArray<Float>* dens,
+                                   const std::array<int, 3>& ngrid) override {
+    const uint64 ngrid2 = dens->shape(2);
+    // TODO: when I have tests covering this window function, try to use
+    // indexing functions.
+    Float* d = dens->get_row(0, 0);
     // 27-point triangular cloud-in-cell.
     uint64 index;
     uint64 ix = floor(g.x);
@@ -77,81 +79,81 @@ class CloudInCellWindow : public WindowFunction {
       const uint64 izp = (iz + 1) % ng2;
       //
       index = ngrid2 * (((iy - 1) % ng1) + ((ix - 1) % ng0) * ng1);
-      dens[index + izm] += xm * ym * zm;
-      dens[index + iz0] += xm * ym * z0;
-      dens[index + izp] += xm * ym * zp;
+      d[index + izm] += xm * ym * zm;
+      d[index + iz0] += xm * ym * z0;
+      d[index + izp] += xm * ym * zp;
       index = ngrid2 * (((iy) % ng1) + ((ix - 1) % ng0) * ng1);
-      dens[index + izm] += xm * y0 * zm;
-      dens[index + iz0] += xm * y0 * z0;
-      dens[index + izp] += xm * y0 * zp;
+      d[index + izm] += xm * y0 * zm;
+      d[index + iz0] += xm * y0 * z0;
+      d[index + izp] += xm * y0 * zp;
       index = ngrid2 * (((iy + 1) % ng1) + ((ix - 1) % ng0) * ng1);
-      dens[index + izm] += xm * yp * zm;
-      dens[index + iz0] += xm * yp * z0;
-      dens[index + izp] += xm * yp * zp;
+      d[index + izm] += xm * yp * zm;
+      d[index + iz0] += xm * yp * z0;
+      d[index + izp] += xm * yp * zp;
       //
       index = ngrid2 * (((iy - 1) % ng1) + ((ix) % ng0) * ng1);
-      dens[index + izm] += x0 * ym * zm;
-      dens[index + iz0] += x0 * ym * z0;
-      dens[index + izp] += x0 * ym * zp;
+      d[index + izm] += x0 * ym * zm;
+      d[index + iz0] += x0 * ym * z0;
+      d[index + izp] += x0 * ym * zp;
       index = ngrid2 * (((iy) % ng1) + ((ix) % ng0) * ng1);
-      dens[index + izm] += x0 * y0 * zm;
-      dens[index + iz0] += x0 * y0 * z0;
-      dens[index + izp] += x0 * y0 * zp;
+      d[index + izm] += x0 * y0 * zm;
+      d[index + iz0] += x0 * y0 * z0;
+      d[index + izp] += x0 * y0 * zp;
       index = ngrid2 * (((iy + 1) % ng1) + ((ix) % ng0) * ng1);
-      dens[index + izm] += x0 * yp * zm;
-      dens[index + iz0] += x0 * yp * z0;
-      dens[index + izp] += x0 * yp * zp;
+      d[index + izm] += x0 * yp * zm;
+      d[index + iz0] += x0 * yp * z0;
+      d[index + izp] += x0 * yp * zp;
       //
       index = ngrid2 * (((iy - 1) % ng1) + ((ix + 1) % ng0) * ng1);
-      dens[index + izm] += xp * ym * zm;
-      dens[index + iz0] += xp * ym * z0;
-      dens[index + izp] += xp * ym * zp;
+      d[index + izm] += xp * ym * zm;
+      d[index + iz0] += xp * ym * z0;
+      d[index + izp] += xp * ym * zp;
       index = ngrid2 * (((iy) % ng1) + ((ix + 1) % ng0) * ng1);
-      dens[index + izm] += xp * y0 * zm;
-      dens[index + iz0] += xp * y0 * z0;
-      dens[index + izp] += xp * y0 * zp;
+      d[index + izm] += xp * y0 * zm;
+      d[index + iz0] += xp * y0 * z0;
+      d[index + izp] += xp * y0 * zp;
       index = ngrid2 * (((iy + 1) % ng1) + ((ix + 1) % ng0) * ng1);
-      dens[index + izm] += xp * yp * zm;
-      dens[index + iz0] += xp * yp * z0;
-      dens[index + izp] += xp * yp * zp;
+      d[index + izm] += xp * yp * zm;
+      d[index + iz0] += xp * yp * z0;
+      d[index + izp] += xp * yp * zp;
     } else {
       // This code is faster, but doesn't do periodic wrapping
       index = (iz - 1) + ngrid2 * ((iy - 1) + (ix - 1) * ngrid[1]);
-      dens[index++] += xm * ym * zm;
-      dens[index++] += xm * ym * z0;
-      dens[index] += xm * ym * zp;
+      d[index++] += xm * ym * zm;
+      d[index++] += xm * ym * z0;
+      d[index] += xm * ym * zp;
       index += ngrid2 - 2;  // Step to the next row in y
-      dens[index++] += xm * y0 * zm;
-      dens[index++] += xm * y0 * z0;
-      dens[index] += xm * y0 * zp;
+      d[index++] += xm * y0 * zm;
+      d[index++] += xm * y0 * z0;
+      d[index] += xm * y0 * zp;
       index += ngrid2 - 2;  // Step to the next row in y
-      dens[index++] += xm * yp * zm;
-      dens[index++] += xm * yp * z0;
-      dens[index] += xm * yp * zp;
+      d[index++] += xm * yp * zm;
+      d[index++] += xm * yp * z0;
+      d[index] += xm * yp * zp;
       index = (iz - 1) + ngrid2 * ((iy - 1) + ix * ngrid[1]);
-      dens[index++] += x0 * ym * zm;
-      dens[index++] += x0 * ym * z0;
-      dens[index] += x0 * ym * zp;
+      d[index++] += x0 * ym * zm;
+      d[index++] += x0 * ym * z0;
+      d[index] += x0 * ym * zp;
       index += ngrid2 - 2;  // Step to the next row in y
-      dens[index++] += x0 * y0 * zm;
-      dens[index++] += x0 * y0 * z0;
-      dens[index] += x0 * y0 * zp;
+      d[index++] += x0 * y0 * zm;
+      d[index++] += x0 * y0 * z0;
+      d[index] += x0 * y0 * zp;
       index += ngrid2 - 2;  // Step to the next row in y
-      dens[index++] += x0 * yp * zm;
-      dens[index++] += x0 * yp * z0;
-      dens[index] += x0 * yp * zp;
+      d[index++] += x0 * yp * zm;
+      d[index++] += x0 * yp * z0;
+      d[index] += x0 * yp * zp;
       index = (iz - 1) + ngrid2 * ((iy - 1) + (ix + 1) * ngrid[1]);
-      dens[index++] += xp * ym * zm;
-      dens[index++] += xp * ym * z0;
-      dens[index] += xp * ym * zp;
+      d[index++] += xp * ym * zm;
+      d[index++] += xp * ym * z0;
+      d[index] += xp * ym * zp;
       index += ngrid2 - 2;  // Step to the next row in y
-      dens[index++] += xp * y0 * zm;
-      dens[index++] += xp * y0 * z0;
-      dens[index] += xp * y0 * zp;
+      d[index++] += xp * y0 * zm;
+      d[index++] += xp * y0 * z0;
+      d[index] += xp * y0 * zp;
       index += ngrid2 - 2;  // Step to the next row in y
-      dens[index++] += xp * yp * zm;
-      dens[index++] += xp * yp * z0;
-      dens[index] += xp * yp * zp;
+      d[index++] += xp * yp * zm;
+      d[index++] += xp * yp * z0;
+      d[index] += xp * yp * zp;
     }
   }
 };
@@ -159,9 +161,9 @@ class CloudInCellWindow : public WindowFunction {
 class WaveletWindow : public WindowFunction {
   int width() override { return WCELLS; }
 
-  void add_galaxy_to_density_field(const Galaxy& g, Float* dens,
-                                   const std::array<int, 3>& ngrid,
-                                   int ngrid2) override {
+  void add_galaxy_to_density_field(const Galaxy& g, RowMajorArray<Float>* dens,
+                                   const std::array<int, 3>& ngrid) override {
+    const uint64 ngrid2 = dens->shape(2);
     // We truncate to 1/WAVESAMPLE resolution in each
     // cell and use a lookup table.  Table is set up so that each sub-cell
     // resolution has the values for the various integral cell offsets
@@ -183,7 +185,7 @@ class WaveletWindow : public WindowFunction {
     ix = (ix + ng0 + WMIN) % ng0;
     iy = (iy + ng1 + WMIN) % ng1;
     iz = (iz + ng2 + WMIN) % ng2;
-    Float* px = dens + ngrid2 * ng1 * ix;
+    Float* px = dens->get_row(ix, 0);
     for (int ox = 0; ox < WCELLS; ox++, px += ngrid2 * ng1) {
       if (ix + ox == ng0) px -= ng0 * ng1 * ngrid2;  // Periodic wrap in X
       Float Dx = xwave[ox] * g.w;

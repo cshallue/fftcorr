@@ -392,13 +392,14 @@ int main(int argc, char *argv[]) {
           int(ceil(posrange[1] / cell_size)),
           int(ceil(posrange[2] / cell_size)));
 
+  // TODO: there could be some advantages of putting ngrid inside Grid.
   Grid g(box.posmin(), cell_size);
   fprintf(stderr, "sep = %f, cell_size = %f, ngrid =%d\n", sep, cell_size,
           ngrid[0]);
   DiscreteField dens(ngrid);
   fprintf(stderr, "dens size = [%d, %d, %d]\n", dens.dshape()[0],
           dens.dshape()[1], dens.dshape()[2]);
-  MassAssignor mass_assignor(g, &dens, window_type);
+  MassAssignor mass_assignor(g, ngrid, &dens.arr(), window_type);
   SurveyReader reader(&mass_assignor);
   reader.read_galaxies(infile);
   if (infile2 != NULL) {
