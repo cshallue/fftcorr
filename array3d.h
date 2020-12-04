@@ -32,6 +32,7 @@ class RowMajorArray {
     return data_[get_index(ix, iy, iz)];
   }
   Float *get_row(int ix, int iy) { return &at(ix, iy, 0); }
+  const Float *get_row(int ix, int iy) const { return &at(ix, iy, 0); }
 
  private:
   dtype *data_;
@@ -128,7 +129,6 @@ class Array3D {
   // TODO: this might just become a copy constructor. Then initialize could be
   // in the normal constructor.
   void copy_from(const Array3D &other);
-  void copy_with_scalar_multiply(const Array3D &other, Float s);
 
   void set_all(Float value);
 
@@ -147,6 +147,10 @@ class Array3D {
   const std::array<int, 3> &shape() const { return shape_; }
   int shape(int i) const { return shape_[i]; }
   uint64 size() const { return size_; }
+
+  // TODO: remove.
+  RowMajorArray<Float> &arr() { return *arr_; }
+  const RowMajorArray<Float> &arr() const { return *arr_; }
 
  private:
   inline uint64 get_index(int ix, int iy, int iz) const {

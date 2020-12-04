@@ -33,8 +33,8 @@ class DiscreteField {
   uint64 rsize() const { return rsize_; }
   uint64 dsize() const { return arr_.size(); }
 
-  Array3D& arr() { return arr_; }
-  const Array3D& arr() const { return arr_; }
+  RowMajorArray<Float>& arr() { return arr_.arr(); }
+  const RowMajorArray<Float>& arr() const { return arr_.arr(); }
 
   // Real-space operations.
   // TODO: sum and sumsq are over padded elements too! This actually matters if

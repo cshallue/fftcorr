@@ -9,9 +9,12 @@
 
 /* ============== Spherical Harmonic routine ============== */
 
-void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n,
-             const Array1D &xcell, const Array1D &ycell, const Array1D &zcell,
-             const Array3D *mult, int exponent) {
+void makeYlm(RowMajorArray<Float> *Ylm, int ell, int m,
+             const std::array<int, 3> &n, const Array1D &xcell,
+             const Array1D &ycell, const Array1D &zcell,
+             const RowMajorArray<Float> *mult, int exponent) {
+  // TODO: check dimensions
+
   // We're not actually returning Ylm here.
   // m>0 will return Re(Y_lm)*sqrt(2)
   // m<0 will return Im(Y_l|m|)*sqrt(2)
@@ -33,20 +36,34 @@ void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n,
   if (m != 0) isqpi *= sqrt(2.0);  // Do this up-front, so we don't forget
   Float tiny = 1e-20;
 
+  const int cn2 = n[2];  // To help with loop vectorization
+
   if (ell == 0 && m == 0 && exponent == 0) {
-    // This case is so easy that we'll do it first and skip the rest of the set
-    // up
-    if (mult == NULL) {
-      Ylm->set_all(1.0 / sqrt(4.0 * M_PI));
-    } else {
-      Ylm->copy_with_scalar_multiply(*mult, 1.0 / sqrt(4.0 * M_PI));
+    // This case is so easy that we'll do it directly and skip the setup.
+    Float value = 1.0 / sqrt(4.0 * M_PI);
+#pragma omp parallel for YLM_SCHEDULE
+    for (uint64 i = 0; i < n[0]; i++) {
+      if (mult) {
+        Float *Y;
+        const Float *D;
+        for (int j = 0; j < n[1]; j++) {
+          Y = Ylm->get_row(i, j);
+          D = mult->get_row(i, j);
+          for (int k = 0; k < cn2; k++) Y[k] = D[k] * value;
+        }
+      } else {
+        Float *Y;
+        for (int j = 0; j < n[1]; j++) {
+          Y = Ylm->get_row(i, j);
+          for (int k = 0; k < cn2; k++) Y[k] = value;
+        }
+      }
     }
     // YlmTime.Stop();
     return;
   }
 
   const Float *z = zcell.data();
-  const int cn2 = n[2];  // To help with loop vectorization
   Float *z2, *z3, *z4, *ones;
   int err = posix_memalign((void **)&z2, PAGE, sizeof(Float) * n[2] + PAGE);
   assert(err == 0);
@@ -80,8 +97,8 @@ void makeYlm(Array3D *Ylm, int ell, int m, const std::array<int, 3> &n,
     const Float *D;
     for (int j = 0; j < n[1]; j++) {
       // Important to use .at() for when Ylm and mult are internally padded.
-      Y = &Ylm->at(i, j, 0);                           // (i, j, 0)
-      D = (mult == NULL) ? ones : &mult->at(i, j, 0);  // (i, j, 0)
+      Y = Ylm->get_row(i, j);                           // (i, j, 0)
+      D = (mult == NULL) ? ones : mult->get_row(i, j);  // (i, j, 0)
       Float y = ycell[j], y2 = y * y, y3 = y2 * y, y4 = y3 * y;
       for (int k = 0; k < cn2; k++) ir2[k] = 1.0 / (x2 + y2 + z2[k] + tiny);
       // Now figure out the exponent r^n
