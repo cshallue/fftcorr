@@ -32,7 +32,7 @@ class NearestCellWindow : public WindowFunction {
     uint64 ix = floor(g.x);
     uint64 iy = floor(g.y);
     uint64 iz = floor(g.z);
-    uint64 index = index = iz + ngrid2 * (iy + ix * ngrid[1]);
+    uint64 index = iz + ngrid2 * (iy + ix * ngrid[1]);
     dens[index] += g.w;
   }
 };

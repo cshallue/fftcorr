@@ -18,21 +18,23 @@ class RowMajorArray {
         shape_(shape),
         size_((uint64)shape_[0] * shape_[1] * shape_[2]) {}
 
+  // TODO: needed?
   const std::array<int, 3> &shape() const { return shape_; }
+  int shape(int i) const { return shape_[i]; }
   uint64 size() const { return size_; }
 
   // Indexing.
   inline uint64 get_index(int ix, int iy, int iz) const {
     return (uint64)iz + shape_[2] * (iy + ix * shape_[1]);
   }
-  inline Float &at(int ix, int iy, int iz) {
+  inline dtype &at(int ix, int iy, int iz) {
     return data_[get_index(ix, iy, iz)];
   }
-  inline const Float &at(int ix, int iy, int iz) const {
+  inline const dtype &at(int ix, int iy, int iz) const {
     return data_[get_index(ix, iy, iz)];
   }
-  Float *get_row(int ix, int iy) { return &at(ix, iy, 0); }
-  const Float *get_row(int ix, int iy) const { return &at(ix, iy, 0); }
+  dtype *get_row(int ix, int iy) { return &at(ix, iy, 0); }
+  const dtype *get_row(int ix, int iy) const { return &at(ix, iy, 0); }
 
  private:
   dtype *data_;
@@ -126,9 +128,6 @@ class Array3D {
   // for initialization in all internal operations, but DiscreteField needs to
   // figure out the size in the body of its constructor.
   void initialize(std::array<int, 3> shape);
-  // TODO: this might just become a copy constructor. Then initialize could be
-  // in the normal constructor.
-  void copy_from(const Array3D &other);
 
   void set_all(Float value);
 
@@ -140,8 +139,7 @@ class Array3D {
     return data_[get_index(ix, iy, iz)];
   }
 
-  // Real-space operations.
-  void add_scalar(Float s);
+  // TODO: this is duplicated in DiscreteField.
   void multiply_by(Float s);
 
   const std::array<int, 3> &shape() const { return shape_; }

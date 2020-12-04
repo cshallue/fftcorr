@@ -28,13 +28,13 @@ class DiscreteField {
 
   // TODO: add shape(int i)?
   const std::array<int, 3>& rshape() const { return rshape_; }
-  const std::array<int, 3>& dshape() const { return arr_.shape(); }
+  const std::array<int, 3>& dshape() const { return arr_->shape(); }
 
   uint64 rsize() const { return rsize_; }
-  uint64 dsize() const { return arr_.size(); }
+  uint64 dsize() const { return arr_->size(); }
 
-  RowMajorArray<Float>& arr() { return arr_.arr(); }
-  const RowMajorArray<Float>& arr() const { return arr_.arr(); }
+  RowMajorArray<Float>& arr() { return *arr_; }
+  const RowMajorArray<Float>& arr() const { return *arr_; }
 
   // Real-space operations.
   // TODO: sum and sumsq are over padded elements too! This actually matters if
@@ -59,7 +59,11 @@ class DiscreteField {
   uint64 rsize_;
   uint64 csize_;
 
-  Array3D arr_;
+  Float* data_;
+  Complex* cdata_;  // TODO: needed?
+  // TODO: allocate on stack not heap? Need an initialize() method then.
+  RowMajorArray<Float>* arr_;
+  RowMajorArray<Complex>* carr_;
 
 #ifndef FFTSLAB
   fftw_plan fft_;
@@ -75,9 +79,9 @@ class DiscreteField {
   // TODO: just pass arr_ to the MassAssignor?
   friend class MassAssignor;
   inline uint64 get_index(int ix, int iy, int iz) const {
-    return arr_.get_index(ix, iy, iz);
+    return arr_->get_index(ix, iy, iz);
   }
-  Float* data() { return arr_.data_; }
+  Float* data() { return data_; }
 };
 
 #endif  // DISCRETE_FIELD_H

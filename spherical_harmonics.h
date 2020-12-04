@@ -52,6 +52,7 @@ void makeYlm(RowMajorArray<Float> *Ylm, int ell, int m,
           for (int k = 0; k < cn2; k++) Y[k] = D[k] * value;
         }
       } else {
+        // TODO: if I end up with set_all in RowMajorArray, just call that.
         Float *Y;
         for (int j = 0; j < n[1]; j++) {
           Y = Ylm->get_row(i, j);

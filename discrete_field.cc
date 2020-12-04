@@ -28,7 +28,16 @@ DiscreteField::DiscreteField(std::array<int, 3> shape) {
   fprintf(stdout, "# Using dsize_z_=%d for FFT r2c padding\n", dsize_z);
 
   std::array<int, 3> dshape = {rshape_[0], rshape_[1], dsize_z};
-  arr_.initialize(dshape);
+  uint64 dsize = (uint64)dshape[0] * dshape[1] * dshape[2];
+  int err = posix_memalign((void **)&data_, PAGE, sizeof(Float) * dsize + PAGE);
+  assert(err == 0);
+  assert(data_ != NULL);
+  // TODO: do I need to set it to zero?
+  cdata_ = (Complex *)data_;
+
+  arr_ = new RowMajorArray<Float>(data_, dshape);
+  carr_ =
+      new RowMajorArray<Complex>(cdata_, {dshape[0], dshape[1], dshape[2] / 2});
 
   // NULL is a valid fftw_plan value; the planner will return NULL if it fails.
 #ifndef FFTSLAB
@@ -90,8 +99,8 @@ void DiscreteField::setup_fft() {
     fclose(fp);
   }
 
-  // Interpret arr_ as complex.
-  Float *data = arr_.data();
+  // Interpret data_ as complex.
+  Float *data = data_;
   fftw_complex *cdata = (fftw_complex *)data;
 
 #ifndef FFTSLAB
@@ -103,7 +112,7 @@ void DiscreteField::setup_fft() {
   // Since dsize_z is always even, this will trick
   // FFTW to assume dsize_z/2 Complex numbers in the result, while
   // fulfilling that nfft[2]>=ngrid[2].
-  nfft[2] = arr_.shape(2);
+  nfft[2] = arr_->shape(2);
   nfftc[2] = nfft[2] / 2;
   int howmany = 1;  // Only one forward and inverse FFT.
   int dist = 0;     // Unused because howmany = 1.
@@ -117,7 +126,7 @@ void DiscreteField::setup_fft() {
 #else
   // If we wanted to split into 2D and 1D by hand (and therefore handle the OMP
   // aspects ourselves), then we need to have two plans each.
-  int dsize_z = arr_.shape(2);
+  int dsize_z = arr_->shape(2);
   int nfft2[2], nfft2c[2];
   nfft2[0] = nfft2c[0] = rshape_[1];
   nfft2[1] = dsize_z;  // Since dsize_z is always even, this will trick
@@ -162,7 +171,7 @@ void DiscreteField::execute_fft() {
 #else
   // FFTyz.Start();
   // Then need to call this for every slab.  Can OMP these lines
-  int dsize_z = arr_.shape(2);
+  int dsize_z = arr_->shape(2);
 #pragma omp parallel for MY_SCHEDULE
   for (uint64 x = 0; x < rshape_[0]; x++)
     fftw_execute_dft_r2c(fftYZ_, data + x * rshape_[1] * dsize_z,
@@ -185,7 +194,7 @@ void DiscreteField::execute_ifft() {
 #else
   // FFTx.Start();
   // Then need to call this for every slab.  Can OMP these lines
-  int dsize_z = arr_.shape(2);
+  int dsize_z = arr_->shape(2);
 #pragma omp parallel for schedule(dynamic, 1)
   for (uint64 y = 0; y < rshape_[1]; y++)
     fftw_execute_dft(ifftX_, (fftw_complex *)data + y * dsize_z / 2,
@@ -204,44 +213,92 @@ void DiscreteField::execute_ifft() {
 
 void DiscreteField::copy_from(const DiscreteField &other) {
   // TODO: check same dimensions.
-  arr_.copy_from(other.arr_);
+  // Init.Start();
+  const Float *other_data = other.data_;
+#ifdef SLAB
+  int nx = arr_->shape(0);
+  const uint64 nyz = size_ / nx;
+#pragma omp parallel for MY_SCHEDULE
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data_ + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] = other_data[i];
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 i = 0; i < arr_->size(); i++) {
+    data_[i] = other_data[i];
+  }
+#endif
+  // Init.Stop();
 }
 
 void DiscreteField::restore_from(const DiscreteField &other) {
   // TODO: check same dimensions.
-  Float *this_data = arr_.data();
-  const Float *other_data = other.arr_.data();
-  if (other_data[1] != this_data[1] ||
-      other_data[1 + dshape()[2]] != this_data[1 + dshape()[2]] ||
-      other_data[dsize() - 1] != this_data[dsize() - 1]) {
+  if (other.data_[1] != data_[1] ||
+      other.data_[1 + arr_->shape(2)] != data_[1 + arr_->shape(2)] ||
+      other.data_[arr_->size() - 1] != data_[arr_->size() - 1]) {
     // Init.Start();
-    arr_.copy_from(other.arr_);
+    copy_from(other);
     // Init.Stop();
   }
 }
 
-void DiscreteField::add_scalar(Float s) { arr_.add_scalar(s); }
+void DiscreteField::add_scalar(Float s) {
+#ifdef SLAB
+  int nx = arr_->shape(0);
+  const uint64 nyz = arr_->size() / nx;
+#pragma omp parallel for MY_SCHEDULE
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data_ + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] += s;
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 i = 0; i < arr_->size(); ++i) {
+    data_[i] += s;
+  }
+#endif
+}
 
-void DiscreteField::multiply_by(Float s) { arr_.multiply_by(s); }
+void DiscreteField::multiply_by(Float s) {
+#ifdef SLAB
+  int nx = arr_->shape(0);
+  const uint64 nyz = arr_->size() / nx;
+#pragma omp parallel for MY_SCHEDULE
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data_ + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] *= s;
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 i = 0; i < arr_->size(); ++i) {
+    data_[i] *= s;
+  }
+#endif
+}
 
 Float DiscreteField::sum() const {
-  Float *data = arr_.data_;
-  assert(data != NULL);
   Float tot = 0.0;
 #ifdef SLAB
-  int nx = shape_[0];
-  const uint64 nyz = arr_.size_ / nx;
+  int nx = arr_->shape(0);
+  const uint64 nyz = arr_->size() / nx;
 #pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
   for (int x = 0; x < nx; ++x) {
-    Float *slab = data + x * nyz;
+    Float *slab = data_ + x * nyz;
     for (uint64 i = 0; i < nyz; ++i) {
       tot += slab[i];
     }
   }
 #else
 #pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
-  for (uint64 i = 0; i < arr_.size_; ++i) {
-    tot += data[i];
+  for (uint64 i = 0; i < arr_->size(); ++i) {
+    tot += data_[i];
   }
 #endif
   return tot;
@@ -249,33 +306,28 @@ Float DiscreteField::sum() const {
 
 // TODO: come up with a way to template these parallelizable ops
 Float DiscreteField::sumsq() const {
-  Float *data = arr_.data_;
-  assert(data != NULL);
+  assert(data_ != NULL);
   Float tot = 0.0;
 #ifdef SLAB
-  int nx = shape_[0];
-  const uint64 nyz = arr_.size_ / nx;
+  int nx = arr_->shape(0);
+  const uint64 nyz = arr_->size() / nx;
 #pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
   for (int x = 0; x < nx; ++x) {
-    Float *slab = data + x * nyz;
+    Float *slab = data_ + x * nyz;
     for (uint64 i = 0; i < nyz; ++i) {
       tot += slab[i];
     }
   }
 #else
 #pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
-  for (uint64 i = 0; i < arr_.size_; ++i) {
-    tot += data[i] * data[i];
+  for (uint64 i = 0; i < arr_->size(); ++i) {
+    tot += data_[i] * data_[i];
   }
 #endif
   return tot;
 }
 
 void DiscreteField::multiply_with_conjugation(const DiscreteField &other) {
-  Complex *cdata = (Complex *)arr_.data_;
-  Complex *other_cdata = (Complex *)other.arr_.data_;
-  assert(cdata != NULL);
-  assert(other_cdata != NULL);
   // Element-wise multiply by conjugate of other
   // TODO: check same dimensions.
 #ifdef SLAB
@@ -284,7 +336,7 @@ void DiscreteField::multiply_with_conjugation(const DiscreteField &other) {
 #pragma omp parallel for MY_SCHEDULE
   for (int x = 0; x < nx; ++x) {
     Complex *slab = cdata + x * nyz;
-    Complex *other_slab = other.cdata + x * nyz;
+    Complex *other_slab = other.cdata_ + x * nyz;
     for (uint64 i = 0; i < nyz; ++i) {
       slab[i] *= std::conj(other_slab[i]);
     }
@@ -292,7 +344,7 @@ void DiscreteField::multiply_with_conjugation(const DiscreteField &other) {
 #else
 #pragma omp parallel for MY_SCHEDULE
   for (uint64 i = 0; i < csize_; ++i) {
-    cdata[i] *= std::conj(other_cdata[i]);
+    cdata_[i] *= std::conj(other.cdata_[i]);
   }
 #endif
 }
@@ -317,9 +369,9 @@ void DiscreteField::extract_submatrix(Array3D *out, const Array3D *mult) const {
       for (int k = 0; k < oshape[2]; ++k) {
         uint64 kk = (rshape_[2] - oz + k) % rshape_[2];
         if (mult) {
-          out->at(i, j, k) += mult->at(i, j, k) * arr_.at(ii, jj, kk);
+          out->at(i, j, k) += mult->at(i, j, k) * arr_->at(ii, jj, kk);
         } else {
-          out->at(i, j, k) += arr_.at(ii, jj, kk);
+          out->at(i, j, k) += arr_->at(ii, jj, kk);
         }
       }
     }
@@ -360,9 +412,9 @@ void DiscreteField::extract_submatrix_C2R(Array3D *out,
       for (int k = 0; k < oz; ++k) {
         if (mult) {
           out->at(i, j, k) +=
-              mult->at(i, j, k) * std::real(arr_.cat(iin, jjn, oz - k));
+              mult->at(i, j, k) * std::real(carr_->at(iin, jjn, oz - k));
         } else {
-          out->at(i, j, k) += std::real(arr_.cat(iin, jjn, oz - k));
+          out->at(i, j, k) += std::real(carr_->at(iin, jjn, oz - k));
         }
       }
       // The positive half-plane (inclusize)
@@ -370,9 +422,9 @@ void DiscreteField::extract_submatrix_C2R(Array3D *out,
       for (int k = oz; k < oshape[2]; ++k) {
         if (mult) {
           out->at(i, j, k) +=
-              mult->at(i, j, k) * std::real(arr_.cat(ii, jj, k - oz));
+              mult->at(i, j, k) * std::real(carr_->at(ii, jj, k - oz));
         } else {
-          out->at(i, j, k) += std::real(arr_.cat(ii, jj, k - oz));
+          out->at(i, j, k) += std::real(carr_->at(ii, jj, k - oz));
         }
       }
     }
