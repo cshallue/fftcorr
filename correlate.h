@@ -115,7 +115,7 @@ class Correlator {
 
     // Extract power spectrum.
     // TODO: should this include a CICwindow correction like the aniso case?
-    dens->extract_submatrix_C2R(&kcorr);
+    dens->extract_submatrix_C2R(&kcorr.arr());
 
     // iFFT the result, in place
     fprintf(stdout, "IFFT...");
@@ -125,7 +125,7 @@ class Correlator {
     fprintf(stdout, "# Done!\n");
     fflush(NULL);
 
-    dens->extract_submatrix(&corr);
+    dens->extract_submatrix(&corr.arr());
 
     // We must divide by two factors of ncells: the first one completes the
     // inverse FFT (FFTW doesn't include this factor automatically) and the
@@ -340,7 +340,7 @@ class Correlator {
         makeYlm(&kcorr.arr(), ell, m, ksize, kx_cell, ky_cell, kz_cell,
                 &CICwindow.arr(), wide_angle_exponent);
         // Multiply these Ylm by the power result, and then add to total.
-        work.extract_submatrix_C2R(&ktotal, &kcorr);
+        work.extract_submatrix_C2R(&ktotal.arr(), &kcorr.arr());
 
         // iFFT the result, in place
         work.execute_ifft();
@@ -353,7 +353,7 @@ class Correlator {
                 wide_angle_exponent);
 
         // Multiply these Ylm by the correlation result, and then add to total.
-        work.extract_submatrix(&total, &corr);
+        work.extract_submatrix(&total.arr(), &corr.arr());
 
         fprintf(stdout, "Done!\n");
         fflush(NULL);

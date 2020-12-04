@@ -48,10 +48,12 @@ class DiscreteField {
   // Complex-space operations.
   void multiply_with_conjugation(const DiscreteField& other);
 
-  void extract_submatrix(Array3D* out) const;
-  void extract_submatrix(Array3D* out, const Array3D* mult) const;
-  void extract_submatrix_C2R(Array3D* out) const;
-  void extract_submatrix_C2R(Array3D* out, const Array3D* mult) const;
+  void extract_submatrix(RowMajorArray<Float>* out) const;
+  void extract_submatrix(RowMajorArray<Float>* out,
+                         const RowMajorArray<Float>* mult) const;
+  void extract_submatrix_C2R(RowMajorArray<Float>* out) const;
+  void extract_submatrix_C2R(RowMajorArray<Float>* out,
+                             const RowMajorArray<Float>* mult) const;
 
  private:
   std::array<int, 3> rshape_;  // Shape as a real array.
