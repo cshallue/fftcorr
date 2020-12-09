@@ -360,44 +360,14 @@ int main(int argc, char *argv[]) {
     box.pad_to_sep(sep);
   }
 
-  /* Setup Grid ========================================================= */
+  Grid g(ngrid);
+  cell_size = g.cover_box(box, qperiodic, cell_size);
 
-  Float posrange[3];
-  for (int i = 0; i < 3; i++) {
-    posrange[i] = box.posmax()[i] - box.posmin()[i];
-    fprintf(stderr, "posrange[%d] = %f\n", i, posrange[i]);
-  }
-  // Compute the box size required in each direction.
-  if (cell_size <= 0) {
-    // We've been given 3 ngrid and we have the bounding box.
-    // Need to pick the most conservative choice
-    cell_size =
-        std::max(posrange[0] / ngrid[0],
-                 std::max(posrange[1] / ngrid[1], posrange[2] / ngrid[2]));
-  }
-  assert(cell_size * ngrid[0] >= posrange[0]);
-  assert(cell_size * ngrid[1] >= posrange[1]);
-  assert(cell_size * ngrid[2] >= posrange[2]);
-  fprintf(stdout, "# Adopting cell_size=%f for ngrid=%d, %d, %d\n", cell_size,
-          ngrid[0], ngrid[1], ngrid[2]);
-  fprintf(stdout, "# Adopted boxsize: %6.1f %6.1f %6.1f\n",
-          cell_size * ngrid[0], cell_size * ngrid[1], cell_size * ngrid[2]);
-  fprintf(stdout, "# Input pos range: %6.1f %6.1f %6.1f\n", posrange[0],
-          posrange[1], posrange[2]);
-  fprintf(stdout, "# Minimum ngrid=%d, %d, %d\n",
-          int(ceil(posrange[0] / cell_size)),
-          int(ceil(posrange[1] / cell_size)),
-          int(ceil(posrange[2] / cell_size)));
-
-  // TODO: there could be some advantages of putting ngrid inside Grid.
-  Grid g(box.posmin(), cell_size);
-  fprintf(stderr, "sep = %f, cell_size = %f, ngrid =%d\n", sep, cell_size,
-          ngrid[0]);
-  Correlator corr(ngrid, cell_size);
-  DiscreteField &dens = corr.grid();
+  Correlator corr(g);
+  DiscreteField &dens = corr.dens();
   fprintf(stderr, "dens size = [%d, %d, %d]\n", dens.dshape()[0],
           dens.dshape()[1], dens.dshape()[2]);
-  MassAssignor mass_assignor(g, ngrid, &dens.arr(), window_type);
+  MassAssignor mass_assignor(g, &dens.arr(), window_type);
   SurveyReader reader(&mass_assignor);
   reader.read_galaxies(infile);
   if (infile2 != NULL) {
@@ -486,27 +456,12 @@ int main(int argc, char *argv[]) {
                          ngrid[0] * ngrid[1] * ngrid[2]));
   } else {
     // Compute the location of the observer, in grid units.
-    std::array<Float, 3> observer;
-    if (qperiodic) {
-      // In this case, we'll place the observer centered in the grid, but
-      // then displaced far away in the -x direction
-      for (int j = 0; j < 3; j++) {
-        observer[j] = ngrid[j] / 2.0;
-      }
-      observer[0] -= ngrid[0] * 1e6;  // Observer far away!
-    } else {
-      for (int j = 0; j < 3; j++) {
-        // The origin of the survey coordinates.
-        observer[j] = -box.posmin()[j] / cell_size;
-      }
-    }
-
     Histogram2D h(maxell, sep, dsep);
     Histogram2D kh(maxell, kmax, dk);
     Float zerolag = -12345.0;
     fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-    corr.correlate_aniso(observer, sep, kmax, maxell, wide_angle_exponent,
-                         window_type, &h, &kh, &zerolag);
+    corr.correlate_aniso(sep, kmax, maxell, wide_angle_exponent, window_type,
+                         &h, &kh, &zerolag);
 
     Ylm_count.print(stdout);
     fprintf(stdout, "# Anisotropic power spectrum:\n");

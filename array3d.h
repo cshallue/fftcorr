@@ -88,6 +88,8 @@ class Array1D : public ArrayBase<1> {
 
 // TODO: make this a static function of Array1D?
 // Then we can remove the operator[] from Array1D
+// TODO: this should be called something else, or it should take (start, stop,
+// step) instead.
 Array1D range(Float start, Float step, int size);
 
 // TODO: not needed? Just use ArrayBase directly and rename it ArrayNd?

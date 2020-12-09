@@ -15,17 +15,16 @@
 // TODO: rename class or file?
 class MassAssignor {
  public:
-  MassAssignor(const Grid &grid, std::array<int, 3> ngrid,
-               RowMajorArray<Float> *dens, WindowType window_type)
+  MassAssignor(const Grid &grid, RowMajorArray<Float> *dens,
+               WindowType window_type)
       : grid_(grid),
-        ngrid_(ngrid),
         dens_(dens),
         window_func_(make_window_function(window_type)) {
     gal_.reserve(GALAXY_BATCH_SIZE);
   }
 
   void add_galaxy(Float posw[4]) {
-    grid_.change_to_grid_coords(posw);
+    grid_.change_survey_to_grid_coords(posw);
     uint64 index =
         dens_->get_index(floor(posw[0]), floor(posw[1]), floor(posw[2]));
     gal_.push_back(Galaxy(posw, index));
@@ -61,10 +60,12 @@ class MassAssignor {
     // Galaxies between N and N+1 should be in indices [first[N], first[N+1]).
     // That means that first[N] should be the index of the first galaxy to
     // exceed N.
-    int first[ngrid_[0] + 1], ptr = 0;
+
+    const std::array<int, 3> &ngrid = grid_.ngrid();
+    int first[ngrid[0] + 1], ptr = 0;
     for (int j = 0; j < galsize; j++)
       while (gal_[j].x > ptr) first[ptr++] = j;
-    for (; ptr <= ngrid_[0]; ptr++) first[ptr] = galsize;
+    for (; ptr <= ngrid[0]; ptr++) first[ptr] = galsize;
 
     // Now, we'll loop, with each thread in charge of slab x.
     // Not bothering with NUMA issues.  a) Most of the time is spent waiting
@@ -74,10 +75,10 @@ class MassAssignor {
     int slabset = window_func_->width();
     for (int mod = 0; mod < slabset; mod++) {
 #pragma omp parallel for schedule(dynamic, 1)
-      for (int x = mod; x < ngrid_[0]; x += slabset) {
+      for (int x = mod; x < ngrid[0]; x += slabset) {
         // For each slab, insert these particles
         for (int j = first[x]; j < first[x + 1]; j++)
-          window_func_->add_galaxy_to_density_field(gal_[j], dens_, ngrid_);
+          window_func_->add_galaxy_to_density_field(gal_[j], dens_, ngrid);
       }
     }
 #endif
@@ -87,7 +88,6 @@ class MassAssignor {
 
  private:
   const Grid &grid_;
-  std::array<int, 3> ngrid_;
   RowMajorArray<Float> *dens_;
   std::unique_ptr<WindowFunction> window_func_;
 

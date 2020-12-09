@@ -15,17 +15,19 @@
 // TODO: share common code between correlate_iso and correlate_aniso.
 class Correlator {
  public:
-  Correlator(std::array<int, 3> ngrid, Float cell_size)
-      : ngrid_(ngrid), dens_(ngrid), cell_size_(cell_size) {}
+  Correlator(const Grid &grid) : grid_(grid), dens_(grid.ngrid()) {}
 
-  DiscreteField &grid() { return dens_; }
+  DiscreteField &dens() { return dens_; }
 
   void correlate_iso(Float sep, Float kmax, WindowType window_type,
                      Histogram1D *h, Histogram1D *kh, Float *zerolag) {
+    const std::array<int, 3> &ngrid = grid_.ngrid();
+    Float cell_size = grid_.cell_size();
+
     // Storage for the r-space submatrices
-    int sep_cell = ceil(sep / cell_size_);
-    fprintf(stderr, "sep = %f, cell_size_ = %f, sep_cell =%d\n", sep,
-            cell_size_, sep_cell);
+    int sep_cell = ceil(sep / cell_size);
+    fprintf(stderr, "sep = %f, cell_size = %f, sep_cell =%d\n", sep, cell_size,
+            sep_cell);
     // How many cells we must extract as a submatrix to do the histogramming.
     int csizex = 2 * sep_cell + 1;
     assert(csizex % 2 == 1);
@@ -36,10 +38,9 @@ class Correlator {
     for (uint64 i = 0; i < csize[0]; i++)
       for (int j = 0; j < csize[1]; j++)
         for (int k = 0; k < csize[2]; k++) {
-          rnorm.at(i, j, k) =
-              cell_size_ * sqrt((i - sep_cell) * (i - sep_cell) +
-                                (j - sep_cell) * (j - sep_cell) +
-                                (k - sep_cell) * (k - sep_cell));
+          rnorm.at(i, j, k) = cell_size * sqrt((i - sep_cell) * (i - sep_cell) +
+                                               (j - sep_cell) * (j - sep_cell) +
+                                               (k - sep_cell) * (k - sep_cell));
         }
     fprintf(stdout, "# Done setting up the separation submatrix of size +-%d\n",
             sep_cell);
@@ -48,21 +49,21 @@ class Correlator {
 
     // Our box has cubic-sized cells, so k_Nyquist is the same in all
     // directions. The spacing of modes is therefore 2*k_Nyq/ngrid
-    Float k_Nyq = M_PI / cell_size_;  // The Nyquist frequency for our grid.
+    Float k_Nyq = M_PI / cell_size;  // The Nyquist frequency for our grid.
     fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq = %6.4f\n",
             kmax, k_Nyq);
     // How many cells we must extract as a submatrix to do the histogramming.
     std::array<int, 3> ksize;
     for (int i = 0; i < 3; i++)
-      ksize[i] = 2 * ceil(kmax / (2.0 * k_Nyq / ngrid_[i])) + 1;
+      ksize[i] = 2 * ceil(kmax / (2.0 * k_Nyq / ngrid[i])) + 1;
     assert(ksize[0] % 2 == 1);
     assert(ksize[1] % 2 == 1);
     assert(ksize[2] % 2 == 1);
     for (int i = 0; i < 3; i++) {
-      if (ksize[i] > ngrid_[i]) {
+      if (ksize[i] > ngrid[i]) {
         // TODO: in the corner case of kmax ~= k_Nyq, this can be greater than
-        // ngrid_[i].
-        ksize[i] = 2 * floor(ngrid_[i] / 2) + 1;
+        // ngrid[i].
+        ksize[i] = 2 * floor(ngrid[i] / 2) + 1;
         fprintf(stdout,
                 "# WARNING: Requested wavenumber is too big.  Truncating "
                 "ksize_[%d] to %d\n",
@@ -75,12 +76,12 @@ class Correlator {
 
     // The cell centers, relative to zero lag.
     // Allocate kx_cell to [ksize_] and knorm_ to [ksize_**3]
-    Array1D kx_cell = range((-ksize[0] / 2) * 2.0 * k_Nyq / ngrid_[0],
-                            2.0 * k_Nyq / ngrid_[0], ksize[0]);
-    Array1D ky_cell = range((-ksize[1] / 2) * 2.0 * k_Nyq / ngrid_[1],
-                            2.0 * k_Nyq / ngrid_[0], ksize[0]);
-    Array1D kz_cell = range((-ksize[1] / 2) * 2.0 * k_Nyq / ngrid_[0],
-                            2.0 * k_Nyq / ngrid_[0], ksize[1]);
+    Array1D kx_cell = range((-ksize[0] / 2) * 2.0 * k_Nyq / ngrid[0],
+                            2.0 * k_Nyq / ngrid[0], ksize[0]);
+    Array1D ky_cell = range((-ksize[1] / 2) * 2.0 * k_Nyq / ngrid[1],
+                            2.0 * k_Nyq / ngrid[0], ksize[0]);
+    Array1D kz_cell = range((-ksize[1] / 2) * 2.0 * k_Nyq / ngrid[0],
+                            2.0 * k_Nyq / ngrid[0], ksize[1]);
 
     for (uint64 i = 0; i < ksize[0]; i++) {
       for (int j = 0; j < ksize[1]; j++) {
@@ -133,7 +134,7 @@ class Correlator {
     // We must divide by two factors of ncells: the first one completes the
     // inverse FFT (FFTW doesn't include this factor automatically) and the
     // second is the factor converting the autocorrelation to the 2PCF.
-    Float ncells = ngrid_[0] * ngrid_[1] * ngrid_[2];
+    Float ncells = ngrid[0] * ngrid[1] * ngrid[2];
     Float norm = 1.0 / ncells / ncells;
     corr.multiply_by(norm);
 
@@ -157,10 +158,11 @@ class Correlator {
   // zerolag is needed because that information is not in the output histograms
   // (small but nonzero separations are put in the same bin as the zero
   // separation)
-  void correlate_aniso(std::array<Float, 3> origin, Float sep, Float kmax,
-                       int maxell, int wide_angle_exponent,
-                       WindowType window_type, Histogram2D *h, Histogram2D *kh,
-                       Float *zerolag) {
+  void correlate_aniso(Float sep, Float kmax, int maxell,
+                       int wide_angle_exponent, WindowType window_type,
+                       Histogram2D *h, Histogram2D *kh, Float *zerolag) {
+    const std::array<int, 3> &ngrid = grid_.ngrid();
+    Float cell_size = grid_.cell_size();
     // Set up the sub-matrix information, assuming that we'll extract
     // -sep..+sep cells around zero-lag.
     // Setup.Start();
@@ -168,14 +170,16 @@ class Correlator {
     // Compute xcell, ycell, zcell, which are the coordinates of the cell
     // centers in each dimension, relative to the origin. Now set up the cell
     // centers relative to the origin, in grid units
-    Array1D xcell = range(0.5 - origin[0], 1, ngrid_[0]);
-    Array1D ycell = range(0.5 - origin[1], 1, ngrid_[1]);
-    Array1D zcell = range(0.5 - origin[2], 1, ngrid_[2]);
+    Float posmin[3] = {0.5, 0.5, 0.5};  // Center of first cell, in grid coords.
+    grid_.change_grid_to_observer_coords(posmin);
+    Array1D xcell = range(posmin[0], 1, ngrid[0]);
+    Array1D ycell = range(posmin[1], 1, ngrid[1]);
+    Array1D zcell = range(posmin[2], 1, ngrid[2]);
 
     // Storage for the r-space submatrices
-    int sep_cell = ceil(sep / cell_size_);
-    fprintf(stderr, "sep = %f, cell_size_ = %f, sep_cell =%d\n", sep,
-            cell_size_, sep_cell);
+    int sep_cell = ceil(sep / cell_size);
+    fprintf(stderr, "sep = %f, cell_size = %f, sep_cell =%d\n", sep, cell_size,
+            sep_cell);
     // How many cells we must extract as a submatrix to do the histogramming.
     int csizex = 2 * sep_cell + 1;
     assert(csizex % 2 == 1);
@@ -184,40 +188,39 @@ class Correlator {
 
     // Allocate corr_cell to [csize] and rnorm to [csize**3]
     // The cell centers, relative to zero lag.
-    // Normalizing by cell_size_ just so that the Ylm code can do the wide-angle
+    // Normalizing by cell_size just so that the Ylm code can do the wide-angle
     // corrections in the same units.
-    Array1D cx_cell = range(-cell_size_ * sep_cell, cell_size_, csize[0]);
-    Array1D cy_cell = range(-cell_size_ * sep_cell, cell_size_, csize[1]);
-    Array1D cz_cell = range(-cell_size_ * sep_cell, cell_size_, csize[2]);
+    Array1D cx_cell = range(-cell_size * sep_cell, cell_size, csize[0]);
+    Array1D cy_cell = range(-cell_size * sep_cell, cell_size, csize[1]);
+    Array1D cz_cell = range(-cell_size * sep_cell, cell_size, csize[2]);
 
     Array3D rnorm(csize);  // The radius of each cell.
     for (uint64 i = 0; i < csize[0]; i++)
       for (int j = 0; j < csize[1]; j++)
         for (int k = 0; k < csize[2]; k++)
-          rnorm.at(i, j, k) =
-              cell_size_ * sqrt((i - sep_cell) * (i - sep_cell) +
-                                (j - sep_cell) * (j - sep_cell) +
-                                (k - sep_cell) * (k - sep_cell));
+          rnorm.at(i, j, k) = cell_size * sqrt((i - sep_cell) * (i - sep_cell) +
+                                               (j - sep_cell) * (j - sep_cell) +
+                                               (k - sep_cell) * (k - sep_cell));
     fprintf(stdout, "# Done setting up the separation submatrix of size +-%d\n",
             sep_cell);
     // Index of r=0.
     std::array<int, 3> zerosep = {sep_cell, sep_cell, sep_cell};
 
     // Our box has cubic-sized cells, so k_Nyquist is the same in all
-    // directions. The spacing of modes is therefore 2*k_Nyq/ngrid_
-    Float k_Nyq = M_PI / cell_size_;  // The Nyquist frequency for our grid.
+    // directions. The spacing of modes is therefore 2*k_Nyq/ngrid
+    Float k_Nyq = M_PI / cell_size;  // The Nyquist frequency for our grid.
     fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq = %6.4f\n",
             kmax, k_Nyq);
     // How many cells we must extract as a submatrix to do the histogramming.
     std::array<int, 3> ksize;
     for (int i = 0; i < 3; i++)
-      ksize[i] = 2 * ceil(kmax / (2.0 * k_Nyq / ngrid_[i])) + 1;
+      ksize[i] = 2 * ceil(kmax / (2.0 * k_Nyq / ngrid[i])) + 1;
     assert(ksize[0] % 2 == 1);
     assert(ksize[1] % 2 == 1);
     assert(ksize[2] % 2 == 1);
     for (int i = 0; i < 3; i++) {
-      if (ksize[i] > ngrid_[i]) {
-        ksize[i] = 2 * floor(ngrid_[i] / 2) + 1;
+      if (ksize[i] > ngrid[i]) {
+        ksize[i] = 2 * floor(ngrid[i] / 2) + 1;
         fprintf(stdout,
                 "# WARNING: Requested wavenumber is too big.  Truncating "
                 "ksize_[%d] to %d\n",
@@ -226,12 +229,12 @@ class Correlator {
     }
     // The cell centers, relative to zero lag.
     // Allocate kx_cell to [ksize_] and knorm_ to [ksize_**3]
-    Array1D kx_cell = range((-ksize[0] / 2) * 2.0 * k_Nyq / ngrid_[0],
-                            2.0 * k_Nyq / ngrid_[0], ksize[0]);
-    Array1D ky_cell = range((-ksize[1] / 2) * 2.0 * k_Nyq / ngrid_[1],
-                            2.0 * k_Nyq / ngrid_[0], ksize[0]);
-    Array1D kz_cell = range((-ksize[1] / 2) * 2.0 * k_Nyq / ngrid_[0],
-                            2.0 * k_Nyq / ngrid_[0], ksize[1]);
+    Array1D kx_cell = range((-ksize[0] / 2) * 2.0 * k_Nyq / ngrid[0],
+                            2.0 * k_Nyq / ngrid[0], ksize[0]);
+    Array1D ky_cell = range((-ksize[1] / 2) * 2.0 * k_Nyq / ngrid[1],
+                            2.0 * k_Nyq / ngrid[0], ksize[0]);
+    Array1D kz_cell = range((-ksize[1] / 2) * 2.0 * k_Nyq / ngrid[0],
+                            2.0 * k_Nyq / ngrid[0], ksize[1]);
 
     // The wavenumber of each cell, in a flattened submatrix.
     Array3D knorm(ksize);
@@ -251,9 +254,9 @@ class Correlator {
               break;
             case kCloudInCell: {
               // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
-              Float sinkxL = sin(kx_cell[i] * cell_size_ / 2.0);
-              Float sinkyL = sin(ky_cell[j] * cell_size_ / 2.0);
-              Float sinkzL = sin(kz_cell[k] * cell_size_ / 2.0);
+              Float sinkxL = sin(kx_cell[i] * cell_size / 2.0);
+              Float sinkyL = sin(ky_cell[j] * cell_size / 2.0);
+              Float sinkzL = sin(kz_cell[k] * cell_size / 2.0);
               sinkxL *= sinkxL;
               sinkyL *= sinkyL;
               sinkzL *= sinkzL;
@@ -283,12 +286,12 @@ class Correlator {
 
     // Multiply total by 4*pi, to match SE15 normalization
     // Include the FFTW normalization
-    Float norm = 4.0 * M_PI / ngrid_[0] / ngrid_[1] / ngrid_[2];
+    Float norm = 4.0 * M_PI / ngrid[0] / ngrid[1] / ngrid[2];
     Float pnorm = 4.0 * M_PI;
 
     // Allocate the work matrix and load it with the density
     // Ensure that the array is touched before FFT planning
-    DiscreteField work(ngrid_);
+    DiscreteField work(ngrid);
     work.copy_from(dens_);
     work.setup_fft();
     // FFTW might have destroyed the contents of work; need to restore
@@ -311,7 +314,7 @@ class Correlator {
     fflush(NULL);
 
     // Correlate.Stop();  // We're tracking initialization separately
-    DiscreteField densFFT(ngrid_);
+    DiscreteField densFFT(ngrid);
     densFFT.copy_from(work);
     // Correlate.Start();
 
@@ -325,7 +328,7 @@ class Correlator {
       for (int m = -ell; m <= ell; m++) {
         fprintf(stdout, "# Computing %d %2d...", ell, m);
         // Create the Ylm matrix times dens_
-        makeYlm(&work.arr(), ell, m, ngrid_, xcell, ycell, zcell, &dens_.arr(),
+        makeYlm(&work.arr(), ell, m, ngrid, xcell, ycell, zcell, &dens_.arr(),
                 -wide_angle_exponent);
         fprintf(stdout, "Ylm...");
 
@@ -378,9 +381,8 @@ class Correlator {
   }
 
  private:
-  std::array<int, 3> ngrid_;
+  const Grid &grid_;
   DiscreteField dens_;
-  Float cell_size_;
 };
 
 #endif  // CORRELATE_H
