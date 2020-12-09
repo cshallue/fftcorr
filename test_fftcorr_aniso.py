@@ -11,7 +11,6 @@ import numpy as np
 import fftcorr
 
 NGRID = 256
-MAX_SEP = 200.0
 DSEP = 10.0
 MAX_ELL = 2
 COSMOLOGY = {
@@ -75,13 +74,15 @@ class BaseTest(abc.ABC, unittest.TestCase):
 class TestSetupCPP(BaseTest):
     @unittest.skip("Turn off while developing C++ code")
     def run_test(self):
-        ref_dd_file = os.path.join(self.ref_data_dir, "corrDD.dat")
-        ref_rr_file = os.path.join(self.ref_data_dir, "corrRR.dat")
+        if not self.periodic:
+            return
+        ref_dd_file = os.path.join(DATA_DIR, self.hemisphere, "corrDD.dat")
+        ref_rr_file = os.path.join(DATA_DIR, self.hemisphere, "corrRR.dat")
         with tempfile.TemporaryDirectory() as test_dir:
             dd_file = os.path.join(test_dir, "corrDD.dat")
             rr_file = os.path.join(test_dir, "corrRR.dat")
             # TODO: make this a function in fftcorr.py.
-            max_sep = 0.0 if self.periodic else MAX_SEP
+            max_sep = 0.0
             D, R = fftcorr.read_galaxies(self.hemisphere.title(), COSMOLOGY)
             grid = fftcorr.setup_grid(D, R, NGRID, max_sep)[1]
             fftcorr.writeCPPfiles(D, R, grid, dd_file, rr_file)
@@ -91,8 +92,8 @@ class TestSetupCPP(BaseTest):
 
 class TestCorrelateCPP(BaseTest):
     def run_test(self):
-        ref_dd_infile = os.path.join(self.ref_data_dir, "corrDD.dat")
-        ref_rr_infile = os.path.join(self.ref_data_dir, "corrRR.dat")
+        ref_dd_infile = os.path.join(DATA_DIR, self.hemisphere, "corrDD.dat")
+        ref_rr_infile = os.path.join(DATA_DIR, self.hemisphere, "corrRR.dat")
         ref_nn_outfile = os.path.join(self.ref_data_dir, "corrDD.dat.out")
         ref_rr_outfile = os.path.join(self.ref_data_dir, "corrRR.dat.out")
         with tempfile.TemporaryDirectory() as test_dir:

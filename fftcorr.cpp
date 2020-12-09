@@ -264,7 +264,7 @@ int main(int argc, char *argv[]) {
   // Need to get this information.
   Total.Start();
   // Here are some defaults
-  Float sep = -123.0;  // Requested separation; defaults to max_sep from file
+  Float sep = -123.0;
   Float dsep = 10.0;
   Float kmax = 0.03;
   Float dk = 0.01;
@@ -327,12 +327,11 @@ int main(int argc, char *argv[]) {
   assert(ngridCube > 0);
   assert(maxell >= 0 && maxell % 2 == 0);
   assert(wide_angle_exponent % 2 == 0);  // Must be an even number
-  assert(sep != 0.0);
+  assert(sep > 0.0);
   assert(dsep > 0.0);
   assert(kmax != 0.0);
   assert(dk > 0.0);
-  // If qperiodic is set, user must supply a sep, and cannot supply a cell_size
-  assert(qperiodic == 0 || sep > 0);
+  // If qperiodic is set, user cannot supply a cell_size
   assert(qperiodic == 0 || cell_size < 0);
   if (infile == NULL) infile = (char *)default_fname;
   if (outfile != NULL) {
@@ -354,14 +353,12 @@ int main(int argc, char *argv[]) {
 
   setup_wavelet();
 
-  // Read box dimensions from catalog box.
+  // Read box dimensions from catalog header.
   SurveyBox box;
   box.read_header(infile);
-  if (qperiodic) {
-    box.set_periodic_boundary();
+  if (!qperiodic) {
+    box.pad_to_sep(sep);
   }
-  box.ensure_sep(sep);
-  if (sep < 0) sep = box.max_sep();
 
   /* Setup Grid ========================================================= */
 
@@ -500,6 +497,7 @@ int main(int argc, char *argv[]) {
       observer[0] -= ngrid[0] * 1e6;  // Observer far away!
     } else {
       for (int j = 0; j < 3; j++) {
+        // The origin of the survey coordinates.
         observer[j] = -box.posmin()[j] / cell_size;
       }
     }
