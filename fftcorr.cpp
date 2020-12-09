@@ -393,7 +393,7 @@ int main(int argc, char *argv[]) {
   Grid g(box.posmin(), cell_size);
   fprintf(stderr, "sep = %f, cell_size = %f, ngrid =%d\n", sep, cell_size,
           ngrid[0]);
-  Correlator corr(ngrid);
+  Correlator corr(ngrid, cell_size);
   DiscreteField &dens = corr.grid();
   fprintf(stderr, "dens size = [%d, %d, %d]\n", dens.dshape()[0],
           dens.dshape()[1], dens.dshape()[2]);
@@ -469,7 +469,7 @@ int main(int argc, char *argv[]) {
     Histogram1D h(sep, dsep);
     Histogram1D kh(kmax, dk);
     Float zerolag = -12345.0;
-    corr.correlate_iso(cell_size, sep, kmax, window_type, &h, &kh, &zerolag);
+    corr.correlate_iso(sep, kmax, window_type, &h, &kh, &zerolag);
 
     Ylm_count.print(stdout);
     fprintf(stdout, "# Anisotropic power spectrum:\n");
@@ -505,8 +505,8 @@ int main(int argc, char *argv[]) {
     Histogram2D kh(maxell, kmax, dk);
     Float zerolag = -12345.0;
     fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-    corr.correlate_aniso(observer, cell_size, sep, kmax, maxell,
-                         wide_angle_exponent, window_type, &h, &kh, &zerolag);
+    corr.correlate_aniso(observer, sep, kmax, maxell, wide_angle_exponent,
+                         window_type, &h, &kh, &zerolag);
 
     Ylm_count.print(stdout);
     fprintf(stdout, "# Anisotropic power spectrum:\n");

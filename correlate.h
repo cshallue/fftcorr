@@ -15,17 +15,17 @@
 // TODO: share common code between correlate_iso and correlate_aniso.
 class Correlator {
  public:
-  Correlator(std::array<int, 3> ngrid) : ngrid_(ngrid), dens_(ngrid) {}
+  Correlator(std::array<int, 3> ngrid, Float cell_size)
+      : ngrid_(ngrid), dens_(ngrid), cell_size_(cell_size) {}
 
   DiscreteField &grid() { return dens_; }
 
-  void correlate_iso(Float cell_size, Float sep, Float kmax,
-                     WindowType window_type, Histogram1D *h, Histogram1D *kh,
-                     Float *zerolag) {
+  void correlate_iso(Float sep, Float kmax, WindowType window_type,
+                     Histogram1D *h, Histogram1D *kh, Float *zerolag) {
     // Storage for the r-space submatrices
-    int sep_cell = ceil(sep / cell_size);
-    fprintf(stderr, "sep = %f, cell_size = %f, sep_cell =%d\n", sep, cell_size,
-            sep_cell);
+    int sep_cell = ceil(sep / cell_size_);
+    fprintf(stderr, "sep = %f, cell_size_ = %f, sep_cell =%d\n", sep,
+            cell_size_, sep_cell);
     // How many cells we must extract as a submatrix to do the histogramming.
     int csizex = 2 * sep_cell + 1;
     assert(csizex % 2 == 1);
@@ -36,9 +36,10 @@ class Correlator {
     for (uint64 i = 0; i < csize[0]; i++)
       for (int j = 0; j < csize[1]; j++)
         for (int k = 0; k < csize[2]; k++) {
-          rnorm.at(i, j, k) = cell_size * sqrt((i - sep_cell) * (i - sep_cell) +
-                                               (j - sep_cell) * (j - sep_cell) +
-                                               (k - sep_cell) * (k - sep_cell));
+          rnorm.at(i, j, k) =
+              cell_size_ * sqrt((i - sep_cell) * (i - sep_cell) +
+                                (j - sep_cell) * (j - sep_cell) +
+                                (k - sep_cell) * (k - sep_cell));
         }
     fprintf(stdout, "# Done setting up the separation submatrix of size +-%d\n",
             sep_cell);
@@ -47,7 +48,7 @@ class Correlator {
 
     // Our box has cubic-sized cells, so k_Nyquist is the same in all
     // directions. The spacing of modes is therefore 2*k_Nyq/ngrid
-    Float k_Nyq = M_PI / cell_size;  // The Nyquist frequency for our grid.
+    Float k_Nyq = M_PI / cell_size_;  // The Nyquist frequency for our grid.
     fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq = %6.4f\n",
             kmax, k_Nyq);
     // How many cells we must extract as a submatrix to do the histogramming.
@@ -156,8 +157,8 @@ class Correlator {
   // zerolag is needed because that information is not in the output histograms
   // (small but nonzero separations are put in the same bin as the zero
   // separation)
-  void correlate_aniso(std::array<Float, 3> origin, Float cell_size, Float sep,
-                       Float kmax, int maxell, int wide_angle_exponent,
+  void correlate_aniso(std::array<Float, 3> origin, Float sep, Float kmax,
+                       int maxell, int wide_angle_exponent,
                        WindowType window_type, Histogram2D *h, Histogram2D *kh,
                        Float *zerolag) {
     // Set up the sub-matrix information, assuming that we'll extract
@@ -172,9 +173,9 @@ class Correlator {
     Array1D zcell = range(0.5 - origin[2], 1, ngrid_[2]);
 
     // Storage for the r-space submatrices
-    int sep_cell = ceil(sep / cell_size);
-    fprintf(stderr, "sep = %f, cell_size = %f, sep_cell =%d\n", sep, cell_size,
-            sep_cell);
+    int sep_cell = ceil(sep / cell_size_);
+    fprintf(stderr, "sep = %f, cell_size_ = %f, sep_cell =%d\n", sep,
+            cell_size_, sep_cell);
     // How many cells we must extract as a submatrix to do the histogramming.
     int csizex = 2 * sep_cell + 1;
     assert(csizex % 2 == 1);
@@ -183,19 +184,20 @@ class Correlator {
 
     // Allocate corr_cell to [csize] and rnorm to [csize**3]
     // The cell centers, relative to zero lag.
-    // Normalizing by cell_size just so that the Ylm code can do the wide-angle
+    // Normalizing by cell_size_ just so that the Ylm code can do the wide-angle
     // corrections in the same units.
-    Array1D cx_cell = range(-cell_size * sep_cell, cell_size, csize[0]);
-    Array1D cy_cell = range(-cell_size * sep_cell, cell_size, csize[1]);
-    Array1D cz_cell = range(-cell_size * sep_cell, cell_size, csize[2]);
+    Array1D cx_cell = range(-cell_size_ * sep_cell, cell_size_, csize[0]);
+    Array1D cy_cell = range(-cell_size_ * sep_cell, cell_size_, csize[1]);
+    Array1D cz_cell = range(-cell_size_ * sep_cell, cell_size_, csize[2]);
 
     Array3D rnorm(csize);  // The radius of each cell.
     for (uint64 i = 0; i < csize[0]; i++)
       for (int j = 0; j < csize[1]; j++)
         for (int k = 0; k < csize[2]; k++)
-          rnorm.at(i, j, k) = cell_size * sqrt((i - sep_cell) * (i - sep_cell) +
-                                               (j - sep_cell) * (j - sep_cell) +
-                                               (k - sep_cell) * (k - sep_cell));
+          rnorm.at(i, j, k) =
+              cell_size_ * sqrt((i - sep_cell) * (i - sep_cell) +
+                                (j - sep_cell) * (j - sep_cell) +
+                                (k - sep_cell) * (k - sep_cell));
     fprintf(stdout, "# Done setting up the separation submatrix of size +-%d\n",
             sep_cell);
     // Index of r=0.
@@ -203,7 +205,7 @@ class Correlator {
 
     // Our box has cubic-sized cells, so k_Nyquist is the same in all
     // directions. The spacing of modes is therefore 2*k_Nyq/ngrid_
-    Float k_Nyq = M_PI / cell_size;  // The Nyquist frequency for our grid.
+    Float k_Nyq = M_PI / cell_size_;  // The Nyquist frequency for our grid.
     fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq = %6.4f\n",
             kmax, k_Nyq);
     // How many cells we must extract as a submatrix to do the histogramming.
@@ -249,9 +251,9 @@ class Correlator {
               break;
             case kCloudInCell: {
               // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
-              Float sinkxL = sin(kx_cell[i] * cell_size / 2.0);
-              Float sinkyL = sin(ky_cell[j] * cell_size / 2.0);
-              Float sinkzL = sin(kz_cell[k] * cell_size / 2.0);
+              Float sinkxL = sin(kx_cell[i] * cell_size_ / 2.0);
+              Float sinkyL = sin(ky_cell[j] * cell_size_ / 2.0);
+              Float sinkzL = sin(kz_cell[k] * cell_size_ / 2.0);
               sinkxL *= sinkxL;
               sinkyL *= sinkyL;
               sinkzL *= sinkzL;
@@ -378,6 +380,7 @@ class Correlator {
  private:
   std::array<int, 3> ngrid_;
   DiscreteField dens_;
+  Float cell_size_;
 };
 
 #endif  // CORRELATE_H
