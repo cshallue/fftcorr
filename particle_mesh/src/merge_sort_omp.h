@@ -1,8 +1,9 @@
 #ifndef MERGE_SORT_OMP
 #define MERGE_SORT_OMP
 
-#include "STimer.cc"
-#include "galaxy.h"
+// TODO: use include paths in the makefile compiler command
+#include "../../STimer.cc"
+#include "../../galaxy.h"
 
 typedef Galaxy Merge;
 STimer Sorting, Merging;

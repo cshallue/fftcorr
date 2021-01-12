@@ -70,25 +70,6 @@ cloud-in-cell to keep up.
 
 */
 
-/* ======================= Compile-time user flags ================= */
-// #define SLAB		// Handle the arrays by associating threads to x-slabs
-// #define FFTSLAB  	// Do the FFTs in 2D, then 1D
-// #define OPENMP	// Turn on the OPENMP items
-
-#ifndef OPENMP
-#undef SLAB  // We probably don't want to do this if single threaded
-#endif
-#ifdef SLAB
-// Try treating the matrices explicitly by x slab;
-// this might allow NUMA memory to be closer to the socket running the thread.
-#define MY_SCHEDULE schedule(static, 1)
-#define YLM_SCHEDULE schedule(static, 1)
-#else
-// Just treat the matrices as one big object
-#define MY_SCHEDULE schedule(dynamic, 512)
-#define YLM_SCHEDULE schedule(dynamic, 1)
-#endif
-
 /* ======================= Preamble ================= */
 #include <assert.h>
 #include <math.h>
@@ -101,23 +82,15 @@ cloud-in-cell to keep up.
 #include <array>
 #include <vector>
 
-// For multi-threading:
-#ifdef OPENMP
-#include <omp.h>
-#else
-// Just fake these for the single-threaded case, to make code easier to read.
-int omp_get_max_threads() { return 1; }
-int omp_get_num_threads() { return 1; }
-int omp_get_thread_num() { return 0; }
-#endif
-
 #include "STimer.cc"
 #include "array3d.h"
+#include "config_space_grid.h"
 #include "correlate.h"
 #include "discrete_field.h"
 #include "grid.h"
 #include "histogram.h"
-#include "mass_assignment.h"
+#include "multithreading.h"
+#include "particle_mesh/src/mass_assignor.h"
 #include "read_catalog.h"
 #include "survey_box.h"
 #include "types.h"
@@ -360,14 +333,12 @@ int main(int argc, char *argv[]) {
     box.pad_to_sep(sep);
   }
 
+  // TODO: get rid of Grid class?
   Grid g(ngrid);
   cell_size = g.cover_box(box, qperiodic, cell_size);
+  ConfigSpaceGrid grid(ngrid, g.posmin(), cell_size);  // TODO: grid name clash
 
-  Correlator corr(g);
-  DiscreteField &dens = corr.dens();
-  fprintf(stderr, "dens size = [%d, %d, %d]\n", dens.dshape()[0],
-          dens.dshape()[1], dens.dshape()[2]);
-  MassAssignor mass_assignor(g, &dens.arr(), window_type);
+  MassAssignor mass_assignor(&grid, window_type);
   SurveyReader reader(&mass_assignor);
   reader.read_galaxies(infile);
   if (infile2 != NULL) {
@@ -378,6 +349,7 @@ int main(int argc, char *argv[]) {
   // thing happen with NEAREST_CELL?
   mass_assignor.flush_to_density_field();
 
+  Array3D &dens = grid.data();
   fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n",
           reader.count(), reader.totw());
   Float totw2 = dens.sum();
@@ -386,7 +358,7 @@ int main(int argc, char *argv[]) {
   fprintf(stdout, "# Sum of squares of grid is %10.4e \n", dens.sumsq());
   if (qperiodic >= 2) {
     // We're asked to set the mean to zero
-    Float mean = reader.totw() / dens.rsize();
+    Float mean = reader.totw() / dens.size();
     dens.add_scalar(-mean);
     fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
     if (qperiodic == 3) {
@@ -433,8 +405,8 @@ int main(int argc, char *argv[]) {
 
   /* Done setup Grid ======================================================= */
 
-  // The input grid is now in g.dens
-
+  // Compute the correlations.
+  Correlator corr(grid);
   if (isotropic) {
     Histogram1D h(sep, dsep);
     Histogram1D kh(kmax, dk);
@@ -461,7 +433,7 @@ int main(int argc, char *argv[]) {
     Float zerolag = -12345.0;
     fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
     corr.correlate_aniso(sep, kmax, maxell, wide_angle_exponent, window_type,
-                         &h, &kh, &zerolag);
+                         g.observer(), &h, &kh, &zerolag);
 
     Ylm_count.print(stdout);
     fprintf(stdout, "# Anisotropic power spectrum:\n");
@@ -480,7 +452,7 @@ int main(int argc, char *argv[]) {
 
   Total.Stop();
   uint64 nfft = 1;
-  uint64 ngrid3 = dens.dsize();
+  uint64 ngrid3 = dens.size();  // TODO: this should be the padded size
   for (int j = 0; j <= maxell; j += 2) nfft += 2 * (2 * j + 1);
   nfft *= ngrid3;
   fprintf(stdout, "#\n");

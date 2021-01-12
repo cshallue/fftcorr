@@ -5,6 +5,7 @@
 
 #include <array>
 
+#include "config_space_grid.h"
 #include "discrete_field.h"
 #include "grid.h"
 #include "histogram.h"
@@ -15,17 +16,18 @@
 // TODO: share common code between correlate_iso and correlate_aniso.
 class Correlator {
  public:
-  Correlator(const Grid &grid) : grid_(grid), dens_(grid.ngrid()) {}
-
-  DiscreteField &dens() { return dens_; }
+  Correlator(const ConfigSpaceGrid &dens) : dens_(dens), work_(dens_.ngrid()) {
+    // Copy the density field into work_.
+    // TODO: this could go into an initialize() method with other common code.
+    work_.copy_from(dens_.data().arr());
+    fprintf(stderr, "work size = [%d, %d, %d]\n", work_.dshape()[0],
+            work_.dshape()[1], work_.dshape()[2]);
+  }
 
   void correlate_iso(Float sep, Float kmax, WindowType window_type,
                      Histogram1D *h, Histogram1D *kh, Float *zerolag) {
-    fprintf(stderr, "dens sum =%.35e, sumsq=%.35e\n", dens_.sum(),
-            dens_.sumsq());
-
-    const std::array<int, 3> &ngrid = grid_.ngrid();
-    Float cell_size = grid_.cell_size();
+    const std::array<int, 3> &ngrid = dens_.ngrid();
+    Float cell_size = dens_.cell_size();
 
     // Storage for the r-space submatrices
     int sep_cell = ceil(sep / cell_size);
@@ -111,28 +113,28 @@ class Correlator {
 
     // TODO: we should use the quick FFTW setup, since we only FFT and inverse
     // FFT once.
-    dens_.setup_fft();
+    work_.setup_fft();
 
     fprintf(stdout, "# Computing the density FFT...");
-    dens_.execute_fft();
+    work_.execute_fft();
 
     fprintf(stdout, "# Multiply...");
     fflush(NULL);
-    dens_.multiply_with_conjugation(dens_);
+    work_.multiply_with_conjugation(work_);
 
     // Extract power spectrum.
     // TODO: should this include a CICwindow correction like the aniso case?
-    dens_.extract_submatrix_C2R(&kcorr.arr());
+    work_.extract_submatrix_C2R(&kcorr.arr());
 
     // iFFT the result, in place
     fprintf(stdout, "IFFT...");
     fflush(NULL);
-    dens_.execute_ifft();
+    work_.execute_ifft();
 
     fprintf(stdout, "# Done!\n");
     fflush(NULL);
 
-    dens_.extract_submatrix(&corr.arr());
+    work_.extract_submatrix(&corr.arr());
 
     // We must divide by two factors of ncells: the first one completes the
     // inverse FFT (FFTW doesn't include this factor automatically) and the
@@ -163,21 +165,23 @@ class Correlator {
   // separation)
   void correlate_aniso(Float sep, Float kmax, int maxell,
                        int wide_angle_exponent, WindowType window_type,
-                       Histogram2D *h, Histogram2D *kh, Float *zerolag) {
-    const std::array<int, 3> &ngrid = grid_.ngrid();
-    Float cell_size = grid_.cell_size();
+                       std::array<Float, 3> observer, Histogram2D *h,
+                       Histogram2D *kh, Float *zerolag) {
+    const std::array<int, 3> &ngrid = dens_.ngrid();
+    Float cell_size = dens_.cell_size();
     // Set up the sub-matrix information, assuming that we'll extract
     // -sep..+sep cells around zero-lag.
     // Setup.Start();
 
     // Compute xcell, ycell, zcell, which are the coordinates of the cell
     // centers in each dimension, relative to the origin. Now set up the cell
-    // centers relative to the origin, in grid units
-    Float posmin[3] = {0.5, 0.5, 0.5};  // Center of first cell, in grid coords.
-    grid_.change_grid_to_observer_coords(posmin);
-    Array1D xcell = range(posmin[0], 1, ngrid[0]);
-    Array1D ycell = range(posmin[1], 1, ngrid[1]);
-    Array1D zcell = range(posmin[2], 1, ngrid[2]);
+    // centers relative to the origin, in grid units.
+    // {0.5, 0.5, 0.5} is the center of first cell in grid coords. Subtracting
+    // the location of the observer gives the origin with respect to the
+    // observer.
+    Array1D xcell = range(0.5 - observer[0], 1, ngrid[0]);
+    Array1D ycell = range(0.5 - observer[1], 1, ngrid[1]);
+    Array1D zcell = range(0.5 - observer[2], 1, ngrid[2]);
 
     // Storage for the r-space submatrices
     int sep_cell = ceil(sep / cell_size);
@@ -293,13 +297,10 @@ class Correlator {
     Float pnorm = 4.0 * M_PI;
 
     // Allocate the work matrix and load it with the density
-    // Ensure that the array is touched before FFT planning
-    DiscreteField work(ngrid);
-    work.copy_from(dens_);
-    work.setup_fft();
+    work_.setup_fft();
     // FFTW might have destroyed the contents of work; need to restore
-    // work[]==dens_[] So far, I haven't seen this happen.
-    work.restore_from(dens_);
+    // work[]==work_[] So far, I haven't seen this happen.
+    work_.restore_from(dens_.data().arr());
 
     // Allocate total[csize**3] and corr[csize**3]
     Array3D total(csize);
@@ -312,13 +313,13 @@ class Correlator {
     // FFT(work) in place and conjugate it, storing in densFFT
     fprintf(stdout, "# Computing the density FFT...");
     fflush(NULL);
-    work.execute_fft();
+    work_.execute_fft();
     fprintf(stdout, "# Done!\n");
     fflush(NULL);
 
     // Correlate.Stop();  // We're tracking initialization separately
-    DiscreteField densFFT(ngrid);
-    densFFT.copy_from(work);
+    DiscreteField densFFT(ngrid);  // TODO: RowMajorArray<Complex>
+    densFFT.copy_from(work_);
     // Correlate.Start();
 
     /* ------------ Loop over ell & m --------------- */
@@ -330,17 +331,17 @@ class Correlator {
       // Loop over m
       for (int m = -ell; m <= ell; m++) {
         fprintf(stdout, "# Computing %d %2d...", ell, m);
-        // Create the Ylm matrix times dens_
-        makeYlm(&work.arr(), ell, m, ngrid, xcell, ycell, zcell, &dens_.arr(),
-                -wide_angle_exponent);
+        // Create the Ylm matrix times work_
+        makeYlm(&work_.arr(), ell, m, ngrid, xcell, ycell, zcell,
+                &dens_.data().arr(), -wide_angle_exponent);
         fprintf(stdout, "Ylm...");
 
         // FFT in place
-        work.execute_fft();
+        work_.execute_fft();
 
         // Multiply by conj(densFFT), as complex numbers
         // AtimesB.Start();
-        work.multiply_with_conjugation(densFFT);
+        work_.multiply_with_conjugation(densFFT);
         // AtimesB.Stop();
 
         // Extract the anisotropic power spectrum
@@ -348,10 +349,10 @@ class Correlator {
         makeYlm(&kcorr.arr(), ell, m, ksize, kx_cell, ky_cell, kz_cell,
                 &CICwindow.arr(), wide_angle_exponent);
         // Multiply these Ylm by the power result, and then add to total.
-        work.extract_submatrix_C2R(&ktotal.arr(), &kcorr.arr());
+        work_.extract_submatrix_C2R(&ktotal.arr(), &kcorr.arr());
 
         // iFFT the result, in place
-        work.execute_ifft();
+        work_.execute_ifft();
         fprintf(stdout, "FFT...");
 
         // Create Ylm for the submatrix that we'll extract for histogramming
@@ -361,7 +362,7 @@ class Correlator {
                 wide_angle_exponent);
 
         // Multiply these Ylm by the correlation result, and then add to total.
-        work.extract_submatrix(&total.arr(), &corr.arr());
+        work_.extract_submatrix(&total.arr(), &corr.arr());
 
         fprintf(stdout, "Done!\n");
         fflush(NULL);
@@ -384,8 +385,8 @@ class Correlator {
   }
 
  private:
-  const Grid &grid_;
-  DiscreteField dens_;
+  const ConfigSpaceGrid &dens_;
+  DiscreteField work_;
 };
 
 #endif  // CORRELATE_H

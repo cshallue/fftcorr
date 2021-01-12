@@ -3,7 +3,7 @@
 
 #include <assert.h>
 
-#include "mass_assignment.h"
+#include "particle_mesh/src/mass_assignor.h"
 #include "types.h"
 
 #define BUFFER_SIZE 512

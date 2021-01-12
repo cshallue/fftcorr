@@ -18,13 +18,13 @@ class DiscreteField {
   void execute_fft();
   void execute_ifft();
 
-  // TODO: there's actually usually only one object we need to be a
-  // DiscreteField; the other objects are just plain data.
+  // TODO: consider which copy ops we need to support.
+  void copy_from(const RowMajorArray<Float>& other);
   void copy_from(const DiscreteField& other);
   // TODO: this could be private if DiscreteField initializes the FFTs in its
   // copy constructor, and it is a friend class. Then it would (a) copy, (b)
   // setup_fft, (c) restore_from
-  void restore_from(const DiscreteField& other);
+  void restore_from(const RowMajorArray<Float>& other);
 
   // TODO: add shape(int i)?
   const std::array<int, 3>& rshape() const { return rshape_; }
@@ -35,15 +35,6 @@ class DiscreteField {
 
   RowMajorArray<Float>& arr() { return *arr_; }
   const RowMajorArray<Float>& arr() const { return *arr_; }
-
-  // Real-space operations.
-  // TODO: sum and sumsq are over padded elements too! This actually matters if
-  // we normalize the density field, but currently that just affects some
-  // printed info, not the correlations or power spectrum.
-  void add_scalar(Float s);
-  void multiply_by(Float s);
-  Float sum() const;
-  Float sumsq() const;
 
   // Complex-space operations.
   void multiply_with_conjugation(const DiscreteField& other);

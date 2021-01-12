@@ -21,7 +21,7 @@ OMP = -DOPENMP -DFFTSLAB -DSLAB
 
 default: fftcorr
 
-fftcorr: fftcorr.cpp merge_sort_omp.cpp STimer.cc array3d.o discrete_field.o
+fftcorr: fftcorr.cpp array3d.o discrete_field.o
 	${CXX} ${CXXFLAGS} fftcorr.cpp -o fftcorr array3d.o discrete_field.o ${FFTW}
 
 array3d.o: array3d.cc array3d.h types.h

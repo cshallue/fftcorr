@@ -1,5 +1,7 @@
 #include "discrete_field.h"
 
+#include <assert.h>
+
 DiscreteField::DiscreteField(std::array<int, 3> shape) {
   rshape_ = shape;
   cshape_ = std::array<int, 3>({shape[0], shape[1], rshape_[2] / 2 + 1});
@@ -32,6 +34,29 @@ DiscreteField::DiscreteField(std::array<int, 3> shape) {
   int err = posix_memalign((void **)&data_, PAGE, sizeof(Float) * dsize + PAGE);
   assert(err == 0);
   assert(data_ != NULL);
+
+  // Initialize data_ by setting each element.
+  // We want to touch the whole matrix, because in NUMA this defines the
+  // association of logical memory into the physical banks.
+  // Init.Start();
+#ifdef SLAB
+  int nx = dshape[0];
+  const uint64 nyz = dshape[1] * dshape[2];
+#pragma omp parallel for MY_SCHEDULE
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data_ + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] = 0.0;
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 i = 0; i < dsize; ++i) {
+    data_[i] = 0.0;
+  }
+#endif
+  // Init.Stop();
+
   // TODO: do I need to set it to zero?
   cdata_ = (Complex *)data_;
 
@@ -39,7 +64,7 @@ DiscreteField::DiscreteField(std::array<int, 3> shape) {
   carr_ =
       new RowMajorArray<Complex>(cdata_, {dshape[0], dshape[1], dshape[2] / 2});
 
-  // NULL is a valid fftw_plan value; the planner will return NULL if it fails.
+// NULL is a valid fftw_plan value; the planner will return NULL if it fails.
 #ifndef FFTSLAB
   fft_ = NULL;
   ifft_ = NULL;
@@ -211,6 +236,28 @@ void DiscreteField::execute_ifft() {
   // FFTonly.Stop();
 }
 
+void DiscreteField::copy_from(const RowMajorArray<Float> &other) {
+  // TODO: this error checking is not very airtight; we should be able to know
+  // that the only difference is the padded elements, but this may fall short of
+  // that.
+  assert(other.shape(0) == rshape_[0]);
+  assert(other.shape(1) == rshape_[1]);
+  assert(other.shape(2) == rshape_[2]);
+
+#pragma omp parallel for MY_SCHEDULE
+  for (int i = 0; i < other.shape(0); ++i) {
+    for (int j = 0; j < other.shape(1); ++j) {
+      Float *row = arr_->get_row(i, j);
+      const Float *other_row = other.get_row(i, j);
+      for (uint64 k = 0; k < other.shape(2); ++k) {
+        row[k] = other_row[k];
+      }
+    }
+  }
+}
+
+// TODO: unify with the above? The above is copying unpadded into padded. This
+// is copying padded into padded.
 void DiscreteField::copy_from(const DiscreteField &other) {
   // TODO: check same dimensions.
   // Init.Start();
@@ -234,97 +281,15 @@ void DiscreteField::copy_from(const DiscreteField &other) {
   // Init.Stop();
 }
 
-void DiscreteField::restore_from(const DiscreteField &other) {
+void DiscreteField::restore_from(const RowMajorArray<Float> &other) {
   // TODO: check same dimensions.
-  if (other.data_[1] != data_[1] ||
-      other.data_[1 + arr_->shape(2)] != data_[1 + arr_->shape(2)] ||
-      other.data_[arr_->size() - 1] != data_[arr_->size() - 1]) {
+  if (other.at(0, 0, 1) != arr_->at(0, 0, 1) ||
+      other.at(0, 1, 1) != arr_->at(0, 1, 1) ||
+      other.at(1, 1, 1) != arr_->at(1, 1, 1)) {
     // Init.Start();
     copy_from(other);
     // Init.Stop();
   }
-}
-
-void DiscreteField::add_scalar(Float s) {
-#ifdef SLAB
-  int nx = arr_->shape(0);
-  const uint64 nyz = arr_->size() / nx;
-#pragma omp parallel for MY_SCHEDULE
-  for (int x = 0; x < nx; ++x) {
-    Float *slab = data_ + x * nyz;
-    for (uint64 i = 0; i < nyz; ++i) {
-      slab[i] += s;
-    }
-  }
-#else
-#pragma omp parallel for MY_SCHEDULE
-  for (uint64 i = 0; i < arr_->size(); ++i) {
-    data_[i] += s;
-  }
-#endif
-}
-
-void DiscreteField::multiply_by(Float s) {
-#ifdef SLAB
-  int nx = arr_->shape(0);
-  const uint64 nyz = arr_->size() / nx;
-#pragma omp parallel for MY_SCHEDULE
-  for (int x = 0; x < nx; ++x) {
-    Float *slab = data_ + x * nyz;
-    for (uint64 i = 0; i < nyz; ++i) {
-      slab[i] *= s;
-    }
-  }
-#else
-#pragma omp parallel for MY_SCHEDULE
-  for (uint64 i = 0; i < arr_->size(); ++i) {
-    data_[i] *= s;
-  }
-#endif
-}
-
-Float DiscreteField::sum() const {
-  Float tot = 0.0;
-#ifdef SLAB
-  int nx = arr_->shape(0);
-  const uint64 nyz = arr_->size() / nx;
-#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
-  for (int x = 0; x < nx; ++x) {
-    Float *slab = data_ + x * nyz;
-    for (uint64 i = 0; i < nyz; ++i) {
-      tot += slab[i];
-    }
-  }
-#else
-#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
-  for (uint64 i = 0; i < arr_->size(); ++i) {
-    tot += data_[i];
-  }
-#endif
-  return tot;
-}
-
-// TODO: come up with a way to template these parallelizable ops
-Float DiscreteField::sumsq() const {
-  assert(data_ != NULL);
-  Float tot = 0.0;
-#ifdef SLAB
-  int nx = arr_->shape(0);
-  const uint64 nyz = arr_->size() / nx;
-#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
-  for (int x = 0; x < nx; ++x) {
-    Float *slab = data_ + x * nyz;
-    for (uint64 i = 0; i < nyz; ++i) {
-      tot += slab[i];
-    }
-  }
-#else
-#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
-  for (uint64 i = 0; i < arr_->size(); ++i) {
-    tot += data_[i] * data_[i];
-  }
-#endif
-  return tot;
 }
 
 void DiscreteField::multiply_with_conjugation(const DiscreteField &other) {

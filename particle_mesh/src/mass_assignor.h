@@ -4,29 +4,28 @@
 #include <memory>
 #include <vector>
 
-#include "array3d.h"
-#include "galaxy.h"
-#include "merge_sort_omp.cpp"
-#include "types.h"
-#include "window_functions.h"
+// TODO: use include paths in the makefile compiler command
+#include "../../config_space_grid.h"
+#include "../../galaxy.h"
+#include "../../multithreading.h"
+#include "../../types.h"
+#include "../../window_functions.h"
+#include "merge_sort_omp.h"
 
 #define GALAXY_BATCH_SIZE 1000000
 
-// TODO: rename class or file?
 class MassAssignor {
  public:
-  MassAssignor(const Grid &grid, RowMajorArray<Float> *dens,
-               WindowType window_type)
-      : grid_(grid),
-        dens_(dens),
-        window_func_(make_window_function(window_type)) {
+  MassAssignor(ConfigSpaceGrid *grid, WindowType window_type)
+      : grid_(grid), window_func_(make_window_function(window_type)) {
     gal_.reserve(GALAXY_BATCH_SIZE);
   }
 
+  // TODO: this could be vectorized when posw is a matrix.
   void add_galaxy(Float posw[4]) {
-    grid_.change_survey_to_grid_coords(posw);
+    grid_->change_survey_to_grid_coords(posw);
     uint64 index =
-        dens_->get_index(floor(posw[0]), floor(posw[1]), floor(posw[2]));
+        grid_->data().get_index(floor(posw[0]), floor(posw[1]), floor(posw[2]));
     gal_.push_back(Galaxy(posw, index));
     if (gal_.size() >= GALAXY_BATCH_SIZE) {
       // IO.Stop();
@@ -40,12 +39,8 @@ class MassAssignor {
     // CIC.Start();
     const int galsize = gal_.size();
 
-#ifdef DEPRICATED
-    // This works, but appears to be slower
-    for (int j = 0; j < galsize; j++) add_galaxy_to_density_field(grid, gal[j]);
-#else
-    // If we're parallelizing this, then we need to keep the threads from
-    // stepping on each other.  Do this in slabs, but with only every third
+    // If we're parallelizing this, then we need to keep the threads
+    // from stepping on each other.  Do this in slabs, but with only every third
     // slab active at any time.
 
     // Let's sort the particles by x.
@@ -60,11 +55,12 @@ class MassAssignor {
     // Galaxies between N and N+1 should be in indices [first[N], first[N+1]).
     // That means that first[N] should be the index of the first galaxy to
     // exceed N.
-
-    const std::array<int, 3> &ngrid = grid_.ngrid();
-    int first[ngrid[0] + 1], ptr = 0;
-    for (int j = 0; j < galsize; j++)
+    const std::array<int, 3> &ngrid = grid_->ngrid();
+    int first[ngrid[0] + 1];
+    int ptr = 0;
+    for (int j = 0; j < galsize; j++) {
       while (gal_[j].x > ptr) first[ptr++] = j;
+    }
     for (; ptr <= ngrid[0]; ptr++) first[ptr] = galsize;
 
     // Now, we'll loop, with each thread in charge of slab x.
@@ -78,17 +74,17 @@ class MassAssignor {
       for (int x = mod; x < ngrid[0]; x += slabset) {
         // For each slab, insert these particles
         for (int j = first[x]; j < first[x + 1]; j++)
-          window_func_->add_galaxy_to_density_field(gal_[j], dens_, ngrid);
+          window_func_->add_galaxy_to_density_field(
+              gal_[j], &grid_->data().arr(), ngrid);
       }
     }
-#endif
+
     gal_.clear();
     // CIC.Stop();
   }
 
  private:
-  const Grid &grid_;
-  RowMajorArray<Float> *dens_;
+  ConfigSpaceGrid *grid_;
   std::unique_ptr<WindowFunction> window_func_;
 
   std::vector<Galaxy> gal_;

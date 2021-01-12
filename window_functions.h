@@ -19,6 +19,9 @@ class WindowFunction {
  public:
   virtual ~WindowFunction() {}
   virtual int width() = 0;
+  // TODO: this is implemented such that the grid is a subarray of dens in the
+  // third dimension (i.e. for FFT padding), but we may not end up doing that,
+  // in which case this and the implementationns could be simplified.
   virtual void add_galaxy_to_density_field(const Galaxy& g,
                                            RowMajorArray<Float>* dens,
                                            const std::array<int, 3>& ngrid) = 0;

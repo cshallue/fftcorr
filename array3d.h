@@ -137,8 +137,11 @@ class Array3D : public ArrayBase<3> {
     return data_[get_index(ix, iy, iz)];
   }
 
-  // TODO: this is duplicated in DiscreteField.
+  // Operations.
+  void add_scalar(Float s);
   void multiply_by(Float s);
+  Float sum() const;
+  Float sumsq() const;
 
   const std::array<int, 3> &shape() const { return shape_; }
   int shape(int i) const { return shape_[i]; }
@@ -148,11 +151,12 @@ class Array3D : public ArrayBase<3> {
   RowMajorArray<Float> &arr() { return *arr_; }
   const RowMajorArray<Float> &arr() const { return *arr_; }
 
- private:
+  // TODO: private
   inline uint64 get_index(int ix, int iy, int iz) const {
     return arr_->get_index(ix, iy, iz);
   }
 
+ private:
   Float *data() { return data_; }
   const Float *data() const { return data_; }
 
