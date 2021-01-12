@@ -21,6 +21,9 @@ class Correlator {
 
   void correlate_iso(Float sep, Float kmax, WindowType window_type,
                      Histogram1D *h, Histogram1D *kh, Float *zerolag) {
+    fprintf(stderr, "dens sum =%.35e, sumsq=%.35e\n", dens_.sum(),
+            dens_.sumsq());
+
     const std::array<int, 3> &ngrid = grid_.ngrid();
     Float cell_size = grid_.cell_size();
 
