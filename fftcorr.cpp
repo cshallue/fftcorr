@@ -84,10 +84,10 @@ cloud-in-cell to keep up.
 
 #include "STimer.cc"
 #include "array3d.h"
-#include "config_space_grid.h"
 #include "correlate.h"
 #include "discrete_field.h"
 #include "grid.h"
+#include "grid/config_space_grid.h"
 #include "histogram.h"
 #include "multithreading.h"
 #include "particle_mesh/src/mass_assignor.h"

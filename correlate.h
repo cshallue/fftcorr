@@ -5,9 +5,9 @@
 
 #include <array>
 
-#include "config_space_grid.h"
 #include "discrete_field.h"
 #include "grid.h"
+#include "grid/config_space_grid.h"
 #include "histogram.h"
 #include "spherical_harmonics.h"
 #include "types.h"
