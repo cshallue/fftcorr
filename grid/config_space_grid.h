@@ -3,8 +3,8 @@
 
 #include <array>
 
-#include "array3d.h"
-#include "types.h"
+#include "../array3d.h"
+#include "../types.h"
 
 class ConfigSpaceGrid {
  public:
@@ -17,8 +17,17 @@ class ConfigSpaceGrid {
   Float cell_size() const { return cell_size_; }
   const Array3D& data() const { return data_; }
 
+  // TODO: just for testing wrapping; delete.
+  void add_scalar(Float s) { data_.add_scalar(s); }
+  void multiply_by(Float s) { data_.multiply_by(s); }
+  Float sum() const { return data_.sum(); }
+  Float sumsq() const { return data_.sumsq(); }
+
   // TODO: needed for MassAssignor and for fftcorr.cpp normalization.
   Array3D& data() { return data_; }
+
+  // TODO: for wrapping.
+  Float* raw_data() { return data_.arr().get_row(0, 0); }
 
   inline void change_survey_to_grid_coords(Float* pos) const {
     pos[0] = (pos[0] - posmin_[0]) / cell_size_;

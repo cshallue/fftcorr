@@ -33,6 +33,7 @@ class RowMajorArray {
   inline const dtype &at(int ix, int iy, int iz) const {
     return data_[get_index(ix, iy, iz)];
   }
+  // TODO: just use at() syntax instead of a new function? Fewer chars...
   dtype *get_row(int ix, int iy) { return &at(ix, iy, 0); }
   const dtype *get_row(int ix, int iy) const { return &at(ix, iy, 0); }
 

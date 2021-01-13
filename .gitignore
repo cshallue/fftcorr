@@ -1,5 +1,7 @@
 .vscode/*
 fftcorr
 wisdom_fftw
+_*.cpp
 *.pyc
 *.o
+*.so
