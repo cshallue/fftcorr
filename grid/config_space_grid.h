@@ -37,11 +37,11 @@ class ConfigSpaceGrid {
 
  private:
   // Number of cells in each dimension.
-  std::array<int, 3> ngrid_;
+  const std::array<int, 3> ngrid_;
   // The origin of the grid coordinate system, expressed in survey coordinates.
-  std::array<Float, 3> posmin_;
+  const std::array<Float, 3> posmin_;
   // Size of each grid cell, in survey coordinates.
-  Float cell_size_;
+  const Float cell_size_;
 
   // TODO: figure out the minimal array type this class needs. It needs to own
   // and allocate the data, it needs indexing operations, and we need
