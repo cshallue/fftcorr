@@ -11,7 +11,6 @@ cdef class _ConfigSpaceGrid:
     # Allocate the grid on the heap; it would need to have a nullary
     # constructor to allocate it on the stack. TODO: consider this.
     cdef c_ConfigSpaceGrid *c_grid
-    cdef Float* data_ptr
     cdef np.ndarray data_arr
 
     # TODO: to allow the end user to call this more flexibly (i.e. with python
@@ -25,12 +24,12 @@ cdef class _ConfigSpaceGrid:
             posmin_arr[0],
             cell_size)
         
-        self.data_ptr = self.c_grid.raw_data()
         cdef np.npy_intp shape[3]
         for i in range(3):
             shape[i] = ngrid[i]
+        cdef Float* data_ptr = self.c_grid.raw_data()
         # TODO: np.NPY_DOUBLE should be declared in the same place as Float.
-        self.data_arr = np.PyArray_SimpleNewFromData(3, shape, np.NPY_DOUBLE, self.data_ptr)
+        self.data_arr = np.PyArray_SimpleNewFromData(3, shape, np.NPY_DOUBLE, data_ptr)
         assert(np.PyArray_SetBaseObject(self.data_arr, self) == 0)
         Py_INCREF(self)
 
