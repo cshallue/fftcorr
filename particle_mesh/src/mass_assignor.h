@@ -85,8 +85,7 @@ class MassAssignor {
       for (int x = mod; x < ngrid[0]; x += slabset) {
         // For each slab, insert these particles
         for (int j = first[x]; j < first[x + 1]; j++)
-          window_func_->add_particle_to_grid(gal_[j], &grid_->data().arr(),
-                                             ngrid);
+          window_func_->add_particle_to_grid(gal_[j], &grid_->data().arr());
       }
     }
 
