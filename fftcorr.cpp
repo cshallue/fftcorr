@@ -91,10 +91,10 @@ cloud-in-cell to keep up.
 #include "histogram.h"
 #include "multithreading.h"
 #include "particle_mesh/src/mass_assignor.h"
+#include "particle_mesh/src/window_functions.h"
 #include "read_catalog.h"
 #include "survey_box.h"
 #include "types.h"
-#include "window_functions.h"
 
 STimer IO, Setup, FFTW, Correlate, YlmTime, Total, CIC, Misc, FFTonly, Hist,
     Extract, AtimesB, Init, FFTyz, FFTx;
@@ -338,7 +338,8 @@ int main(int argc, char *argv[]) {
   cell_size = g.cover_box(box, qperiodic, cell_size);
   ConfigSpaceGrid grid(ngrid, g.posmin(), cell_size);  // TODO: grid name clash
 
-  MassAssignor mass_assignor(&grid, window_type);
+  int galaxy_batch_size = 1000000;
+  MassAssignor mass_assignor(&grid, window_type, galaxy_batch_size);
   SurveyReader reader(&mass_assignor);
   reader.read_galaxies(infile);
   if (infile2 != NULL) {
@@ -347,18 +348,18 @@ int main(int argc, char *argv[]) {
   // TODO: it should be the same if this goes at the end of read_galaxies(), but
   // right now it causes different behavior! Figure this out: does the same
   // thing happen with NEAREST_CELL?
-  mass_assignor.flush_to_density_field();
+  mass_assignor.flush();
 
   Array3D &dens = grid.data();
   fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n",
-          reader.count(), reader.totw());
+          mass_assignor.count(), mass_assignor.totw());
   Float totw2 = dens.sum();
   fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
-          totw2 - reader.totw());
+          totw2 - mass_assignor.totw());
   fprintf(stdout, "# Sum of squares of grid is %10.4e \n", dens.sumsq());
   if (qperiodic >= 2) {
     // We're asked to set the mean to zero
-    Float mean = reader.totw() / dens.size();
+    Float mean = mass_assignor.totw() / dens.size();
     dens.add_scalar(-mean);
     fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
     if (qperiodic == 3) {
@@ -368,7 +369,7 @@ int main(int argc, char *argv[]) {
     }
   }
 
-  Float totwsq = reader.totwsq();
+  Float totwsq = mass_assignor.totwsq();
   Float sumsq_dens = dens.sumsq();
   fprintf(stdout, "# Sum of squares of density = %14.7e\n", sumsq_dens);
   fprintf(stdout,
@@ -456,6 +457,6 @@ int main(int argc, char *argv[]) {
   for (int j = 0; j <= maxell; j += 2) nfft += 2 * (2 * j + 1);
   nfft *= ngrid3;
   fprintf(stdout, "#\n");
-  ReportTimes(stdout, nfft, ngrid3, reader.count());
+  ReportTimes(stdout, nfft, ngrid3, mass_assignor.count());
   return 0;
 }

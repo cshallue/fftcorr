@@ -4,10 +4,10 @@
 #include <array>
 #include <memory>
 
-#include "array3d.h"
-#include "d12.cpp"  // TODO: possibly incorporate into this file
-#include "galaxy.h"
-#include "types.h"
+#include "../../array3d.h"
+#include "../../galaxy.h"
+#include "../../types.h"
+#include "d12.h"  // TODO: possibly incorporate into this file
 
 enum WindowType {
   kNearestCell = 0,
@@ -22,16 +22,15 @@ class WindowFunction {
   // TODO: this is implemented such that the grid is a subarray of dens in the
   // third dimension (i.e. for FFT padding), but we may not end up doing that,
   // in which case this and the implementationns could be simplified.
-  virtual void add_galaxy_to_density_field(const Galaxy& g,
-                                           RowMajorArray<Float>* dens,
-                                           const std::array<int, 3>& ngrid) = 0;
+  virtual void add_particle_to_grid(const Galaxy& g, RowMajorArray<Float>* dens,
+                                    const std::array<int, 3>& ngrid) = 0;
 };
 
 class NearestCellWindow : public WindowFunction {
   int width() override { return 1; }
 
-  void add_galaxy_to_density_field(const Galaxy& g, RowMajorArray<Float>* dens,
-                                   const std::array<int, 3>& ngrid) override {
+  void add_particle_to_grid(const Galaxy& g, RowMajorArray<Float>* dens,
+                            const std::array<int, 3>& ngrid) override {
     uint64 ix = floor(g.x);
     uint64 iy = floor(g.y);
     uint64 iz = floor(g.z);
@@ -42,8 +41,8 @@ class NearestCellWindow : public WindowFunction {
 class CloudInCellWindow : public WindowFunction {
   int width() override { return 3; }
 
-  void add_galaxy_to_density_field(const Galaxy& g, RowMajorArray<Float>* dens,
-                                   const std::array<int, 3>& ngrid) override {
+  void add_particle_to_grid(const Galaxy& g, RowMajorArray<Float>* dens,
+                            const std::array<int, 3>& ngrid) override {
     const uint64 ngrid2 = dens->shape(2);
     // TODO: when I have tests covering this window function, try to use
     // indexing functions.
@@ -164,8 +163,8 @@ class CloudInCellWindow : public WindowFunction {
 class WaveletWindow : public WindowFunction {
   int width() override { return WCELLS; }
 
-  void add_galaxy_to_density_field(const Galaxy& g, RowMajorArray<Float>* dens,
-                                   const std::array<int, 3>& ngrid) override {
+  void add_particle_to_grid(const Galaxy& g, RowMajorArray<Float>* dens,
+                            const std::array<int, 3>& ngrid) override {
     const uint64 ngrid2 = dens->shape(2);
     // We truncate to 1/WAVESAMPLE resolution in each
     // cell and use a lookup table.  Table is set up so that each sub-cell

@@ -9,32 +9,43 @@
 #include "../../grid/config_space_grid.h"
 #include "../../multithreading.h"
 #include "../../types.h"
-#include "../../window_functions.h"
 #include "merge_sort_omp.h"
+#include "window_functions.h"
 
-#define GALAXY_BATCH_SIZE 1000000
-
+// TODO: transition galaxy -> particle everywhere
 class MassAssignor {
  public:
-  MassAssignor(ConfigSpaceGrid *grid, WindowType window_type)
-      : grid_(grid), window_func_(make_window_function(window_type)) {
-    gal_.reserve(GALAXY_BATCH_SIZE);
+  MassAssignor(ConfigSpaceGrid *grid, WindowType window_type, int buffer_size)
+      : grid_(grid),
+        window_func_(make_window_function(window_type)),
+        buffer_size_(buffer_size),
+        count_(0),
+        totw_(0),
+        totwsq_(0) {
+    gal_.reserve(buffer_size_);
   }
 
+  int count() { return count_; }
+  Float totw() { return totw_; }
+  Float totwsq() { return totwsq_; }
+
   // TODO: this could be vectorized when posw is a matrix.
-  void add_galaxy(Float posw[4]) {
+  void add_particle(Float posw[4]) {
     grid_->change_survey_to_grid_coords(posw);
     uint64 index =
         grid_->data().get_index(floor(posw[0]), floor(posw[1]), floor(posw[2]));
     gal_.push_back(Galaxy(posw, index));
-    if (gal_.size() >= GALAXY_BATCH_SIZE) {
+    if (gal_.size() >= buffer_size_) {
       // IO.Stop();
-      flush_to_density_field();
+      flush();
       // IO.Start();
     }
+    count_ += 1;
+    totw_ += posw[3];
+    totwsq_ += posw[3] * posw[3];
   }
 
-  void flush_to_density_field() {
+  void flush() {
     // Given a set of Galaxies, add them to the grid and then reset the list
     // CIC.Start();
     const int galsize = gal_.size();
@@ -53,7 +64,7 @@ class MassAssignor {
 
     // Now we need to find the starting point of each slab
     // Galaxies between N and N+1 should be in indices [first[N], first[N+1]).
-    // That means that first[N] should be the index of the first galaxy to
+    // That means that first[N] should be the index of the first particle to
     // exceed N.
     const std::array<int, 3> &ngrid = grid_->ngrid();
     int first[ngrid[0] + 1];
@@ -74,8 +85,8 @@ class MassAssignor {
       for (int x = mod; x < ngrid[0]; x += slabset) {
         // For each slab, insert these particles
         for (int j = first[x]; j < first[x + 1]; j++)
-          window_func_->add_galaxy_to_density_field(
-              gal_[j], &grid_->data().arr(), ngrid);
+          window_func_->add_particle_to_grid(gal_[j], &grid_->data().arr(),
+                                             ngrid);
       }
     }
 
@@ -87,8 +98,13 @@ class MassAssignor {
   ConfigSpaceGrid *grid_;
   std::unique_ptr<WindowFunction> window_func_;
 
+  int buffer_size_;
   std::vector<Galaxy> gal_;
   std::vector<Galaxy> buf_;  // Used for mergesort.
+
+  int count_;
+  Float totw_;
+  Float totwsq_;
 };
 
 #endif  // MASS_ASSIGNMENT_H

@@ -9,9 +9,9 @@
 #include "grid.h"
 #include "grid/config_space_grid.h"
 #include "histogram.h"
+#include "particle_mesh/src/window_functions.h"
 #include "spherical_harmonics.h"
 #include "types.h"
-#include "window_functions.h"
 
 // TODO: share common code between correlate_iso and correlate_aniso.
 class Correlator {
