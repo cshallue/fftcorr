@@ -1,13 +1,13 @@
-import py_grid
+from fftcorr.grid import config_space_grid
 import numpy as np
 
 print("Imported grid module")
-print(dir(py_grid))
+print(dir(config_space_grid))
 
 ngrid = [2, 2, 2]
 posmin = [2, -5, 77]
 cell_size = 25
-g = py_grid.ConfigSpaceGrid(ngrid, posmin, cell_size)
+g = config_space_grid.ConfigSpaceGrid(ngrid, posmin, cell_size)
 print("{0:x}".format(id(g)))
 print(dir(g))
 print("posmin =", posmin)
@@ -41,6 +41,6 @@ print("{0:x}".format(id(d2)))
 print(d.flatten())
 
 try:
-    py_grid.ConfigSpaceGrid([2, 2], posmin, cell_size)
+    config_space_grid.ConfigSpaceGrid([2, 2], posmin, cell_size)
 except ValueError as e:
     print(e)

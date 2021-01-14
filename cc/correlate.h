@@ -9,7 +9,7 @@
 #include "grid.h"
 #include "grid/config_space_grid.h"
 #include "histogram.h"
-#include "particle_mesh/src/window_functions.h"
+#include "particle_mesh/window_functions.h"
 #include "spherical_harmonics.h"
 #include "types.h"
 

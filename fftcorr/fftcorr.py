@@ -500,7 +500,7 @@ def write_periodic_random(n, boxsize, filename):
 
 def correlateCPP(filename, dsep, ngrid, max_ell, qperiodic, file2=""):
     outfile = filename + ".out"
-    s = "%s/fftcorr -in %s -out %s -dr %f -n %d -ell %d -r %f" % (
+    s = "%s/cc/fftcorr -in %s -out %s -dr %f -n %d -ell %d -r %f" % (
         os.getcwd(), filename, outfile, dsep, ngrid, max_ell, MAX_SEP)
     if file2:
         s += " -in2 %s" % file2

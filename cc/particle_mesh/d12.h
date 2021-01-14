@@ -1,7 +1,7 @@
 #ifndef D12_H
 #define D12_H
 
-#include "../../types.h"
+#include "../types.h"
 
 // This is the D12 wavelet, sampled to 64.
 

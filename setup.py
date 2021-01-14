@@ -5,9 +5,10 @@ from Cython.Distutils import build_ext
 # The following removes compiler warnings, but causes an error:
 # define_macros=[('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION')]
 ext_modules = [
-    Extension("grid._grid",
-              sources=["grid/_grid.pyx", "array3d.cc"],
-              include_dirs=[numpy.get_include()],
+    # TODO: can we put a separate setup.py for each module?
+    Extension("fftcorr.grid._config_space_grid",
+              sources=["fftcorr/grid/_config_space_grid.pyx", "cc/array3d.cc"],
+              include_dirs=[numpy.get_include(), "cc/grid/"],
               language="c++",
               extra_compile_args=["-std=c++0x"])
 ]

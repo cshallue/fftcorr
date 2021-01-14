@@ -1,9 +1,8 @@
-from _grid import _ConfigSpaceGrid
+from ._config_space_grid import _ConfigSpaceGrid
 
 import numpy as np
 
 
-# TODO: rename these files
 class ConfigSpaceGrid(object):
     def __init__(self, ngrid, posmin, cell_size):
         # Convert input arrays to contiguous arrays of the correct data type.

@@ -8,7 +8,7 @@ import tempfile
 
 import numpy as np
 
-import fftcorr
+from fftcorr import fftcorr
 
 NGRID = 256
 DSEP = 10.0

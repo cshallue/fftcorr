@@ -5,10 +5,10 @@
 #include <vector>
 
 // TODO: use include paths in the makefile compiler command
-#include "../../galaxy.h"
-#include "../../grid/config_space_grid.h"
-#include "../../multithreading.h"
-#include "../../types.h"
+#include "../galaxy.h"
+#include "../grid/config_space_grid.h"
+#include "../multithreading.h"
+#include "../types.h"
 #include "merge_sort_omp.h"
 #include "window_functions.h"
 
