@@ -1,4 +1,4 @@
-from grid import _ConfigSpaceGrid  # TODO: perhaps _grid and ConfigSpaceGrid
+from _grid import _ConfigSpaceGrid
 
 import numpy as np
 
