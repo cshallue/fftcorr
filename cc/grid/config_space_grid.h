@@ -29,10 +29,10 @@ class ConfigSpaceGrid {
   // TODO: for wrapping.
   Float* raw_data() { return data_.arr().get_row(0, 0); }
 
-  inline void change_survey_to_grid_coords(Float* pos) const {
-    pos[0] = (pos[0] - posmin_[0]) / cell_size_;
-    pos[1] = (pos[1] - posmin_[1]) / cell_size_;
-    pos[2] = (pos[2] - posmin_[2]) / cell_size_;
+  inline void change_survey_to_grid_coords(Float& x, Float& y, Float& z) const {
+    x = (x - posmin_[0]) / cell_size_;
+    y = (y - posmin_[1]) / cell_size_;
+    z = (z - posmin_[2]) / cell_size_;
   }
 
  private:

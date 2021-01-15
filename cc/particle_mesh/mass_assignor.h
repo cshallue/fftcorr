@@ -30,19 +30,18 @@ class MassAssignor {
   Float totwsq() { return totwsq_; }
 
   // TODO: this could be vectorized when posw is a matrix.
-  void add_particle(Float posw[4]) {
-    grid_->change_survey_to_grid_coords(posw);
-    uint64 index =
-        grid_->data().get_index(floor(posw[0]), floor(posw[1]), floor(posw[2]));
-    gal_.push_back(Galaxy(posw, index));
+  void add_particle(Float x, Float y, Float z, Float w) {
+    grid_->change_survey_to_grid_coords(x, y, z);
+    uint64 index = grid_->data().get_index(floor(x), floor(y), floor(z));
+    gal_.push_back(Galaxy(x, y, z, w, index));
     if (gal_.size() >= buffer_size_) {
       // IO.Stop();
       flush();
       // IO.Start();
     }
     count_ += 1;
-    totw_ += posw[3];
-    totwsq_ += posw[3] * posw[3];
+    totw_ += w;
+    totwsq_ += w * w;
   }
 
   void flush() {
