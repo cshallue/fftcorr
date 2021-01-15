@@ -67,7 +67,7 @@ class ArrayBase {
   const Float *data() const { return data_; }  // TODO: remove?
 
   void set_all(Float value) {
-    for (int i = 0; i < size_; ++i) data_[i] = value;
+    for (uint64 i = 0; i < size_; ++i) data_[i] = value;
   }
 
  protected:

@@ -1,4 +1,4 @@
-from ._config_space_grid import _ConfigSpaceGrid
+from fftcorr.grid._config_space_grid import _ConfigSpaceGrid
 
 import numpy as np
 

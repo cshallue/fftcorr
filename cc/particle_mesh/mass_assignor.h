@@ -12,10 +12,10 @@
 #include "merge_sort_omp.h"
 #include "window_functions.h"
 
-// TODO: transition galaxy -> particle everywhere
 class MassAssignor {
  public:
-  MassAssignor(ConfigSpaceGrid *grid, WindowType window_type, int buffer_size)
+  MassAssignor(ConfigSpaceGrid *grid, WindowType window_type,
+               uint64 buffer_size)
       : grid_(grid),
         window_func_(make_window_function(window_type)),
         buffer_size_(buffer_size),
@@ -29,7 +29,6 @@ class MassAssignor {
   Float totw() { return totw_; }
   Float totwsq() { return totwsq_; }
 
-  // TODO: this could be vectorized when posw is a matrix.
   void add_particle(Float x, Float y, Float z, Float w) {
     grid_->change_survey_to_grid_coords(x, y, z);
     uint64 index = grid_->data().get_index(floor(x), floor(y), floor(z));
@@ -96,7 +95,7 @@ class MassAssignor {
   ConfigSpaceGrid *grid_;
   std::unique_ptr<WindowFunction> window_func_;
 
-  int buffer_size_;
+  uint64 buffer_size_;
   std::vector<Galaxy> gal_;
   std::vector<Galaxy> buf_;  // Used for mergesort.
 

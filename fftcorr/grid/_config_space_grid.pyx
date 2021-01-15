@@ -1,19 +1,14 @@
-from config_space_grid_cc cimport array, Three, ConfigSpaceGrid as cc_ConfigSpaceGrid
-
+# TODO: could import cc_ConfigSpaceGrid from fftcorr.grid since it's in the
+# __init__.pxd file.
+from fftcorr.grid.config_space_grid_cc cimport array, Three, ConfigSpaceGrid as cc_ConfigSpaceGrid
 from fftcorr.types cimport Float
 
 from cpython cimport Py_INCREF
 
-import numpy as np
 cimport numpy as cnp
 cnp.import_array()
 
 cdef class _ConfigSpaceGrid:
-    # Allocate the grid on the heap; it would need to have a nullary
-    # constructor to allocate it on the stack. TODO: consider this.
-    cdef cc_ConfigSpaceGrid *cc_grid
-    cdef cnp.ndarray data_arr
-
     def __cinit__(self, const int[::1] ngrid, const Float[::1] posmin, Float cell_size):
         cdef array[int, Three] *ngrid_arr = <array[int, Three] *>(&ngrid[0])
         cdef array[Float, Three] *posmin_arr = <array[Float, Three] *>(&posmin[0])

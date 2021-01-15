@@ -28,9 +28,9 @@ class NearestCellWindow : public WindowFunction {
 
   void add_particle_to_grid(const Galaxy& g,
                             RowMajorArray<Float>* dens) override {
-    uint64 ix = floor(g.x);
-    uint64 iy = floor(g.y);
-    uint64 iz = floor(g.z);
+    int ix = floor(g.x);
+    int iy = floor(g.y);
+    int iz = floor(g.z);
     dens->at(ix, iy, iz) += g.w;
   }
 };
@@ -47,16 +47,16 @@ class CloudInCellWindow : public WindowFunction {
     // we're assuming that nz1 == nz2, but the more general case can be handled
     // simply by making ngrid2 an additional parameter to this function.
     const std::array<int, 3>& ngrid = dens->shape();  // [nx1, ny1, nz1]
-    const uint64 ngrid2 = ngrid[2];                   // nz2
+    const int ngrid2 = ngrid[2];                      // nz2
 
     // TODO: when I have tests covering this window function, try to use
     // indexing functions.
     Float* d = dens->get_row(0, 0);
     // 27-point triangular cloud-in-cell.
     uint64 index;
-    uint64 ix = floor(g.x);
-    uint64 iy = floor(g.y);
-    uint64 iz = floor(g.z);
+    int ix = floor(g.x);
+    int iy = floor(g.y);
+    int iz = floor(g.z);
 
     Float rx = g.x - ix;
     Float ry = g.y - iy;
@@ -75,15 +75,15 @@ class CloudInCellWindow : public WindowFunction {
     if (ix == 0 || ix == ngrid[0] - 1 || iy == 0 || iy == ngrid[1] - 1 ||
         iz == 0 || iz == ngrid[2] - 1) {
       // This code does periodic wrapping
-      const uint64 ng0 = ngrid[0];
-      const uint64 ng1 = ngrid[1];
-      const uint64 ng2 = ngrid[2];
+      const int ng0 = ngrid[0];
+      const int ng1 = ngrid[1];
+      const int ng2 = ngrid[2];
       ix += ngrid[0];  // Just to put away any fears of negative mods
       iy += ngrid[1];
       iz += ngrid[2];
-      const uint64 izm = (iz - 1) % ng2;
-      const uint64 iz0 = (iz) % ng2;
-      const uint64 izp = (iz + 1) % ng2;
+      const int izm = (iz - 1) % ng2;
+      const int iz0 = (iz) % ng2;
+      const int izp = (iz + 1) % ng2;
       //
       index = ngrid2 * (((iy - 1) % ng1) + ((ix - 1) % ng0) * ng1);
       d[index + izm] += xm * ym * zm;
@@ -177,25 +177,25 @@ class WaveletWindow : public WindowFunction {
     // we're assuming that nz1 == nz2, but the more general case can be handled
     // simply by making ngrid2 an additional parameter to this function.
     const std::array<int, 3>& ngrid = dens->shape();  // [nx1, ny1, nz1]
-    const uint64 ngrid2 = ngrid[2];                   // nz2
+    const int ngrid2 = ngrid[2];                      // nz2
 
     // We truncate to 1/WAVESAMPLE resolution in each
     // cell and use a lookup table.  Table is set up so that each sub-cell
     // resolution has the values for the various integral cell offsets
     // contiguous in memory.
-    uint64 ix = floor(g.x);
-    uint64 iy = floor(g.y);
-    uint64 iz = floor(g.z);
-    uint64 sx = floor((g.x - ix) * WAVESAMPLE);
-    uint64 sy = floor((g.y - iy) * WAVESAMPLE);
-    uint64 sz = floor((g.z - iz) * WAVESAMPLE);
+    int ix = floor(g.x);
+    int iy = floor(g.y);
+    int iz = floor(g.z);
+    int sx = floor((g.x - ix) * WAVESAMPLE);
+    int sy = floor((g.y - iy) * WAVESAMPLE);
+    int sz = floor((g.z - iz) * WAVESAMPLE);
     const Float* xwave = wave + sx * WCELLS;
     const Float* ywave = wave + sy * WCELLS;
     const Float* zwave = wave + sz * WCELLS;
     // This code does periodic wrapping
-    const uint64 ng0 = ngrid[0];
-    const uint64 ng1 = ngrid[1];
-    const uint64 ng2 = ngrid[2];
+    const int ng0 = ngrid[0];
+    const int ng1 = ngrid[1];
+    const int ng2 = ngrid[2];
     // Offset to the lower-most cell, taking care to handle unsigned int
     ix = (ix + ng0 + WMIN) % ng0;
     iy = (iy + ng1 + WMIN) % ng1;
