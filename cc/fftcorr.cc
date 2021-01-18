@@ -85,7 +85,6 @@ cloud-in-cell to keep up.
 #include "STimer.cc"
 #include "array3d.h"
 #include "correlate.h"
-#include "discrete_field.h"
 #include "grid.h"
 #include "grid/config_space_grid.h"
 #include "histogram.h"

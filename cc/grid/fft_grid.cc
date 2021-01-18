@@ -1,8 +1,8 @@
-#include "discrete_field.h"
+#include "fft_grid.h"
 
 #include <assert.h>
 
-DiscreteField::DiscreteField(std::array<int, 3> shape) {
+FftGrid::FftGrid(std::array<int, 3> shape) {
   rshape_ = shape;
   cshape_ = std::array<int, 3>({shape[0], shape[1], rshape_[2] / 2 + 1});
   rsize_ = (uint64)rshape_[0] * rshape_[1] * rshape_[2];
@@ -74,7 +74,7 @@ DiscreteField::DiscreteField(std::array<int, 3> shape) {
 #endif
 }
 
-DiscreteField::~DiscreteField() {
+FftGrid::~FftGrid() {
   // Destroy the FFT plans.
 #ifndef FFTSLAB
   if (fft_ != NULL) fftw_destroy_plan(fft_);
@@ -92,7 +92,7 @@ DiscreteField::~DiscreteField() {
 #endif
 }
 
-void DiscreteField::setup_fft() {
+void FftGrid::setup_fft() {
   // Setup the FFTW plans, possibly from disk, and save the wisdom
   fprintf(stdout, "# Planning the FFTs...");
   fflush(NULL);
@@ -185,7 +185,7 @@ void DiscreteField::setup_fft() {
   // FFTW.Stop();
 }
 
-void DiscreteField::execute_fft() {
+void FftGrid::execute_fft() {
   // TODO: assert that setup has been called. Decide best way to crash with
   // informative message. Same with execute_ifft
   // FFTonly.Start();
@@ -210,7 +210,7 @@ void DiscreteField::execute_fft() {
   // FFTonly.Stop();
 }
 
-void DiscreteField::execute_ifft() {
+void FftGrid::execute_ifft() {
   // FFTonly.Start();
 #ifndef FFTSLAB
   fftw_execute(ifft_);
@@ -234,7 +234,7 @@ void DiscreteField::execute_ifft() {
   // FFTonly.Stop();
 }
 
-void DiscreteField::copy_from(const RowMajorArray<Float> &other) {
+void FftGrid::copy_from(const RowMajorArray<Float> &other) {
   // TODO: this error checking is not very airtight; we should be able to know
   // that the only difference is the padded elements, but this may fall short of
   // that.
@@ -256,7 +256,7 @@ void DiscreteField::copy_from(const RowMajorArray<Float> &other) {
 
 // TODO: unify with the above? The above is copying unpadded into padded. This
 // is copying padded into padded.
-void DiscreteField::copy_from(const DiscreteField &other) {
+void FftGrid::copy_from(const FftGrid &other) {
   // TODO: check same dimensions.
   // Init.Start();
   const Float *other_data = other.data_;
@@ -279,7 +279,7 @@ void DiscreteField::copy_from(const DiscreteField &other) {
   // Init.Stop();
 }
 
-void DiscreteField::restore_from(const RowMajorArray<Float> &other) {
+void FftGrid::restore_from(const RowMajorArray<Float> &other) {
   // TODO: check same dimensions.
   if (other.at(0, 0, 1) != arr_->at(0, 0, 1) ||
       other.at(0, 1, 1) != arr_->at(0, 1, 1) ||
@@ -290,7 +290,7 @@ void DiscreteField::restore_from(const RowMajorArray<Float> &other) {
   }
 }
 
-void DiscreteField::multiply_with_conjugation(const DiscreteField &other) {
+void FftGrid::multiply_with_conjugation(const FftGrid &other) {
   // Element-wise multiply by conjugate of other
   // TODO: check same dimensions.
 #ifdef SLAB
@@ -312,12 +312,12 @@ void DiscreteField::multiply_with_conjugation(const DiscreteField &other) {
 #endif
 }
 
-void DiscreteField::extract_submatrix(RowMajorArray<Float> *out) const {
+void FftGrid::extract_submatrix(RowMajorArray<Float> *out) const {
   extract_submatrix(out, NULL);
 }
 
-void DiscreteField::extract_submatrix(RowMajorArray<Float> *out,
-                                      const RowMajorArray<Float> *mult) const {
+void FftGrid::extract_submatrix(RowMajorArray<Float> *out,
+                                const RowMajorArray<Float> *mult) const {
   // TODO: check dimensions.
   // Extract out a submatrix, centered on [0,0,0] of this array
   // Multiply elementwise by mult.
@@ -352,12 +352,12 @@ void DiscreteField::extract_submatrix(RowMajorArray<Float> *out,
   // Extract.Stop();
 }
 
-void DiscreteField::extract_submatrix_C2R(RowMajorArray<Float> *out) const {
+void FftGrid::extract_submatrix_C2R(RowMajorArray<Float> *out) const {
   extract_submatrix_C2R(out, NULL);
 }
 
-void DiscreteField::extract_submatrix_C2R(
-    RowMajorArray<Float> *out, const RowMajorArray<Float> *mult) const {
+void FftGrid::extract_submatrix_C2R(RowMajorArray<Float> *out,
+                                    const RowMajorArray<Float> *mult) const {
   // Given a large matrix work[ngrid^3/2],
   // extract out a submatrix of size csize^3, centered on work[0,0,0].
   // The input matrix is Complex * with the half-domain Fourier convention.

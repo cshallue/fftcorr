@@ -5,9 +5,9 @@
 
 #include <array>
 
-#include "discrete_field.h"
 #include "grid.h"
 #include "grid/config_space_grid.h"
+#include "grid/fft_grid.h"
 #include "histogram.h"
 #include "particle_mesh/window_functions.h"
 #include "spherical_harmonics.h"
@@ -319,7 +319,7 @@ class Correlator {
     fflush(NULL);
 
     // Correlate.Stop();  // We're tracking initialization separately
-    DiscreteField densFFT(ngrid);  // TODO: RowMajorArray<Complex>
+    FftGrid densFFT(ngrid);  // TODO: RowMajorArray<Complex>
     densFFT.copy_from(work_);
     // Correlate.Start();
 
@@ -387,7 +387,7 @@ class Correlator {
 
  private:
   const ConfigSpaceGrid &dens_;
-  DiscreteField work_;
+  FftGrid work_;
 };
 
 #endif  // CORRELATE_H

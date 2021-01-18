@@ -1,17 +1,17 @@
-#ifndef DISCRETE_FIELD_H
-#define DISCRETE_FIELD_H
+#ifndef FFT_GRID_H
+#define FFT_GRID_H
 
 #include <fftw3.h>
 
 #include <array>
 
-#include "array3d.h"
-#include "types.h"
+#include "../array3d.h"
+#include "../types.h"
 
-class DiscreteField {
+class FftGrid {
  public:
-  DiscreteField(std::array<int, 3> shape);
-  ~DiscreteField();
+  FftGrid(std::array<int, 3> shape);
+  ~FftGrid();
 
   // TODO: allow the user to pass fft flags? I.e. FFT_MEASURE, etc.
   void setup_fft();
@@ -20,8 +20,8 @@ class DiscreteField {
 
   // TODO: consider which copy ops we need to support.
   void copy_from(const RowMajorArray<Float>& other);
-  void copy_from(const DiscreteField& other);
-  // TODO: this could be private if DiscreteField initializes the FFTs in its
+  void copy_from(const FftGrid& other);
+  // TODO: this could be private if FftGrid initializes the FFTs in its
   // copy constructor, and it is a friend class. Then it would (a) copy, (b)
   // setup_fft, (c) restore_from
   void restore_from(const RowMajorArray<Float>& other);
@@ -37,7 +37,7 @@ class DiscreteField {
   const RowMajorArray<Float>& arr() const { return *arr_; }
 
   // Complex-space operations.
-  void multiply_with_conjugation(const DiscreteField& other);
+  void multiply_with_conjugation(const FftGrid& other);
 
   // TODO: these can be out-of-class operations on two RowMajorArray<>s?
   void extract_submatrix(RowMajorArray<Float>* out) const;
@@ -70,4 +70,4 @@ class DiscreteField {
 #endif
 };
 
-#endif  // DISCRETE_FIELD_H
+#endif  // FFT_GRID_H
