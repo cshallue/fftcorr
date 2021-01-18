@@ -30,7 +30,8 @@ class Correlator {
     Float cell_size = dens_.cell_size();
 
     // Storage for the r-space submatrices
-    int sep_cell = ceil(sep / cell_size);
+    // TODO: consistency with using r or s for separation space
+    int sep_cell = ceil(sep / cell_size);  // sep in grid units
     fprintf(stderr, "sep = %f, cell_size = %f, sep_cell =%d\n", sep, cell_size,
             sep_cell);
     // How many cells we must extract as a submatrix to do the histogramming.
@@ -39,7 +40,7 @@ class Correlator {
     std::array<int, 3> csize = {csizex, csizex, csizex};
     fprintf(stderr, "csize = [%d, %d, %d]\n", csize[0], csize[1], csize[2]);
 
-    Array3D rnorm(csize);  // The radius of each cell.
+    Array3D rnorm(csize);  // Radius of each histogram bin in separation space.
     for (uint64 i = 0; i < csize[0]; i++)
       for (int j = 0; j < csize[1]; j++)
         for (int k = 0; k < csize[2]; k++) {

@@ -34,6 +34,7 @@ DiscreteField::DiscreteField(std::array<int, 3> shape) {
   int err = posix_memalign((void **)&data_, PAGE, sizeof(Float) * dsize + PAGE);
   assert(err == 0);
   assert(data_ != NULL);
+  cdata_ = (Complex *)data_;
 
   // Initialize data_ by setting each element.
   // We want to touch the whole matrix, because in NUMA this defines the
@@ -56,9 +57,6 @@ DiscreteField::DiscreteField(std::array<int, 3> shape) {
   }
 #endif
   // Init.Stop();
-
-  // TODO: do I need to set it to zero?
-  cdata_ = (Complex *)data_;
 
   arr_ = new RowMajorArray<Float>(data_, dshape);
   carr_ =
@@ -328,6 +326,11 @@ void DiscreteField::extract_submatrix(RowMajorArray<Float> *out,
   int ox = oshape[0] / 2;  // This is the middle of the submatrix
   int oy = oshape[1] / 2;  // This is the middle of the submatrix
   int oz = oshape[2] / 2;  // This is the middle of the submatrix
+
+  // TODO: if mult is null, create an array of 1s. Currently, the only time we
+  // DON'T have mult is in the isotropic case, we only call this function once
+  // in that case. Meanwhile, we call this function many times in the
+  // anisotropic case, where mult is not null.
 #pragma omp parallel for schedule(dynamic, 1)
   for (uint64 i = 0; i < oshape[0]; ++i) {
     uint64 ii = (rshape_[0] - ox + i) % rshape_[0];
@@ -335,10 +338,13 @@ void DiscreteField::extract_submatrix(RowMajorArray<Float> *out,
       uint64 jj = (rshape_[1] - oy + j) % rshape_[1];
       for (int k = 0; k < oshape[2]; ++k) {
         uint64 kk = (rshape_[2] - oz + k) % rshape_[2];
+        Float *out_data = out->get_row(i, j);
+        const Float *m = mult ? mult->get_row(i, j) : NULL;
+        Float *arr_data = arr_->get_row(ii, jj);
         if (mult) {
-          out->at(i, j, k) += mult->at(i, j, k) * arr_->at(ii, jj, kk);
+          out_data[k] += m[k] * arr_data[kk];
         } else {
-          out->at(i, j, k) += arr_->at(ii, jj, kk);
+          out_data[k] += arr_data[kk];
         }
       }
     }
@@ -373,25 +379,27 @@ void DiscreteField::extract_submatrix_C2R(
     for (int j = 0; j < oshape[1]; ++j) {
       uint64 jj = (cshape_[1] - oy + j) % cshape_[1];
       uint64 jjn = (cshape_[1] - jj) % cshape_[1];  // The reflected coord
-      // The negative half-plane (inclusize), reflected.
+      // The negative half-plane (inclusive), reflected.
       // k=oz-1 should be +1, k=0 should be +oz
       // This is (iin,jjn,+oz)
+      Float *out_data = out->get_row(i, j);
+      const Float *m = mult ? mult->get_row(i, j) : NULL;
+      Complex *carr_data = carr_->get_row(iin, jjn);
       for (int k = 0; k < oz; ++k) {
         if (mult) {
-          out->at(i, j, k) +=
-              mult->at(i, j, k) * std::real(carr_->at(iin, jjn, oz - k));
+          out_data[k] += m[k] * std::real(carr_data[oz - k]);
         } else {
-          out->at(i, j, k) += std::real(carr_->at(iin, jjn, oz - k));
+          out_data[k] += std::real(carr_data[oz - k]);
         }
       }
-      // The positive half-plane (inclusize)
+      // The positive half-plane (inclusive)
       // This is (ii,jj,-oz)
+      carr_data = carr_->get_row(ii, jj);
       for (int k = oz; k < oshape[2]; ++k) {
         if (mult) {
-          out->at(i, j, k) +=
-              mult->at(i, j, k) * std::real(carr_->at(ii, jj, k - oz));
+          out_data[k] += m[k] * std::real(carr_data[k - oz]);
         } else {
-          out->at(i, j, k) += std::real(carr_->at(ii, jj, k - oz));
+          out_data[k] += std::real(carr_data[k - oz]);
         }
       }
     }

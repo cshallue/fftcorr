@@ -39,6 +39,7 @@ class DiscreteField {
   // Complex-space operations.
   void multiply_with_conjugation(const DiscreteField& other);
 
+  // TODO: these can be out-of-class operations on two RowMajorArray<>s?
   void extract_submatrix(RowMajorArray<Float>* out) const;
   void extract_submatrix(RowMajorArray<Float>* out,
                          const RowMajorArray<Float>* mult) const;
