@@ -4,13 +4,13 @@ from Cython.Distutils import build_ext
 
 ext_modules = [
     # TODO: can we put a separate setup.py for each module?
-    Extension("fftcorr.grid._config_space_grid",
-              sources=["fftcorr/grid/_config_space_grid.pyx", "cc/array3d.cc"],
+    Extension("fftcorr.grid.config_space_grid",
+              sources=["fftcorr/grid/config_space_grid.pyx", "cc/array3d.cc"],
               include_dirs=[numpy.get_include(), "cc/grid/"],
               define_macros=[]),
     Extension(
-        "fftcorr.particle_mesh._mass_assignor",
-        sources=["fftcorr/particle_mesh/_mass_assignor.pyx"],
+        "fftcorr.particle_mesh.mass_assignor",
+        sources=["fftcorr/particle_mesh/mass_assignor.pyx"],
         # TODO: this should inherit from the config_space_grid includes
         include_dirs=[numpy.get_include(), "cc/particle_mesh/", "cc/grid/"])
 ]

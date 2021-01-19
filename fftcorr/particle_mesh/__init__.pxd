@@ -1,4 +1,4 @@
-from fftcorr.particle_mesh.mass_assignor_cc cimport MassAssignor as cc_MassAssignor
-from fftcorr.particle_mesh.window_type_cc cimport WindowType
+from fftcorr.particle_mesh.mass_assignor cimport cc_MassAssignor, MassAssignor
+from fftcorr.particle_mesh.window_type cimport WindowType
 
-__all__ = ["cc_MassAssignor", "WindowType"]
+__all__ = ["cc_MassAssignor", "MassAssignor", "WindowType"]
