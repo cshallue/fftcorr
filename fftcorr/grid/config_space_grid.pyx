@@ -46,6 +46,7 @@ cdef class ConfigSpaceGrid:
         
         # Wrap the data array as a numpy array.
         cdef cnp.npy_intp shape_np[3]
+        cdef int i
         for i in range(3):
             shape_np[i] = shape[i]
         cdef Float* data_ptr = self._cc_grid.raw_data()
@@ -75,7 +76,7 @@ cdef class ConfigSpaceGrid:
         return self._data_arr
 
     # TODO: everything below here can go; it's for testing only
-    # However, look into whether these should be cdef or just def
+    # However, look into whether these should be cdef, cpdef, or def
 
     def add_scalar(self, Float s):
         self._cc_grid.add_scalar(s)

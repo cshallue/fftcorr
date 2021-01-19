@@ -1,17 +1,5 @@
-from fftcorr.types cimport Float
+from fftcorr.types cimport Float, array, Three
 cimport numpy as cnp
-
-# TODO: declare this in a common place too? types.pxd?
-cdef extern from "<array>" namespace "std" nogil:
-    # TODO: consider alternative workarounds, such as a C++ typedef or
-    # defining the class with template arguments.
-    cdef cppclass Three "3":
-        pass
-
-    cdef cppclass array[T, N]:
-      array()
-      T& operator[](int)
-
 
 cdef extern from "config_space_grid.h":
   cdef cppclass cc_ConfigSpaceGrid "ConfigSpaceGrid":

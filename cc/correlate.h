@@ -333,6 +333,8 @@ class Correlator {
       for (int m = -ell; m <= ell; m++) {
         fprintf(stdout, "# Computing %d %2d...", ell, m);
         // Create the Ylm matrix times work_
+        // TODO: here, is it advantageous if dens_ is padded as well, so its
+        // boundaries match with those of work?
         makeYlm(&work_.arr(), ell, m, ngrid, xcell, ycell, zcell,
                 &dens_.data().arr(), -wide_angle_exponent);
         fprintf(stdout, "Ylm...");

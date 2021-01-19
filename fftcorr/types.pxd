@@ -12,3 +12,15 @@ ctypedef double Float
 # a value, not a type, so we can't have an alias to it. We might have
 # to make types an actual cython module with a pyx file.
 # We also need an alias for np.double, the associated python type.
+
+cdef extern from "<array>" namespace "std" nogil:
+    # TODO: consider alternative workarounds, such as a C++ typedef or
+    # defining the class with template arguments. We almost always use 3 as the
+    # dimension, so in C++ we might be able to make a templated typedef
+    # array3d<type>
+    cdef cppclass Three "3":
+        pass
+
+    cdef cppclass array[T, N]:
+      array()
+      T& operator[](int)
