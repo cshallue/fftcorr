@@ -30,37 +30,12 @@ FftGrid::FftGrid(std::array<int, 3> shape) {
   fprintf(stdout, "# Using dsize_z_=%d for FFT r2c padding\n", dsize_z);
 
   std::array<int, 3> dshape = {rshape_[0], rshape_[1], dsize_z};
-  uint64 dsize = (uint64)dshape[0] * dshape[1] * dshape[2];
-  int err = posix_memalign((void **)&data_, PAGE, sizeof(Float) * dsize + PAGE);
-  assert(err == 0);
-  assert(data_ != NULL);
-  cdata_ = (Complex *)data_;
-
-  // Initialize data_ by setting each element.
-  // We want to touch the whole matrix, because in NUMA this defines the
-  // association of logical memory into the physical banks.
-  // Init.Start();
-#ifdef SLAB
-  int nx = dshape[0];
-  const uint64 nyz = dshape[1] * dshape[2];
-#pragma omp parallel for MY_SCHEDULE
-  for (int x = 0; x < nx; ++x) {
-    Float *slab = data_ + x * nyz;
-    for (uint64 i = 0; i < nyz; ++i) {
-      slab[i] = 0.0;
-    }
-  }
-#else
-#pragma omp parallel for MY_SCHEDULE
-  for (uint64 i = 0; i < dsize; ++i) {
-    data_[i] = 0.0;
-  }
-#endif
-  // Init.Stop();
-
-  arr_ = new RowMajorArray<Float>(data_, dshape);
-  carr_ =
-      new RowMajorArray<Complex>(cdata_, {dshape[0], dshape[1], dshape[2] / 2});
+  // arr_ owns the data. carr_ is a complex view.
+  arr_ = new RowMajorArray<Float>(dshape);
+  data_ = arr_->data();
+  carr_ = new RowMajorArray<Complex>((Complex *)data_,
+                                     {dshape[0], dshape[1], dshape[2] / 2});
+  cdata_ = carr_->data();
 
 // NULL is a valid fftw_plan value; the planner will return NULL if it fails.
 #ifndef FFTSLAB
@@ -90,6 +65,10 @@ FftGrid::~FftGrid() {
   fftw_cleanup_threads();
 #endif
 #endif
+
+  // TODO: use unique_ptr?
+  delete arr_;
+  delete carr_;
 }
 
 void FftGrid::setup_fft() {

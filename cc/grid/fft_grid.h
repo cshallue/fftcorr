@@ -53,8 +53,8 @@ class FftGrid {
   uint64 rsize_;
   uint64 csize_;
 
-  Float* data_;
-  Complex* cdata_;  // TODO: needed?
+  Float* data_;     // TODO: needed? owned by arr_, so this is just an alias
+  Complex* cdata_;  // TODO: needed? owned by carr_, so this is just an alias
   // TODO: allocate on stack not heap? Need an initialize() method then.
   RowMajorArray<Float>* arr_;
   RowMajorArray<Complex>* carr_;
