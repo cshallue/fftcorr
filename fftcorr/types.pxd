@@ -1,8 +1,11 @@
 # This must be kept in sync with the Float typedef in types.h. Ideally, we'd 
 # import the alias directly from types.h, but we need to use it as a primitive
-# type in cython (for Float arrays) and there's no way for Cython to know in
+# type in cython (for memoryviews) and there's no way for Cython to know in
 # advance that an extern alias is a primitive type.
 ctypedef double Float
+# TODO: is this right?
+# https://github.com/pyFFTW/pyFFTW/blob/ff5e19f5aedeb52658f2ea6b3fa5541849d77e1e/pyfftw/pyfftw.pxd
+ctypedef double complex Complex
 
 # The numpy type enum corresponding to the Float typedef above.
 # https://numpy.org/doc/stable/reference/c-api/dtype.html

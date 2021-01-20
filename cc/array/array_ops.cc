@@ -83,7 +83,7 @@ void copy_into_padded_array(const RowMajorArrayPtr<Float> &in,
     for (int j = 0; j < in.shape(1); ++j) {
       const Float *in_row = in.get_row(i, j);
       Float *out_row = out.get_row(i, j);
-      for (uint64 k = 0; k < in.shape(2); ++k) {
+      for (int k = 0; k < in.shape(2); ++k) {
         out_row[k] = in_row[k];
       }
     }

@@ -11,6 +11,7 @@
 // TODO: the RowMajorArray/RowMajorArrayPtr split is nice, but it makes the
 // naming weird across the rest of the code. Can we make RowMajorArray the one
 // used most commonly?
+// TODO: a possibly unnecessary optimization would be to wrap the shape as well
 template <typename dtype>
 class RowMajorArrayPtr {
  public:
