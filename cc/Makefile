@@ -21,13 +21,16 @@ OMP = -DOPENMP -DFFTSLAB -DSLAB
 
 default: fftcorr
 
-fftcorr: fftcorr.cc array3d.o fft_grid.o
-	${CXX} ${CXXFLAGS} fftcorr.cc -o fftcorr array3d.o fft_grid.o ${FFTW}
+fftcorr: fftcorr.cc array3d.o fft_grid.o array_ops.o
+	${CXX} ${CXXFLAGS} fftcorr.cc -o fftcorr array3d.o fft_grid.o array_ops.o ${FFTW}
+
+array_ops.o: array/array_ops.cc array/array_ops.h types.h
+	${CXX} ${CXXFLAGS} -c array/array_ops.cc
 
 array3d.o: array3d.cc array3d.h types.h
 	${CXX} ${CXXFLAGS} -c array3d.cc
 
-fft_grid.o: grid/fft_grid.cc grid/fft_grid.h array3d.h types.h array3d.o
+fft_grid.o: grid/fft_grid.cc grid/fft_grid.h array3d.h types.h array3d.o  array_ops.o
 	${CXX} ${CXXFLAGS} ${FFTW_INCLUDE} -c grid/fft_grid.cc
 
 clean:

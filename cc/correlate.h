@@ -5,6 +5,7 @@
 
 #include <array>
 
+#include "array/array_ops.h"
 #include "grid.h"
 #include "grid/config_space_grid.h"
 #include "grid/fft_grid.h"
@@ -17,9 +18,16 @@
 class Correlator {
  public:
   Correlator(const ConfigSpaceGrid &dens) : dens_(dens), work_(dens_.ngrid()) {
-    // Copy the density field into work_.
-    // TODO: this could go into an initialize() method with other common code.
-    work_.copy_from(dens_.data().arr());
+    // TODO: we could use the quick FFTW setup for the isotropic case, since we only FFT and inverse FFT once each.
+    work_.setup_fft();
+
+    // Copy the density field into work_. We do this after setup_fft, because
+    // that can estroy the input. TODO: possible optimization of initializing
+    // work_ by copy and then hoping setup_fft doesn't destroy the input, but
+    // we'd also need to make to ensure that we touch the whole padded work
+    // array if we initialize by copy.
+    array_ops::copy_into_padded_array(dens_.data().arr(),  // TODO: yuck
+                                      work_.arr());
     fprintf(stderr, "work size = [%d, %d, %d]\n", work_.dshape()[0],
             work_.dshape()[1], work_.dshape()[2]);
   }
@@ -112,16 +120,13 @@ class Correlator {
 
     // Here's where most of the work occurs.
 
-    // TODO: we should use the quick FFTW setup, since we only FFT and inverse
-    // FFT once.
-    work_.setup_fft();
-
     fprintf(stdout, "# Computing the density FFT...");
     work_.execute_fft();
 
     fprintf(stdout, "# Multiply...");
     fflush(NULL);
-    work_.multiply_with_conjugation(work_);
+    // TODO: inplace abs^2
+    array_ops::multiply_with_conjugation(work_.carr(), work_.carr());
 
     // Extract power spectrum.
     // TODO: should this include a CICwindow correction like the aniso case?
@@ -297,12 +302,6 @@ class Correlator {
     Float norm = 4.0 * M_PI / ngrid[0] / ngrid[1] / ngrid[2];
     Float pnorm = 4.0 * M_PI;
 
-    // Allocate the work matrix and load it with the density
-    work_.setup_fft();
-    // FFTW might have destroyed the contents of work; need to restore
-    // work[]==work_[] So far, I haven't seen this happen.
-    work_.restore_from(dens_.data().arr());
-
     // Allocate total[csize**3] and corr[csize**3]
     Array3D total(csize);
     Array3D corr(csize);
@@ -311,7 +310,7 @@ class Correlator {
 
     // Correlate .Start();  // Starting the main work
     // Now compute the FFT of the density field and conjugate it
-    // FFT(work) in place and conjugate it, storing in densFFT
+    // FFT(work) in place and conjugate it, storing in dens_fft
     fprintf(stdout, "# Computing the density FFT...");
     fflush(NULL);
     work_.execute_fft();
@@ -319,8 +318,13 @@ class Correlator {
     fflush(NULL);
 
     // Correlate.Stop();  // We're tracking initialization separately
-    FftGrid densFFT(ngrid);  // TODO: RowMajorArray<Complex>
-    densFFT.copy_from(work_);
+    // TODO: we could copy with conjugation in one fell swoop.
+    // TODO: are there cases where the dens_fft is not the entire Complex work
+    // grid?
+    RowMajorArray<Complex> dens_fft(work_.carr().shape());
+    // TODO: is it okay to do the copy initialization with complex rather than
+    // floats for the purpose of assigning to physical hardware?
+    array_ops::copy(work_.carr(), dens_fft);
     // Correlate.Start();
 
     /* ------------ Loop over ell & m --------------- */
@@ -342,9 +346,10 @@ class Correlator {
         // FFT in place
         work_.execute_fft();
 
-        // Multiply by conj(densFFT), as complex numbers
+        // Multiply by conj(dens_fft), as complex numbers
         // AtimesB.Start();
-        work_.multiply_with_conjugation(densFFT);
+        // TODO: we could just store the conjugate form of dens_fft.
+        array_ops::multiply_with_conjugation(dens_fft, work_.carr());
         // AtimesB.Stop();
 
         // Extract the anisotropic power spectrum

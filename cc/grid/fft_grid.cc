@@ -2,6 +2,8 @@
 
 #include <assert.h>
 
+#include "../array/array_ops.h"
+
 FftGrid::FftGrid(std::array<int, 3> shape) {
   rshape_ = shape;
   cshape_ = std::array<int, 3>({shape[0], shape[1], rshape_[2] / 2 + 1});
@@ -32,9 +34,12 @@ FftGrid::FftGrid(std::array<int, 3> shape) {
   std::array<int, 3> dshape = {rshape_[0], rshape_[1], dsize_z};
   // arr_ owns the data. carr_ is a complex view.
   arr_ = new RowMajorArray<Float>(dshape);
+  // TODO: could do this in the constructor or in a create() or
+  // create_initialized() function.
+  array_ops::set_all(0.0, *arr_);
   data_ = arr_->data();
-  carr_ = new RowMajorArray<Complex>((Complex *)data_,
-                                     {dshape[0], dshape[1], dshape[2] / 2});
+  carr_ = new RowMajorArrayPtr<Complex>((Complex *)data_,
+                                        {dshape[0], dshape[1], dshape[2] / 2});
   cdata_ = carr_->data();
 
 // NULL is a valid fftw_plan value; the planner will return NULL if it fails.
@@ -213,90 +218,23 @@ void FftGrid::execute_ifft() {
   // FFTonly.Stop();
 }
 
-void FftGrid::copy_from(const RowMajorArray<Float> &other) {
-  // TODO: this error checking is not very airtight; we should be able to know
-  // that the only difference is the padded elements, but this may fall short of
-  // that.
-  assert(other.shape(0) == rshape_[0]);
-  assert(other.shape(1) == rshape_[1]);
-  assert(other.shape(2) == rshape_[2]);
+// void FftGrid::restore_from(const RowMajorArrayPtr<Float> &other) {
+//   // TODO: check same dimensions.
+//   if (other.at(0, 0, 1) != arr_->at(0, 0, 1) ||
+//       other.at(0, 1, 1) != arr_->at(0, 1, 1) ||
+//       other.at(1, 1, 1) != arr_->at(1, 1, 1)) {
+//     // Init.Start();
+//     arr_->copy_from(other);
+//     // Init.Stop();
+//   }
+// }
 
-#pragma omp parallel for MY_SCHEDULE
-  for (int i = 0; i < other.shape(0); ++i) {
-    for (int j = 0; j < other.shape(1); ++j) {
-      Float *row = arr_->get_row(i, j);
-      const Float *other_row = other.get_row(i, j);
-      for (uint64 k = 0; k < other.shape(2); ++k) {
-        row[k] = other_row[k];
-      }
-    }
-  }
-}
-
-// TODO: unify with the above? The above is copying unpadded into padded. This
-// is copying padded into padded.
-void FftGrid::copy_from(const FftGrid &other) {
-  // TODO: check same dimensions.
-  // Init.Start();
-  const Float *other_data = other.data_;
-#ifdef SLAB
-  int nx = arr_->shape(0);
-  const uint64 nyz = size_ / nx;
-#pragma omp parallel for MY_SCHEDULE
-  for (int x = 0; x < nx; ++x) {
-    Float *slab = data_ + x * nyz;
-    for (uint64 i = 0; i < nyz; ++i) {
-      slab[i] = other_data[i];
-    }
-  }
-#else
-#pragma omp parallel for MY_SCHEDULE
-  for (uint64 i = 0; i < arr_->size(); i++) {
-    data_[i] = other_data[i];
-  }
-#endif
-  // Init.Stop();
-}
-
-void FftGrid::restore_from(const RowMajorArray<Float> &other) {
-  // TODO: check same dimensions.
-  if (other.at(0, 0, 1) != arr_->at(0, 0, 1) ||
-      other.at(0, 1, 1) != arr_->at(0, 1, 1) ||
-      other.at(1, 1, 1) != arr_->at(1, 1, 1)) {
-    // Init.Start();
-    copy_from(other);
-    // Init.Stop();
-  }
-}
-
-void FftGrid::multiply_with_conjugation(const FftGrid &other) {
-  // Element-wise multiply by conjugate of other
-  // TODO: check same dimensions.
-#ifdef SLAB
-  int nx = cshape_[0];
-  const uint64 nyz = csize_ / nx;
-#pragma omp parallel for MY_SCHEDULE
-  for (int x = 0; x < nx; ++x) {
-    Complex *slab = cdata + x * nyz;
-    Complex *other_slab = other.cdata_ + x * nyz;
-    for (uint64 i = 0; i < nyz; ++i) {
-      slab[i] *= std::conj(other_slab[i]);
-    }
-  }
-#else
-#pragma omp parallel for MY_SCHEDULE
-  for (uint64 i = 0; i < csize_; ++i) {
-    cdata_[i] *= std::conj(other.cdata_[i]);
-  }
-#endif
-}
-
-void FftGrid::extract_submatrix(RowMajorArray<Float> *out) const {
+void FftGrid::extract_submatrix(RowMajorArrayPtr<Float> *out) const {
   extract_submatrix(out, NULL);
 }
 
-void FftGrid::extract_submatrix(RowMajorArray<Float> *out,
-                                const RowMajorArray<Float> *mult) const {
+void FftGrid::extract_submatrix(RowMajorArrayPtr<Float> *out,
+                                const RowMajorArrayPtr<Float> *mult) const {
   // TODO: check dimensions.
   // Extract out a submatrix, centered on [0,0,0] of this array
   // Multiply elementwise by mult.
@@ -331,12 +269,12 @@ void FftGrid::extract_submatrix(RowMajorArray<Float> *out,
   // Extract.Stop();
 }
 
-void FftGrid::extract_submatrix_C2R(RowMajorArray<Float> *out) const {
+void FftGrid::extract_submatrix_C2R(RowMajorArrayPtr<Float> *out) const {
   extract_submatrix_C2R(out, NULL);
 }
 
-void FftGrid::extract_submatrix_C2R(RowMajorArray<Float> *out,
-                                    const RowMajorArray<Float> *mult) const {
+void FftGrid::extract_submatrix_C2R(RowMajorArrayPtr<Float> *out,
+                                    const RowMajorArrayPtr<Float> *mult) const {
   // Given a large matrix work[ngrid^3/2],
   // extract out a submatrix of size csize^3, centered on work[0,0,0].
   // The input matrix is Complex * with the half-domain Fourier convention.

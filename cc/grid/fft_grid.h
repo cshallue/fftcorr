@@ -19,12 +19,12 @@ class FftGrid {
   void execute_ifft();
 
   // TODO: consider which copy ops we need to support.
-  void copy_from(const RowMajorArray<Float>& other);
-  void copy_from(const FftGrid& other);
+  // void copy_from(const RowMajorArrayPtr<Float>& other);
+  // void copy_from(const FftGrid& other);
   // TODO: this could be private if FftGrid initializes the FFTs in its
   // copy constructor, and it is a friend class. Then it would (a) copy, (b)
   // setup_fft, (c) restore_from
-  void restore_from(const RowMajorArray<Float>& other);
+  // void restore_from(const RowMajorArrayPtr<Float>& other);
 
   // TODO: add shape(int i)?
   const std::array<int, 3>& rshape() const { return rshape_; }
@@ -35,17 +35,17 @@ class FftGrid {
 
   RowMajorArray<Float>& arr() { return *arr_; }
   const RowMajorArray<Float>& arr() const { return *arr_; }
+  RowMajorArrayPtr<Complex>& carr() { return *carr_; }
+  const RowMajorArrayPtr<Complex>& carr() const { return *carr_; }
 
-  // Complex-space operations.
-  void multiply_with_conjugation(const FftGrid& other);
-
-  // TODO: these can be out-of-class operations on two RowMajorArray<>s?
-  void extract_submatrix(RowMajorArray<Float>* out) const;
-  void extract_submatrix(RowMajorArray<Float>* out,
-                         const RowMajorArray<Float>* mult) const;
-  void extract_submatrix_C2R(RowMajorArray<Float>* out) const;
-  void extract_submatrix_C2R(RowMajorArray<Float>* out,
-                             const RowMajorArray<Float>* mult) const;
+  // TODO: these can be out-of-class operations on two RowMajorArrayPtr<>s?
+  // They are quite natural here, because they assume FFT layout.
+  void extract_submatrix(RowMajorArrayPtr<Float>* out) const;
+  void extract_submatrix(RowMajorArrayPtr<Float>* out,
+                         const RowMajorArrayPtr<Float>* mult) const;
+  void extract_submatrix_C2R(RowMajorArrayPtr<Float>* out) const;
+  void extract_submatrix_C2R(RowMajorArrayPtr<Float>* out,
+                             const RowMajorArrayPtr<Float>* mult) const;
 
  private:
   std::array<int, 3> rshape_;  // Shape as a real array.
@@ -57,7 +57,7 @@ class FftGrid {
   Complex* cdata_;  // TODO: needed? owned by carr_, so this is just an alias
   // TODO: allocate on stack not heap? Need an initialize() method then.
   RowMajorArray<Float>* arr_;
-  RowMajorArray<Complex>* carr_;
+  RowMajorArrayPtr<Complex>* carr_;  // TODO: needed?
 
 #ifndef FFTSLAB
   fftw_plan fft_;

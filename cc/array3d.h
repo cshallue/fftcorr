@@ -19,6 +19,7 @@ class ArrayBase {
       : shape_(shape), size_(1), data_(NULL) {
     for (int nx : shape_) size_ *= nx;
     // Allocate data_ array.
+    // TODO: we probably don't need aligned memory for non-FFT stuff.
     int err =
         posix_memalign((void **)&data_, PAGE, sizeof(Float) * size_ + PAGE);
     assert(err == 0);
@@ -116,8 +117,8 @@ class Array3D : public ArrayBase<3> {
   uint64 size() const { return size_; }
 
   // TODO: remove.
-  RowMajorArray<Float> &arr() { return *arr_; }
-  const RowMajorArray<Float> &arr() const { return *arr_; }
+  RowMajorArrayPtr<Float> &arr() { return *arr_; }
+  const RowMajorArrayPtr<Float> &arr() const { return *arr_; }
 
   // TODO: private
   inline uint64 get_index(int ix, int iy, int iz) const {
@@ -129,7 +130,7 @@ class Array3D : public ArrayBase<3> {
   const Float *data() const { return data_; }
 
   // TODO: allocate on stack not heap? Need an initialize() method then.
-  RowMajorArray<Float> *arr_;
+  RowMajorArrayPtr<Float> *arr_;
 };
 
 #endif  // ARRAY3D_H

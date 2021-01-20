@@ -18,7 +18,7 @@ Array1D range(Float start, Float step, int size) {
 }
 
 Array3D::Array3D(std::array<int, 3> shape) : ArrayBase(shape) {
-  arr_ = new RowMajorArray<Float>(data_, shape_);
+  arr_ = new RowMajorArrayPtr<Float>(data_, shape_);
 }
 
 Array3D::~Array3D() { delete arr_; }
