@@ -26,9 +26,10 @@ class FftGrid {
   // setup_fft, (c) restore_from
   // void restore_from(const RowMajorArrayPtr<Float>& other);
 
-  // TODO: add shape(int i)?
   const std::array<int, 3>& rshape() const { return rshape_; }
   const std::array<int, 3>& dshape() const { return arr_->shape(); }
+  int rshape(int i) const { return rshape_[i]; }
+  int dshape(int i) const { return arr_->shape(i); }
 
   uint64 rsize() const { return rsize_; }
   uint64 dsize() const { return arr_->size(); }
@@ -37,6 +38,7 @@ class FftGrid {
   const RowMajorArray<Float>& arr() const { return *arr_; }
   RowMajorArrayPtr<Complex>& carr() { return *carr_; }
   const RowMajorArrayPtr<Complex>& carr() const { return *carr_; }
+  Float* raw_data() { return data_; }
 
   // TODO: these can be out-of-class operations on two RowMajorArrayPtr<>s?
   // They are quite natural here, because they assume FFT layout.

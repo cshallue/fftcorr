@@ -180,13 +180,13 @@ void FftGrid::execute_fft() {
   // Then need to call this for every slab.  Can OMP these lines
   int dsize_z = arr_->shape(2);
 #pragma omp parallel for MY_SCHEDULE
-  for (uint64 x = 0; x < rshape_[0]; x++)
+  for (int x = 0; x < rshape_[0]; x++)
     fftw_execute_dft_r2c(fftYZ_, data + x * rshape_[1] * dsize_z,
                          (fftw_complex *)data + x * rshape_[1] * dsize_z / 2);
     // FFTyz.Stop();
     // FFTx.Start();
 #pragma omp parallel for schedule(dynamic, 1)
-  for (uint64 y = 0; y < rshape_[1]; y++)
+  for (int y = 0; y < rshape_[1]; y++)
     fftw_execute_dft(fftX_, (fftw_complex *)data + y * dsize_z / 2,
                      (fftw_complex *)data + y * dsize_z / 2);
     // FFTx.Stop();
@@ -203,13 +203,13 @@ void FftGrid::execute_ifft() {
   // Then need to call this for every slab.  Can OMP these lines
   int dsize_z = arr_->shape(2);
 #pragma omp parallel for schedule(dynamic, 1)
-  for (uint64 y = 0; y < rshape_[1]; y++)
+  for (int y = 0; y < rshape_[1]; y++)
     fftw_execute_dft(ifftX_, (fftw_complex *)data + y * dsize_z / 2,
                      (fftw_complex *)data + y * dsize_z / 2);
     // FFTx.Stop();
     // FFTyz.Start();
 #pragma omp parallel for MY_SCHEDULE
-  for (uint64 x = 0; x < rshape_[0]; x++)
+  for (int x = 0; x < rshape_[0]; x++)
     fftw_execute_dft_c2r(ifftYZ_,
                          (fftw_complex *)data + x * rshape_[1] * dsize_z / 2,
                          data + x * rshape_[1] * dsize_z);
@@ -249,12 +249,12 @@ void FftGrid::extract_submatrix(RowMajorArrayPtr<Float> *out,
   // in that case. Meanwhile, we call this function many times in the
   // anisotropic case, where mult is not null.
 #pragma omp parallel for schedule(dynamic, 1)
-  for (uint64 i = 0; i < oshape[0]; ++i) {
-    uint64 ii = (rshape_[0] - ox + i) % rshape_[0];
+  for (int i = 0; i < oshape[0]; ++i) {
+    int ii = (rshape_[0] - ox + i) % rshape_[0];
     for (int j = 0; j < oshape[1]; ++j) {
-      uint64 jj = (rshape_[1] - oy + j) % rshape_[1];
+      int jj = (rshape_[1] - oy + j) % rshape_[1];
       for (int k = 0; k < oshape[2]; ++k) {
-        uint64 kk = (rshape_[2] - oz + k) % rshape_[2];
+        int kk = (rshape_[2] - oz + k) % rshape_[2];
         Float *out_data = out->get_row(i, j);
         const Float *m = mult ? mult->get_row(i, j) : NULL;
         Float *arr_data = arr_->get_row(ii, jj);
@@ -290,12 +290,12 @@ void FftGrid::extract_submatrix_C2R(RowMajorArrayPtr<Float> *out,
   int oy = oshape[1] / 2;  // This is the middle of the submatrix
   int oz = oshape[2] / 2;  // This is the middle of the submatrix
 #pragma omp parallel for schedule(dynamic, 1)
-  for (uint64 i = 0; i < oshape[0]; ++i) {
-    uint64 ii = (cshape_[0] - ox + i) % cshape_[0];
-    uint64 iin = (cshape_[0] - ii) % cshape_[0];  // The reflected coord
+  for (int i = 0; i < oshape[0]; ++i) {
+    int ii = (cshape_[0] - ox + i) % cshape_[0];
+    int iin = (cshape_[0] - ii) % cshape_[0];  // The reflected coord
     for (int j = 0; j < oshape[1]; ++j) {
-      uint64 jj = (cshape_[1] - oy + j) % cshape_[1];
-      uint64 jjn = (cshape_[1] - jj) % cshape_[1];  // The reflected coord
+      int jj = (cshape_[1] - oy + j) % cshape_[1];
+      int jjn = (cshape_[1] - jj) % cshape_[1];  // The reflected coord
       // The negative half-plane (inclusive), reflected.
       // k=oz-1 should be +1, k=0 should be +oz
       // This is (iin,jjn,+oz)

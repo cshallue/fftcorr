@@ -44,3 +44,32 @@ try:
     fftcorr.grid.ConfigSpaceGrid([2, 2], posmin, cell_size)
 except ValueError as e:
     print(e)
+
+print()
+ngrid = [4, 4, 4]
+fg = fftcorr.grid.FftGrid(ngrid)
+fgd = fg.data
+print("type(fgd) =", type(fgd))
+print(ngrid, fgd.shape)
+fgd += np.arange(96).reshape(fgd.shape)
+print(fg.data[0])
+
+subm = np.zeros((2, 2, 2), dtype=np.double)
+print(subm.flatten())
+fg.extract_submatrix(subm)
+print(subm.flatten())
+
+subm = np.zeros((2, 2, 2), dtype=np.double)
+print(subm.flatten())
+fg.extract_submatrix_c2r(subm)
+print(subm.flatten())
+
+print()
+print(fg.data[0])
+fg.setup_fft()
+print(fg.data[0])
+fg.execute_fft()
+print(fg.data[0])
+fg.execute_ifft()
+print(fg.data[0])
+print(fg.data[0] / np.prod(ngrid))
