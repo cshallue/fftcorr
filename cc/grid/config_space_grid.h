@@ -4,17 +4,23 @@
 #include <array>
 
 #include "../array3d.h"
+#include "../particle_mesh/window_functions.h"
 #include "../types.h"
 
 class ConfigSpaceGrid {
  public:
   ConfigSpaceGrid(std::array<int, 3> ngrid, std::array<Float, 3> posmin,
-                  Float cell_size)
-      : ngrid_(ngrid), posmin_(posmin), cell_size_(cell_size), data_(ngrid_) {}
+                  Float cell_size, WindowType window_type)
+      : ngrid_(ngrid),
+        posmin_(posmin),
+        cell_size_(cell_size),
+        window_type_(window_type),
+        data_(ngrid_) {}
 
   const std::array<int, 3>& ngrid() const { return ngrid_; }
   const std::array<Float, 3>& posmin() const { return posmin_; }
   Float cell_size() const { return cell_size_; }
+  WindowType window_type() const { return window_type_; }
   const Array3D& data() const { return data_; }
 
   // TODO: just for testing wrapping; delete.
@@ -42,6 +48,8 @@ class ConfigSpaceGrid {
   const std::array<Float, 3> posmin_;
   // Size of each grid cell, in survey coordinates.
   const Float cell_size_;
+  // Type of window used in mass assignment.
+  WindowType window_type_;
 
   // TODO: figure out the minimal array type this class needs. It needs to own
   // and allocate the data, it needs indexing operations, and we need

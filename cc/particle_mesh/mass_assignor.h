@@ -14,10 +14,9 @@
 
 class MassAssignor {
  public:
-  MassAssignor(ConfigSpaceGrid *grid, WindowType window_type,
-               uint64 buffer_size)
+  MassAssignor(ConfigSpaceGrid *grid, uint64 buffer_size)
       : grid_(grid),
-        window_func_(make_window_function(window_type)),
+        window_func_(make_window_function(grid->window_type())),
         buffer_size_(buffer_size),
         count_(0),
         totw_(0),

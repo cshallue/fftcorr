@@ -335,10 +335,11 @@ int main(int argc, char *argv[]) {
   // TODO: get rid of Grid class?
   Grid g(ngrid);
   cell_size = g.cover_box(box, qperiodic, cell_size);
-  ConfigSpaceGrid grid(ngrid, g.posmin(), cell_size);  // TODO: grid name clash
+  ConfigSpaceGrid grid(ngrid, g.posmin(), cell_size,
+                       window_type);  // TODO: grid name clash
 
   int galaxy_batch_size = 1000000;
-  MassAssignor mass_assignor(&grid, window_type, galaxy_batch_size);
+  MassAssignor mass_assignor(&grid, galaxy_batch_size);
   SurveyReader reader(&mass_assignor);
   reader.read_galaxies(infile);
   if (infile2 != NULL) {
@@ -411,7 +412,7 @@ int main(int argc, char *argv[]) {
     Histogram1D h(sep, dsep);
     Histogram1D kh(kmax, dk);
     Float zerolag = -12345.0;
-    corr.correlate_iso(sep, kmax, window_type, &h, &kh, &zerolag);
+    corr.correlate_iso(sep, kmax, &h, &kh, &zerolag);
 
     Ylm_count.print(stdout);
     fprintf(stdout, "# Anisotropic power spectrum:\n");
@@ -432,8 +433,8 @@ int main(int argc, char *argv[]) {
     Histogram2D kh(maxell, kmax, dk);
     Float zerolag = -12345.0;
     fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-    corr.correlate_aniso(sep, kmax, maxell, wide_angle_exponent, window_type,
-                         g.observer(), &h, &kh, &zerolag);
+    corr.correlate_aniso(sep, kmax, maxell, wide_angle_exponent, g.observer(),
+                         &h, &kh, &zerolag);
 
     Ylm_count.print(stdout);
     fprintf(stdout, "# Anisotropic power spectrum:\n");

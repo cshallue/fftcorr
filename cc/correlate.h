@@ -18,7 +18,8 @@
 class Correlator {
  public:
   Correlator(const ConfigSpaceGrid &dens) : dens_(dens), work_(dens_.ngrid()) {
-    // TODO: we could use the quick FFTW setup for the isotropic case, since we only FFT and inverse FFT once each.
+    // TODO: we could use the quick FFTW setup for the isotropic case, since we
+    // only FFT and inverse FFT once each.
     work_.setup_fft();
 
     // Copy the density field into work_. We do this after setup_fft, because
@@ -32,8 +33,8 @@ class Correlator {
             work_.dshape()[1], work_.dshape()[2]);
   }
 
-  void correlate_iso(Float sep, Float kmax, WindowType window_type,
-                     Histogram1D *h, Histogram1D *kh, Float *zerolag) {
+  void correlate_iso(Float sep, Float kmax, Histogram1D *h, Histogram1D *kh,
+                     Float *zerolag) {
     const std::array<int, 3> &ngrid = dens_.ngrid();
     Float cell_size = dens_.cell_size();
 
@@ -170,9 +171,8 @@ class Correlator {
   // (small but nonzero separations are put in the same bin as the zero
   // separation)
   void correlate_aniso(Float sep, Float kmax, int maxell,
-                       int wide_angle_exponent, WindowType window_type,
-                       std::array<Float, 3> observer, Histogram2D *h,
-                       Histogram2D *kh, Float *zerolag) {
+                       int wide_angle_exponent, std::array<Float, 3> observer,
+                       Histogram2D *h, Histogram2D *kh, Float *zerolag) {
     const std::array<int, 3> &ngrid = dens_.ngrid();
     Float cell_size = dens_.cell_size();
     // Set up the sub-matrix information, assuming that we'll extract
@@ -261,7 +261,7 @@ class Correlator {
               sqrt(kx_cell[i] * kx_cell[i] + ky_cell[j] * ky_cell[j] +
                    kz_cell[k] * kz_cell[k]);
           Float window;
-          switch (window_type) {
+          switch (dens_.window_type()) {
             case kNearestCell:
               window = 1.0;
               break;

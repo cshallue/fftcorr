@@ -64,6 +64,7 @@ void makeYlm(RowMajorArrayPtr<Float> *Ylm, int ell, int m,
     return;
   }
 
+  // TODO: Array1D?
   const Float *z = zcell.data();
   Float *z2, *z3, *z4, *ones;
   int err = posix_memalign((void **)&z2, PAGE, sizeof(Float) * n[2] + PAGE);
