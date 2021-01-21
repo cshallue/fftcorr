@@ -33,18 +33,18 @@ class Correlator {
             work_.dshape()[1], work_.dshape()[2]);
   }
 
-  void correlate_iso(Float sep, Float kmax, Histogram1D *h, Histogram1D *kh,
+  void correlate_iso(Float rmax, Float kmax, Histogram1D *h, Histogram1D *kh,
                      Float *zerolag) {
     const std::array<int, 3> &ngrid = dens_.ngrid();
     Float cell_size = dens_.cell_size();
 
     // Storage for the r-space submatrices
     // TODO: consistency with using r or s for separation space
-    int sep_cell = ceil(sep / cell_size);  // sep in grid units
-    fprintf(stderr, "sep = %f, cell_size = %f, sep_cell =%d\n", sep, cell_size,
-            sep_cell);
+    int rmax_cell = ceil(rmax / cell_size);  // rmax in grid units
+    fprintf(stderr, "rmax = %f, cell_size = %f, rmax_cell =%d\n", rmax,
+            cell_size, rmax_cell);
     // How many cells we must extract as a submatrix to do the histogramming.
-    int csizex = 2 * sep_cell + 1;
+    int csizex = 2 * rmax_cell + 1;
     assert(csizex % 2 == 1);
     std::array<int, 3> csize = {csizex, csizex, csizex};
     fprintf(stderr, "csize = [%d, %d, %d]\n", csize[0], csize[1], csize[2]);
@@ -53,14 +53,15 @@ class Correlator {
     for (uint64 i = 0; i < csize[0]; i++)
       for (int j = 0; j < csize[1]; j++)
         for (int k = 0; k < csize[2]; k++) {
-          rnorm.at(i, j, k) = cell_size * sqrt((i - sep_cell) * (i - sep_cell) +
-                                               (j - sep_cell) * (j - sep_cell) +
-                                               (k - sep_cell) * (k - sep_cell));
+          rnorm.at(i, j, k) =
+              cell_size * sqrt((i - rmax_cell) * (i - rmax_cell) +
+                               (j - rmax_cell) * (j - rmax_cell) +
+                               (k - rmax_cell) * (k - rmax_cell));
         }
     fprintf(stdout, "# Done setting up the separation submatrix of size +-%d\n",
-            sep_cell);
+            rmax_cell);
     // Index of r=0.
-    std::array<int, 3> zerosep = {sep_cell, sep_cell, sep_cell};
+    std::array<int, 3> rzero = {rmax_cell, rmax_cell, rmax_cell};
 
     // Our box has cubic-sized cells, so k_Nyquist is the same in all
     // directions. The spacing of modes is therefore 2*k_Nyq/ngrid
@@ -164,19 +165,19 @@ class Correlator {
     kh->histcorr(knorm, kcorr);
     // Hist.Stop();
     // Correlate.Stop();
-    *zerolag = corr.at(zerosep[0], zerosep[1], zerosep[2]);
+    *zerolag = corr.at(rzero[0], rzero[1], rzero[2]);
   }
 
   // zerolag is needed because that information is not in the output histograms
   // (small but nonzero separations are put in the same bin as the zero
   // separation)
-  void correlate_aniso(Float sep, Float kmax, int maxell,
+  void correlate_aniso(Float rmax, Float kmax, int maxell,
                        int wide_angle_exponent, std::array<Float, 3> observer,
                        Histogram2D *h, Histogram2D *kh, Float *zerolag) {
     const std::array<int, 3> &ngrid = dens_.ngrid();
     Float cell_size = dens_.cell_size();
     // Set up the sub-matrix information, assuming that we'll extract
-    // -sep..+sep cells around zero-lag.
+    // -rmax..+rmax cells around zero-lag.
     // Setup.Start();
 
     // Compute xcell, ycell, zcell, which are the coordinates of the cell
@@ -190,11 +191,11 @@ class Correlator {
     Array1D zcell = range(0.5 - observer[2], 1, ngrid[2]);
 
     // Storage for the r-space submatrices
-    int sep_cell = ceil(sep / cell_size);
-    fprintf(stderr, "sep = %f, cell_size = %f, sep_cell =%d\n", sep, cell_size,
-            sep_cell);
+    int rmax_cell = ceil(rmax / cell_size);
+    fprintf(stderr, "rmax = %f, cell_size = %f, rmax_cell =%d\n", rmax,
+            cell_size, rmax_cell);
     // How many cells we must extract as a submatrix to do the histogramming.
-    int csizex = 2 * sep_cell + 1;
+    int csizex = 2 * rmax_cell + 1;
     assert(csizex % 2 == 1);
     std::array<int, 3> csize = {csizex, csizex, csizex};
     fprintf(stderr, "csize = [%d, %d, %d]\n", csize[0], csize[1], csize[2]);
@@ -203,21 +204,22 @@ class Correlator {
     // The cell centers, relative to zero lag.
     // Normalizing by cell_size just so that the Ylm code can do the wide-angle
     // corrections in the same units.
-    Array1D cx_cell = range(-cell_size * sep_cell, cell_size, csize[0]);
-    Array1D cy_cell = range(-cell_size * sep_cell, cell_size, csize[1]);
-    Array1D cz_cell = range(-cell_size * sep_cell, cell_size, csize[2]);
+    Array1D cx_cell = range(-cell_size * rmax_cell, cell_size, csize[0]);
+    Array1D cy_cell = range(-cell_size * rmax_cell, cell_size, csize[1]);
+    Array1D cz_cell = range(-cell_size * rmax_cell, cell_size, csize[2]);
 
     Array3D rnorm(csize);  // The radius of each cell.
     for (uint64 i = 0; i < csize[0]; i++)
       for (int j = 0; j < csize[1]; j++)
         for (int k = 0; k < csize[2]; k++)
-          rnorm.at(i, j, k) = cell_size * sqrt((i - sep_cell) * (i - sep_cell) +
-                                               (j - sep_cell) * (j - sep_cell) +
-                                               (k - sep_cell) * (k - sep_cell));
+          rnorm.at(i, j, k) =
+              cell_size * sqrt((i - rmax_cell) * (i - rmax_cell) +
+                               (j - rmax_cell) * (j - rmax_cell) +
+                               (k - rmax_cell) * (k - rmax_cell));
     fprintf(stdout, "# Done setting up the separation submatrix of size +-%d\n",
-            sep_cell);
+            rmax_cell);
     // Index of r=0.
-    std::array<int, 3> zerosep = {sep_cell, sep_cell, sep_cell};
+    std::array<int, 3> rzero = {rmax_cell, rmax_cell, rmax_cell};
 
     // Our box has cubic-sized cells, so k_Nyquist is the same in all
     // directions. The spacing of modes is therefore 2*k_Nyq/ngrid
@@ -386,7 +388,7 @@ class Correlator {
       kh->histcorr(ell, knorm, ktotal);
       // Hist.Stop();
       if (ell == 0) {
-        *zerolag = total.at(zerosep[0], zerosep[1], zerosep[2]);
+        *zerolag = total.at(rzero[0], rzero[1], rzero[2]);
       }
     }
     // Correlate.Stop();
