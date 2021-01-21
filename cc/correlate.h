@@ -213,9 +213,8 @@ class Correlator {
       for (int j = 0; j < csize[1]; j++)
         for (int k = 0; k < csize[2]; k++)
           rnorm.at(i, j, k) =
-              cell_size * sqrt((i - rmax_cell) * (i - rmax_cell) +
-                               (j - rmax_cell) * (j - rmax_cell) +
-                               (k - rmax_cell) * (k - rmax_cell));
+              sqrt(cx_cell[i] * cx_cell[i] + cy_cell[j] * cy_cell[j] +
+                   cz_cell[k] * cz_cell[k]);
     fprintf(stdout, "# Done setting up the separation submatrix of size +-%d\n",
             rmax_cell);
     // Index of r=0.
