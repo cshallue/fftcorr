@@ -7,9 +7,10 @@ ext_modules = [
     Extension("fftcorr.array.row_major_array",
               sources=["fftcorr/array/row_major_array.pyx"],
               include_dirs=[numpy.get_include(), "cc/array/"]),
-    Extension("fftcorr.grid.config_space_grid",
-              sources=["fftcorr/grid/config_space_grid.pyx", "cc/array3d.cc"],
-              include_dirs=[numpy.get_include(), "cc/grid/"]),
+    Extension(
+        "fftcorr.grid.config_space_grid",
+        sources=["fftcorr/grid/config_space_grid.pyx", "cc/array3d.cc"],
+        include_dirs=[numpy.get_include(), "cc/grid/", "cc/particle_mesh/"]),
     # TODO: this should inherit from the row_major_array includes
     Extension("fftcorr.grid.fft_grid",
               sources=[

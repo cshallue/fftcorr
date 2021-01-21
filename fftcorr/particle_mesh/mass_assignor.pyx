@@ -1,5 +1,4 @@
 from fftcorr.grid cimport ConfigSpaceGrid
-from fftcorr.particle_mesh cimport WindowType
 from fftcorr.types cimport Float
 
 # TODO: consider making MassAssignor a context manager, or wrapping it
@@ -9,8 +8,8 @@ from fftcorr.types cimport Float
 # deallocate the buffer?
 # TODO: formatting. 2 space indentation instead of 4?
 cdef class MassAssignor:
-    def __cinit__(self, ConfigSpaceGrid grid, WindowType window_type, int buffer_size):
-        self._cc_ma = new cc_MassAssignor(grid.cc_grid(), window_type, buffer_size)
+    def __cinit__(self, ConfigSpaceGrid grid, int buffer_size):
+        self._cc_ma = new cc_MassAssignor(grid.cc_grid(), buffer_size)
 
     # @staticmethod
     # cdef create(_ConfigSpaceGrid grid, WindowType window_type, int buffer_size):

@@ -3,7 +3,7 @@ cimport numpy as cnp
 
 cdef extern from "config_space_grid.h":
   cdef cppclass cc_ConfigSpaceGrid "ConfigSpaceGrid":
-    cc_ConfigSpaceGrid(array[int, Three], array[Float, Three], Float) except +
+    cc_ConfigSpaceGrid(array[int, Three], array[Float, Three], Float, int) except +
     Float cell_size()
     void add_scalar(Float s)
     void multiply_by(Float s)

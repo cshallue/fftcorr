@@ -1,3 +1,4 @@
+from fftcorr.particle_mesh.window_type cimport WindowType
 from cpython cimport Py_INCREF
 cimport numpy as cnp
 cnp.import_array()
@@ -6,7 +7,7 @@ import numpy as np
 
 
 cdef class ConfigSpaceGrid:
-    def __cinit__(self, shape, posmin, cell_size):
+    def __cinit__(self, shape, posmin, Float cell_size, WindowType window_type):
         # Convert input arrays to contiguous arrays of the correct data type.
         # Then check for errors, as python objects.
         # Insist posmin is copied since it will be retained as a class attribute.
@@ -42,7 +43,8 @@ cdef class ConfigSpaceGrid:
         self._cc_grid = new cc_ConfigSpaceGrid(
             (<array[int, Three] *> &cshape[0])[0],
             (<array[Float, Three] *> &cposmin[0])[0],
-            cell_size)
+            cell_size,
+            window_type)
         
         # Wrap the data array as a numpy array.
         cdef cnp.npy_intp shape_np[3]

@@ -13,7 +13,7 @@ import numpy as np
 ngrid = [2, 2, 2]
 posmin = [2, -5, 77]
 cell_size = 25
-g = fftcorr.grid.ConfigSpaceGrid(ngrid, posmin, cell_size)
+g = fftcorr.grid.ConfigSpaceGrid(ngrid, posmin, cell_size, window_type=0)
 print("created grid")
 d = g.data
 print(d.flatten())
@@ -21,7 +21,7 @@ print("sum =", g.sum())
 print("sumsq =", g.sumsq())
 print()
 
-ma = fftcorr.particle_mesh.MassAssignor(g, window_type=0, buffer_size=100)
+ma = fftcorr.particle_mesh.MassAssignor(g, buffer_size=100)
 print("Created mass assignor")
 print(dir(ma))
 print("count =", ma.count)

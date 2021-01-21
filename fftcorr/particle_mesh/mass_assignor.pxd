@@ -4,8 +4,7 @@ from fftcorr.types cimport Float
 
 cdef extern from "mass_assignor.h":
   cdef cppclass cc_MassAssignor "MassAssignor":
-    # TODO: make window_type an enum
-    cc_MassAssignor(cc_ConfigSpaceGrid* grid, int window_type, int buffer_size) except +
+    cc_MassAssignor(cc_ConfigSpaceGrid* grid, int buffer_size) except +
     void add_particle(Float x, Float y, Float z, Float w)
     void flush()
     int count()
