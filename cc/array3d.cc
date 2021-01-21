@@ -9,14 +9,6 @@
 //   PAGE); assert(err == 0); assert(data_ != NULL);
 // }
 
-Array1D range(Float start, Float step, int size) {
-  Array1D arr(size);
-  for (int i = 0; i < size; ++i) {
-    arr[i] = start + i * step;
-  }
-  return arr;
-}
-
 Array3D::Array3D(std::array<int, 3> shape) : ArrayBase(shape) {
   arr_ = new RowMajorArrayPtr<Float>(data_, shape_);
 }

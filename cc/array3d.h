@@ -50,16 +50,20 @@ class Array1D : public ArrayBase<1> {
  public:
   Array1D(int size) : ArrayBase({size}) {}
 
+  // TODO: this should be called something else, or it should take (start, stop,
+  // step) instead.
+  // TODO: there's surely a standard libary function for this
+  void range(Float start, Float step) {
+    for (int i = 0; i < size_; ++i) {
+      // TODO: could be slightly more efficient
+      data_[i] = start + i * step;
+    }
+  }
+
   // TODO: at(), for consistency?
   inline Float &operator[](int idx) { return data_[idx]; }
   inline const Float &operator[](int idx) const { return data_[idx]; }
 };
-
-// TODO: make this a static function of Array1D?
-// Then we can remove the operator[] from Array1D
-// TODO: this should be called something else, or it should take (start, stop,
-// step) instead.
-Array1D range(Float start, Float step, int size);
 
 // TODO: not needed? Just use ArrayBase directly and rename it ArrayNd?
 class Array2D : public ArrayBase<2> {

@@ -17,7 +17,9 @@ class ConfigSpaceGrid {
         window_type_(window_type),
         data_(ngrid_) {}
 
+  // TODO: rename ngrid to shape.
   const std::array<int, 3>& ngrid() const { return ngrid_; }
+  int ngrid(int i) const { return ngrid_[i]; }
   const std::array<Float, 3>& posmin() const { return posmin_; }
   Float cell_size() const { return cell_size_; }
   WindowType window_type() const { return window_type_; }

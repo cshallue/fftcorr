@@ -407,12 +407,12 @@ int main(int argc, char *argv[]) {
   /* Done setup Grid ======================================================= */
 
   // Compute the correlations.
-  Correlator corr(grid);
+  Correlator corr(grid, sep, kmax);
   if (isotropic) {
     Histogram1D h(sep, dsep);
     Histogram1D kh(kmax, dk);
     Float zerolag = -12345.0;
-    corr.correlate_iso(sep, kmax, &h, &kh, &zerolag);
+    corr.correlate_iso(&h, &kh, &zerolag);
 
     Ylm_count.print(stdout);
     fprintf(stdout, "# Anisotropic power spectrum:\n");
@@ -433,8 +433,8 @@ int main(int argc, char *argv[]) {
     Histogram2D kh(maxell, kmax, dk);
     Float zerolag = -12345.0;
     fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-    corr.correlate_aniso(sep, kmax, maxell, wide_angle_exponent, g.observer(),
-                         &h, &kh, &zerolag);
+    corr.correlate_aniso(maxell, wide_angle_exponent, g.observer(), &h, &kh,
+                         &zerolag);
 
     Ylm_count.print(stdout);
     fprintf(stdout, "# Anisotropic power spectrum:\n");
