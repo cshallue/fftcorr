@@ -27,17 +27,17 @@ class FftGrid {
   // void restore_from(const RowMajorArrayPtr<Float>& other);
 
   const std::array<int, 3>& rshape() const { return rshape_; }
-  const std::array<int, 3>& dshape() const { return arr_->shape(); }
+  const std::array<int, 3>& dshape() const { return arr_.shape(); }
   int rshape(int i) const { return rshape_[i]; }
-  int dshape(int i) const { return arr_->shape(i); }
+  int dshape(int i) const { return arr_.shape(i); }
 
   uint64 rsize() const { return rsize_; }
-  uint64 dsize() const { return arr_->size(); }
+  uint64 dsize() const { return arr_.size(); }
 
-  RowMajorArray<Float>& arr() { return *arr_; }
-  const RowMajorArray<Float>& arr() const { return *arr_; }
-  RowMajorArrayPtr<Complex>& carr() { return *carr_; }
-  const RowMajorArrayPtr<Complex>& carr() const { return *carr_; }
+  RowMajorArray<Float>& arr() { return arr_; }
+  const RowMajorArray<Float>& arr() const { return arr_; }
+  RowMajorArrayPtr<Complex>& carr() { return carr_; }
+  const RowMajorArrayPtr<Complex>& carr() const { return carr_; }
   Float* raw_data() { return data_; }
 
   // TODO: these can be out-of-class operations on two RowMajorArrayPtr<>s?
@@ -57,9 +57,8 @@ class FftGrid {
 
   Float* data_;     // TODO: needed? owned by arr_, so this is just an alias
   Complex* cdata_;  // TODO: needed? owned by carr_, so this is just an alias
-  // TODO: allocate on stack not heap? Need an initialize() method then.
-  RowMajorArray<Float>* arr_;
-  RowMajorArrayPtr<Complex>* carr_;  // TODO: needed?
+  RowMajorArray<Float> arr_;
+  RowMajorArrayPtr<Complex> carr_;  // TODO: needed?
 
 #ifndef FFTSLAB
   fftw_plan fft_;

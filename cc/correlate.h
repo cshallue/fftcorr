@@ -322,7 +322,9 @@ class Correlator {
     // TODO: we could copy with conjugation in one fell swoop.
     // TODO: are there cases where the dens_fft is not the entire Complex work
     // grid?
-    RowMajorArray<Complex> dens_fft(work_.carr().shape());
+    // TODO: abstract all this away into a copy() op or something?
+    Complex *fft_data = array_ops::allocate_array<Complex>(work_.carr().size());
+    RowMajorArray<Complex> dens_fft(fft_data, work_.carr().shape());
     // TODO: is it okay to do the copy initialization with complex rather than
     // floats for the purpose of assigning to physical hardware?
     array_ops::copy(work_.carr(), dens_fft);

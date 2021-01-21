@@ -32,15 +32,13 @@ FftGrid::FftGrid(std::array<int, 3> shape) {
   fprintf(stdout, "# Using dsize_z_=%d for FFT r2c padding\n", dsize_z);
 
   std::array<int, 3> dshape = {rshape_[0], rshape_[1], dsize_z};
-  // arr_ owns the data. carr_ is a complex view.
-  arr_ = new RowMajorArray<Float>(dshape);
-  // TODO: could do this in the constructor or in a create() or
-  // create_initialized() function.
-  array_ops::set_all(0.0, *arr_);
-  data_ = arr_->data();
-  carr_ = new RowMajorArrayPtr<Complex>((Complex *)data_,
-                                        {dshape[0], dshape[1], dshape[2] / 2});
-  cdata_ = carr_->data();
+  data_ = array_ops::allocate_array<Float>((uint64)dshape[0] * dshape[1] *
+                                           dshape[2]);
+  arr_.initialize(data_, dshape);
+  array_ops::set_all(0.0, arr_);  // Very Important. Touch the whole array.
+  // carr_ is a complex view.
+  carr_.initialize((Complex *)data_, {dshape[0], dshape[1], dshape[2] / 2});
+  cdata_ = carr_.data();
 
 // NULL is a valid fftw_plan value; the planner will return NULL if it fails.
 #ifndef FFTSLAB
@@ -70,10 +68,6 @@ FftGrid::~FftGrid() {
   fftw_cleanup_threads();
 #endif
 #endif
-
-  // TODO: use unique_ptr?
-  delete arr_;
-  delete carr_;
 }
 
 void FftGrid::setup_fft() {
@@ -119,7 +113,7 @@ void FftGrid::setup_fft() {
   // Since dsize_z is always even, this will trick
   // FFTW to assume dsize_z/2 Complex numbers in the result, while
   // fulfilling that nfft[2]>=ngrid[2].
-  nfft[2] = arr_->shape(2);
+  nfft[2] = arr_.shape(2);
   nfftc[2] = nfft[2] / 2;
   int howmany = 1;  // Only one forward and inverse FFT.
   int dist = 0;     // Unused because howmany = 1.
@@ -133,7 +127,7 @@ void FftGrid::setup_fft() {
 #else
   // If we wanted to split into 2D and 1D by hand (and therefore handle the OMP
   // aspects ourselves), then we need to have two plans each.
-  int dsize_z = arr_->shape(2);
+  int dsize_z = arr_.shape(2);
   int nfft2[2], nfft2c[2];
   nfft2[0] = nfft2c[0] = rshape_[1];
   nfft2[1] = dsize_z;  // Since dsize_z is always even, this will trick
@@ -178,7 +172,7 @@ void FftGrid::execute_fft() {
 #else
   // FFTyz.Start();
   // Then need to call this for every slab.  Can OMP these lines
-  int dsize_z = arr_->shape(2);
+  int dsize_z = arr_.shape(2);
 #pragma omp parallel for MY_SCHEDULE
   for (int x = 0; x < rshape_[0]; x++)
     fftw_execute_dft_r2c(fftYZ_, data + x * rshape_[1] * dsize_z,
@@ -201,7 +195,7 @@ void FftGrid::execute_ifft() {
 #else
   // FFTx.Start();
   // Then need to call this for every slab.  Can OMP these lines
-  int dsize_z = arr_->shape(2);
+  int dsize_z = arr_.shape(2);
 #pragma omp parallel for schedule(dynamic, 1)
   for (int y = 0; y < rshape_[1]; y++)
     fftw_execute_dft(ifftX_, (fftw_complex *)data + y * dsize_z / 2,
@@ -220,11 +214,11 @@ void FftGrid::execute_ifft() {
 
 // void FftGrid::restore_from(const RowMajorArrayPtr<Float> &other) {
 //   // TODO: check same dimensions.
-//   if (other.at(0, 0, 1) != arr_->at(0, 0, 1) ||
-//       other.at(0, 1, 1) != arr_->at(0, 1, 1) ||
-//       other.at(1, 1, 1) != arr_->at(1, 1, 1)) {
+//   if (other.at(0, 0, 1) != arr_.at(0, 0, 1) ||
+//       other.at(0, 1, 1) != arr_.at(0, 1, 1) ||
+//       other.at(1, 1, 1) != arr_.at(1, 1, 1)) {
 //     // Init.Start();
-//     arr_->copy_from(other);
+//     arr_.copy_from(other);
 //     // Init.Stop();
 //   }
 // }
@@ -257,7 +251,7 @@ void FftGrid::extract_submatrix(RowMajorArrayPtr<Float> *out,
         int kk = (rshape_[2] - oz + k) % rshape_[2];
         Float *out_data = out->get_row(i, j);
         const Float *m = mult ? mult->get_row(i, j) : NULL;
-        Float *arr_data = arr_->get_row(ii, jj);
+        const Float *arr_data = arr_.get_row(ii, jj);
         if (mult) {
           out_data[k] += m[k] * arr_data[kk];
         } else {
@@ -301,7 +295,7 @@ void FftGrid::extract_submatrix_C2R(RowMajorArrayPtr<Float> *out,
       // This is (iin,jjn,+oz)
       Float *out_data = out->get_row(i, j);
       const Float *m = mult ? mult->get_row(i, j) : NULL;
-      Complex *carr_data = carr_->get_row(iin, jjn);
+      const Complex *carr_data = carr_.get_row(iin, jjn);
       for (int k = 0; k < oz; ++k) {
         if (mult) {
           out_data[k] += m[k] * std::real(carr_data[oz - k]);
@@ -311,7 +305,7 @@ void FftGrid::extract_submatrix_C2R(RowMajorArrayPtr<Float> *out,
       }
       // The positive half-plane (inclusive)
       // This is (ii,jj,-oz)
-      carr_data = carr_->get_row(ii, jj);
+      carr_data = carr_.get_row(ii, jj);
       for (int k = oz; k < oshape[2]; ++k) {
         if (mult) {
           out_data[k] += m[k] * std::real(carr_data[k - oz]);

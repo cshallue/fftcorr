@@ -3,6 +3,8 @@
 
 #include "row_major_array.h"
 
+// TODO: most/all of these ops are in too general a namespace. they're really
+// implemented specifically for 3D large grids.
 namespace array_ops {
 
 template <typename dtype>
@@ -13,6 +15,15 @@ void set_all(dtype value, RowMajorArrayPtr<dtype> &arr);
 //   set_all(0.0, arr);
 //   return std::move(arr);
 // }
+
+template <typename dtype>
+inline dtype *allocate_array(uint64 size) {
+  dtype *data;
+  int err = posix_memalign((void **)&data, PAGE, sizeof(dtype) * size + PAGE);
+  assert(err == 0);
+  assert(data != NULL);
+  return data;
+}
 
 template <typename dtype>
 void copy(const RowMajorArrayPtr<dtype> &in, RowMajorArrayPtr<dtype> &out);

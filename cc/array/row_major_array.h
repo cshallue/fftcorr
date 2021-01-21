@@ -12,15 +12,28 @@
 // naming weird across the rest of the code. Can we make RowMajorArray the one
 // used most commonly?
 // TODO: a possibly unnecessary optimization would be to wrap the shape as well
+// Can be freely copied and moved.
 template <typename dtype>
 class RowMajorArrayPtr {
  public:
   RowMajorArrayPtr(dtype *data, std::array<int, 3> shape)
       : data_(data),
         shape_(shape),
-        size_((uint64)shape[0] * shape[1] * shape[2]) {
-    // TODO: check data_ not null? Depends on whether subclass accepts data or
-    // allocates it itself.
+        size_((uint64)shape[0] * shape[1] * shape[2]) {}
+
+  // Default constructor. This object is effectively a null pointer until
+  // initialize() is called. Like a null pointer, operations should not be
+  // called before initialization or bad things will happen. We need this
+  // constructor so that classes can allocate a RowMajorArrayPtr on the stack
+  // even if they construct the array in the body of their constructor.
+  RowMajorArrayPtr() : data_(NULL) {}
+
+  void initialize(dtype *data, const std::array<int, 3> &shape) {
+    assert(data_ == NULL);  // Only allowed to initialize once.
+    data_ = data;
+    assert(data_ != NULL);  // Can't initialize to a nullptr.
+    shape_ = shape;
+    size_ = (uint64)shape[0] * shape[1] * shape[2];
   }
 
   // TODO: needed?
@@ -31,13 +44,11 @@ class RowMajorArrayPtr {
   const dtype *data() const { return data_; }
 
   // Indexing.
-  inline uint64 get_index(int ix, int iy, int iz) const {
+  uint64 get_index(int ix, int iy, int iz) const {
     return (uint64)iz + shape_[2] * (iy + ix * shape_[1]);
   }
-  inline dtype &at(int ix, int iy, int iz) {
-    return data_[get_index(ix, iy, iz)];
-  }
-  inline const dtype &at(int ix, int iy, int iz) const {
+  dtype &at(int ix, int iy, int iz) { return data_[get_index(ix, iy, iz)]; }
+  const dtype &at(int ix, int iy, int iz) const {
     return data_[get_index(ix, iy, iz)];
   }
   // TODO: just use at() syntax instead of a new function? Fewer chars,
@@ -54,23 +65,17 @@ class RowMajorArrayPtr {
 template <typename dtype>
 class RowMajorArray : public RowMajorArrayPtr<dtype> {
  public:
-  RowMajorArray(std::array<int, 3> shape)
-      : RowMajorArrayPtr<dtype>(NULL, shape) {
-    // TODO: I think this class should probably accept an already allocated
-    // pointer, since it needn't insist on a particular memory alignment that's
-    // specific to FFTs. Confirm this, and then do the posix_memalign just in
-    // FftGrid.
-    int err = posix_memalign((void **)&this->data_, PAGE,
-                             sizeof(dtype) * this->size_ + PAGE);
-    assert(err == 0);
-    assert(this->data_ != NULL);
+  RowMajorArray(dtype *data, std::array<int, 3> shape)
+      : RowMajorArrayPtr<dtype>(data, shape) {}
+
+  RowMajorArray() : RowMajorArrayPtr<dtype>() {}
+
+  ~RowMajorArray() {
+    if (this->data_ != NULL) free(this->data_);
   }
 
-  ~RowMajorArray() { free(this->data_); }
-
-  // Disable default copy constructors because this causes lifetime issues.
-  // This also disables move operations. We could implement copy and move
-  // operations if needed.
+  // Disable copy and move operations. We could implement these if needed, but
+  // we'd need to copy the data / transfer ownership.
   RowMajorArray(const RowMajorArray<dtype> &) = delete;
   RowMajorArray &operator=(const RowMajorArray &) = delete;
 };

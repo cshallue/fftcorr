@@ -7,6 +7,9 @@ cdef extern from "row_major_array.h":
     dtype at(int ix, int iy, int iz)
 
 
+# TODO: since RowMajorArrayPtr has a nullary constructor, we should be able to
+# stack allocate the RowMajorArrayPtr[Float] object.
+# https://cython.readthedocs.io/en/latest/src/userguide/wrapping_CPlusPlus.html
 cdef class RowMajorArrayPtr_Float:
     cdef RowMajorArrayPtr[Float]* _ptr
     cdef RowMajorArrayPtr[Float]* ptr(self)
