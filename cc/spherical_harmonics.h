@@ -10,8 +10,8 @@
 /* ============== Spherical Harmonic routine ============== */
 
 void makeYlm(RowMajorArrayPtr<Float> *Ylm, int ell, int m,
-             const std::array<int, 3> &n, const Array1D &xcell,
-             const Array1D &ycell, const Array1D &zcell,
+             const std::array<int, 3> &n, const Float *xcell,
+             const Float *ycell, const Float *zcell,
              const RowMajorArrayPtr<Float> *mult, int exponent) {
   // TODO: check dimensions
 
@@ -64,8 +64,8 @@ void makeYlm(RowMajorArrayPtr<Float> *Ylm, int ell, int m,
     return;
   }
 
-  // TODO: Array1D?
-  const Float *z = zcell.data();
+  // TODO: vector?
+  const Float *z = zcell;
   Float *z2, *z3, *z4, *ones;
   int err = posix_memalign((void **)&z2, PAGE, sizeof(Float) * n[2] + PAGE);
   assert(err == 0);

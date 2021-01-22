@@ -5,6 +5,7 @@
 
 #include <array>
 #include <cmath>
+#include <vector>
 
 #include "array/array_ops.h"
 #include "grid.h"
@@ -14,6 +15,16 @@
 #include "particle_mesh/window_functions.h"
 #include "spherical_harmonics.h"
 #include "types.h"
+
+// TODO: locate somewhere else.
+std::vector<Float> sequence(Float start, Float step, int size) {
+  std::vector<Float> seq;  // Passing size would default-initialize elements.
+  seq.reserve(size);
+  for (int i = 0; i < size; ++i) {
+    seq[i] = start + i * step;
+  }
+  return seq;  // Data moved; no copy made.
+}
 
 class Correlator {
  public:
@@ -31,15 +42,8 @@ class Correlator {
 
   ~Correlator() {
     delete rgrid_;
-    delete rx_;
-    delete ry_;
-    delete rz_;
     delete rnorm_;
-
     delete kgrid_;
-    delete kx_;
-    delete ky_;
-    delete kz_;
     delete knorm_;
     delete inv_window_;
   }
@@ -119,12 +123,9 @@ class Correlator {
     // {0.5, 0.5, 0.5} is the center of first cell in grid coords. Subtracting
     // the location of the observer gives the origin with respect to the
     // observer.
-    Array1D xcell(dens_.ngrid(0));
-    xcell.range(0.5 - observer[0], 1);
-    Array1D ycell(dens_.ngrid(1));
-    ycell.range(0.5 - observer[1], 1);
-    Array1D zcell(dens_.ngrid(2));
-    zcell.range(0.5 - observer[2], 1);
+    std::vector<Float> xcell = sequence(0.5 - observer[0], 1.0, dens_.ngrid(0));
+    std::vector<Float> ycell = sequence(0.5 - observer[1], 1.0, dens_.ngrid(1));
+    std::vector<Float> zcell = sequence(0.5 - observer[2], 1.0, dens_.ngrid(2));
 
     // Multiply total by 4*pi, to match SE15 normalization
     // Include the FFTW normalization
@@ -172,8 +173,8 @@ class Correlator {
         // Create the Ylm matrix times work_
         // TODO: here, is it advantageous if dens_ is padded as well, so its
         // boundaries match with those of work?
-        makeYlm(&work_.arr(), ell, m, dens_.ngrid(), xcell, ycell, zcell,
-                &dens_.data().arr(), -wide_angle_exponent);
+        makeYlm(&work_.arr(), ell, m, dens_.ngrid(), xcell.data(), ycell.data(),
+                zcell.data(), &dens_.data().arr(), -wide_angle_exponent);
         fprintf(stdout, "Ylm...");
 
         // FFT in place
@@ -187,8 +188,8 @@ class Correlator {
 
         // Extract the anisotropic power spectrum
         // Load the Ylm's and include the CICwindow correction
-        makeYlm(&kgrid_->arr(), ell, m, kgrid_->shape(), *kx_, *ky_, *kz_,
-                &inv_window_->arr(), wide_angle_exponent);
+        makeYlm(&kgrid_->arr(), ell, m, kgrid_->shape(), kx_.data(), ky_.data(),
+                kz_.data(), &inv_window_->arr(), wide_angle_exponent);
         // Multiply these Ylm by the power result, and then add to total.
         work_.extract_submatrix_C2R(&ktotal.arr(), &kgrid_->arr());
 
@@ -199,8 +200,8 @@ class Correlator {
         // Create Ylm for the submatrix that we'll extract for histogramming
         // The extra multiplication by one here is of negligible cost, since
         // this array is so much smaller than the FFT grid.
-        makeYlm(&rgrid_->arr(), ell, m, rgrid_->shape(), *rx_, *ry_, *rz_, NULL,
-                wide_angle_exponent);
+        makeYlm(&rgrid_->arr(), ell, m, rgrid_->shape(), rx_.data(), ry_.data(),
+                rz_.data(), NULL, wide_angle_exponent);
 
         // Multiply these Ylm by the correlation result, and then add to total.
         work_.extract_submatrix(&total.arr(), &rgrid_->arr());
@@ -241,12 +242,11 @@ class Correlator {
     rgrid_ = new Array3D(rshape);
 
     // The axes of the cell centers in separation space in physical units.
-    rx_ = new Array1D(rshape[0]);
-    rx_->range(-cell_size * rmax_cells, cell_size);
-    ry_ = new Array1D(rshape[1]);
-    ry_->range(-cell_size * rmax_cells, cell_size);
-    rz_ = new Array1D(rshape[2]);
-    rz_->range(-cell_size * rmax_cells, cell_size);
+    fprintf(stderr, "capacity = %lu, data = %p\n", rx_.capacity(), rx_.data());
+    rx_ = sequence(-cell_size * rmax_cells, cell_size, rshape[0]);
+    fprintf(stderr, "capacity = %lu, data = %p\n", rx_.capacity(), rx_.data());
+    ry_ = sequence(-cell_size * rmax_cells, cell_size, rshape[1]);
+    rz_ = sequence(-cell_size * rmax_cells, cell_size, rshape[2]);
 
     // Radius of each separation-space subgrid cell in physical units.
     rnorm_ = new Array3D(rshape);
@@ -256,8 +256,7 @@ class Correlator {
           // TODO: use get_row or something faster everywhere I call at() in a
           // loop.
           rnorm_->at(i, j, k) =
-              sqrt((*rx_)[i] * (*rx_)[i] + (*ry_)[j] * (*ry_)[j] +
-                   (*rz_)[k] * (*rz_)[k]);
+              sqrt(rx_[i] * rx_[i] + ry_[j] * ry_[j] + rz_[k] * rz_[k]);
         }
       }
     }
@@ -300,15 +299,12 @@ class Correlator {
     fprintf(stderr, "kshape = [%d, %d, %d]\n", kshape[0], kshape[1], kshape[2]);
 
     // The axes in Fourier space.
-    kx_ = new Array1D(kshape[0]);
-    kx_->range((-kshape[0] / 2) * 2.0 * k_Nyq / ngrid[0],
-               2.0 * k_Nyq / ngrid[0]);
-    ky_ = new Array1D(kshape[1]);
-    ky_->range((-kshape[1] / 2) * 2.0 * k_Nyq / ngrid[1],
-               2.0 * k_Nyq / ngrid[1]);
-    kz_ = new Array1D(kshape[2]);
-    kz_->range((-kshape[2] / 2) * 2.0 * k_Nyq / ngrid[2],
-               2.0 * k_Nyq / ngrid[2]);
+    kx_ = sequence((-kshape[0] / 2) * 2.0 * k_Nyq / ngrid[0],
+                   2.0 * k_Nyq / ngrid[0], kshape[0]);
+    ky_ = sequence((-kshape[1] / 2) * 2.0 * k_Nyq / ngrid[1],
+                   2.0 * k_Nyq / ngrid[1], kshape[1]);
+    kz_ = sequence((-kshape[2] / 2) * 2.0 * k_Nyq / ngrid[2],
+                   2.0 * k_Nyq / ngrid[2], kshape[2]);
 
     // Frequency of each freqency subgrid cell in physical units.
     knorm_ = new Array3D(kshape);
@@ -316,8 +312,7 @@ class Correlator {
       for (int j = 0; j < kshape[1]; ++j) {
         for (int k = 0; k < kshape[2]; ++k) {
           knorm_->at(i, j, k) =
-              sqrt((*kx_)[i] * (*kx_)[i] + (*ky_)[j] * (*ky_)[j] +
-                   (*kz_)[k] * (*kz_)[k]);
+              sqrt(kx_[i] * kx_[i] + ky_[j] * ky_[j] + kz_[k] * kz_[k]);
         }
       }
     }
@@ -333,9 +328,9 @@ class Correlator {
               break;
             case kCloudInCell: {
               // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
-              Float sinkxL = sin((*kx_)[i] * cell_size / 2.0);
-              Float sinkyL = sin((*ky_)[j] * cell_size / 2.0);
-              Float sinkzL = sin((*kz_)[k] * cell_size / 2.0);
+              Float sinkxL = sin(kx_[i] * cell_size / 2.0);
+              Float sinkyL = sin(ky_[j] * cell_size / 2.0);
+              Float sinkzL = sin(kz_[k] * cell_size / 2.0);
               sinkxL *= sinkxL;
               sinkyL *= sinkyL;
               sinkzL *= sinkzL;
@@ -362,15 +357,15 @@ class Correlator {
   Float kmax_;
   // TODO: use RowMajorArray and allocate on the stack.
   Array3D *rgrid_;
-  Array1D *rx_;
-  Array1D *ry_;
-  Array1D *rz_;
+  std::vector<Float> rx_;
+  std::vector<Float> ry_;
+  std::vector<Float> rz_;
   Array3D *rnorm_;
 
   Array3D *kgrid_;
-  Array1D *kx_;
-  Array1D *ky_;
-  Array1D *kz_;
+  std::vector<Float> kx_;
+  std::vector<Float> ky_;
+  std::vector<Float> kz_;
   Array3D *knorm_;
   Array3D *inv_window_;
 
