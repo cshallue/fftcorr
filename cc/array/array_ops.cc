@@ -90,6 +90,92 @@ void copy_into_padded_array(const RowMajorArrayPtr<Float> &in,
   }
 }
 
+void add_scalar(Float s, RowMajorArray<Float> &arr) {
+  Float *data = arr.data();
+#ifdef SLAB
+  int nx = shape_[0];
+  const uint64 nyz = arr.size() / nx;
+#pragma omp parallel for MY_SCHEDULE
+  for (int x = 0; x < nx; ++x) {
+    // TODO: I could use arr_->get_row() here.
+    Float *slab = data + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] += s;
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 i = 0; i < arr.size(); ++i) {
+    data[i] += s;
+  }
+#endif
+}
+
+void multiply_by(Float s, RowMajorArray<Float> &arr) {
+  Float *data = arr.data();
+#ifdef SLAB
+  int nx = shape_[0];
+  const uint64 nyz = arr.size() / nx;
+#pragma omp parallel for MY_SCHEDULE
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      slab[i] *= s;
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE
+  for (uint64 i = 0; i < arr.size(); ++i) {
+    data[i] *= s;
+  }
+#endif
+}
+
+Float sum(const RowMajorArray<Float> &arr) {
+  const Float *data = arr.data();
+  Float tot = 0.0;
+#ifdef SLAB
+  int nx = shape_[0];
+  const uint64 nyz = arr.size() / nx;
+#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      tot += slab[i];
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
+  for (uint64 i = 0; i < arr.size(); ++i) {
+    tot += data[i];
+  }
+#endif
+  return tot;
+}
+
+// TODO: come up with a way to template these parallelizable ops
+Float sumsq(const RowMajorArray<Float> &arr) {
+  const Float *data = arr.data();
+  Float tot = 0.0;
+#ifdef SLAB
+  int nx = shape_[0];
+  const uint64 nyz = arr.size() / nx;
+#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
+  for (int x = 0; x < nx; ++x) {
+    Float *slab = data + x * nyz;
+    for (uint64 i = 0; i < nyz; ++i) {
+      tot += slab[i];
+    }
+  }
+#else
+#pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
+  for (uint64 i = 0; i < arr.size(); ++i) {
+    tot += data[i] * data[i];
+  }
+#endif
+  return tot;
+}
+
 void multiply_with_conjugation(const RowMajorArrayPtr<Complex> &in,
                                RowMajorArrayPtr<Complex> &out) {
   assert(in.shape(0) == out.shape(0));

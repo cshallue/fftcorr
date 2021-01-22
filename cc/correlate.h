@@ -40,22 +40,13 @@ class Correlator {
             work_.dshape()[1], work_.dshape()[2]);
   }
 
-  ~Correlator() {
-    delete rgrid_;
-    delete rnorm_;
-    delete kgrid_;
-    delete knorm_;
-    delete inv_window_;
-  }
-
   void correlate_iso(Histogram1D *h, Histogram1D *kh, Float *zerolag) {
     // Copy the density field into work_. We do this after setup_fft, because
     // that can estroy the input. TODO: possible optimization of initializing
     // work_ by copy and then hoping setup_fft doesn't destroy the input, but
     // we'd also need to make to ensure that we touch the whole padded work
     // array if we initialize by copy.
-    array_ops::copy_into_padded_array(dens_.data().arr(),  // TODO: yuck
-                                      work_.arr());
+    array_ops::copy_into_padded_array(dens_.data(), work_.arr());
 
     // Setup.Stop();
 
@@ -69,7 +60,7 @@ class Correlator {
 
     // Extract power spectrum.
     // TODO: should this include a CICwindow correction like the aniso case?
-    work_.extract_submatrix_C2R(&kgrid_->arr());
+    work_.extract_submatrix_C2R(&kgrid_);
 
     // We must divide by ncells^2: DFT differs from Fourier series coefficients
     // by a factor of ncells, and we've squared the DFT result.
@@ -77,8 +68,8 @@ class Correlator {
     // types.
     uint64 ncells = dens_.data().size();  // TODO: yuck
     Float pnorm = 1.0 / ncells / ncells;
-    kgrid_->multiply_by(pnorm);
-    kh->histcorr(*knorm_, *kgrid_);
+    array_ops::multiply_by(pnorm, kgrid_);
+    kh->histcorr(knorm_, kgrid_);
 
     // iFFT the result, in place
     fprintf(stdout, "IFFT...");
@@ -88,14 +79,14 @@ class Correlator {
     fprintf(stdout, "# Done!\n");
     fflush(NULL);
 
-    work_.extract_submatrix(&rgrid_->arr());
+    work_.extract_submatrix(&rgrid_);
 
     // We must divide by two factors of ncells: the first one completes the
     // inverse FFT (FFTW doesn't include this factor automatically) and the
     // second is the factor converting the autocorrelation to the 2PCF.
     Float norm = 1.0 / ncells / ncells;
-    rgrid_->multiply_by(norm);
-    h->histcorr(*rnorm_, *rgrid_);
+    array_ops::multiply_by(norm, rgrid_);
+    h->histcorr(rnorm_, rgrid_);
 
     // Hist.Stop();
     // Correlate.Stop();
@@ -114,8 +105,8 @@ class Correlator {
     // work_ by copy and then hoping setup_fft doesn't destroy the input, but
     // we'd also need to make to ensure that we touch the whole padded work
     // array if we initialize by copy.
-    array_ops::copy_into_padded_array(dens_.data().arr(),  // TODO: yuck
-                                      work_.arr());
+    // TODO: consistency between dens.data() and work.arr()
+    array_ops::copy_into_padded_array(dens_.data(), work_.arr());
 
     // Compute xcell, ycell, zcell, which are the coordinates of the cell
     // centers in each dimension, relative to the origin. Now set up the cell
@@ -129,7 +120,7 @@ class Correlator {
 
     // Multiply total by 4*pi, to match SE15 normalization
     // Include the FFTW normalization
-    uint64 ncells = dens_.data().size();  // TODO: yuck
+    uint64 ncells = dens_.data().size();
     Float norm = 4.0 * M_PI / ncells;
     Float pnorm = 4.0 * M_PI;
 
@@ -137,8 +128,10 @@ class Correlator {
     // every time? We could do a lazy initialization. Ultimately it probably
     // doesn't matter because they're not expensive, but I just want to be
     // consistent.
-    Array3D total(rgrid_->shape());
-    Array3D ktotal(kgrid_->shape());
+    RowMajorArray<Float> total(array_ops::allocate_array<Float>(rgrid_.shape()),
+                               rgrid_.shape());
+    RowMajorArray<Float> ktotal(
+        array_ops::allocate_array<Float>(rgrid_.shape()), kgrid_.shape());
 
     // Correlate .Start();  // Starting the main work
     // Now compute the FFT of the density field and conjugate it
@@ -154,8 +147,9 @@ class Correlator {
     // TODO: are there cases where the dens_fft is not the entire Complex work
     // grid?
     // TODO: abstract all this away into a copy() op or something?
-    Complex *fft_data = array_ops::allocate_array<Complex>(work_.carr().size());
-    RowMajorArray<Complex> dens_fft(fft_data, work_.carr().shape());
+    RowMajorArray<Complex> dens_fft(
+        array_ops::allocate_array<Complex>(work_.carr().shape()),
+        work_.carr().shape());
     // TODO: is it okay to do the copy initialization with complex rather than
     // floats for the purpose of assigning to physical hardware?
     array_ops::copy(work_.carr(), dens_fft);
@@ -165,8 +159,8 @@ class Correlator {
     // Loop over each ell to compute the anisotropic correlations
     for (int ell = 0; ell <= maxell; ell += 2) {
       // Initialize the submatrix
-      total.set_all(0.0);   // TODO: needed?
-      ktotal.set_all(0.0);  // TODO: needed?
+      array_ops::set_all(0.0, total);
+      array_ops::set_all(0.0, ktotal);
       // Loop over m
       for (int m = -ell; m <= ell; m++) {
         fprintf(stdout, "# Computing %d %2d...", ell, m);
@@ -174,7 +168,7 @@ class Correlator {
         // TODO: here, is it advantageous if dens_ is padded as well, so its
         // boundaries match with those of work?
         makeYlm(&work_.arr(), ell, m, dens_.ngrid(), xcell.data(), ycell.data(),
-                zcell.data(), &dens_.data().arr(), -wide_angle_exponent);
+                zcell.data(), &dens_.data(), -wide_angle_exponent);
         fprintf(stdout, "Ylm...");
 
         // FFT in place
@@ -188,10 +182,10 @@ class Correlator {
 
         // Extract the anisotropic power spectrum
         // Load the Ylm's and include the CICwindow correction
-        makeYlm(&kgrid_->arr(), ell, m, kgrid_->shape(), kx_.data(), ky_.data(),
-                kz_.data(), &inv_window_->arr(), wide_angle_exponent);
+        makeYlm(&kgrid_, ell, m, kgrid_.shape(), kx_.data(), ky_.data(),
+                kz_.data(), &inv_window_, wide_angle_exponent);
         // Multiply these Ylm by the power result, and then add to total.
-        work_.extract_submatrix_C2R(&ktotal.arr(), &kgrid_->arr());
+        work_.extract_submatrix_C2R(&ktotal, &kgrid_);
 
         // iFFT the result, in place
         work_.execute_ifft();
@@ -200,24 +194,24 @@ class Correlator {
         // Create Ylm for the submatrix that we'll extract for histogramming
         // The extra multiplication by one here is of negligible cost, since
         // this array is so much smaller than the FFT grid.
-        makeYlm(&rgrid_->arr(), ell, m, rgrid_->shape(), rx_.data(), ry_.data(),
+        makeYlm(&rgrid_, ell, m, rgrid_.shape(), rx_.data(), ry_.data(),
                 rz_.data(), NULL, wide_angle_exponent);
 
         // Multiply these Ylm by the correlation result, and then add to total.
-        work_.extract_submatrix(&total.arr(), &rgrid_->arr());
+        work_.extract_submatrix(&total, &rgrid_);
 
         fprintf(stdout, "Done!\n");
         fflush(NULL);
       }
 
       // Extract.Start();
-      total.multiply_by(norm);
-      ktotal.multiply_by(pnorm);
+      array_ops::multiply_by(norm, total);
+      array_ops::multiply_by(pnorm, ktotal);
       // Extract.Stop();
       // Histogram total by rnorm
       // Hist.Start();
-      h->histcorr(ell, *rnorm_, total);
-      kh->histcorr(ell, *knorm_, ktotal);
+      h->histcorr(ell, rnorm_, total);
+      kh->histcorr(ell, knorm_, ktotal);
       // Hist.Stop();
       // TODO: restore
       // if (ell == 0) {
@@ -239,7 +233,7 @@ class Correlator {
     std::array<int, 3> rshape = {sizex, sizex, sizex};
     fprintf(stderr, "rgrid shape = [%d, %d, %d]\n", rshape[0], rshape[1],
             rshape[2]);
-    rgrid_ = new Array3D(rshape);
+    rgrid_.initialize(array_ops::allocate_array<Float>(rshape), rshape);
 
     // The axes of the cell centers in separation space in physical units.
     fprintf(stderr, "capacity = %lu, data = %p\n", rx_.capacity(), rx_.data());
@@ -249,13 +243,13 @@ class Correlator {
     rz_ = sequence(-cell_size * rmax_cells, cell_size, rshape[2]);
 
     // Radius of each separation-space subgrid cell in physical units.
-    rnorm_ = new Array3D(rshape);
+    rnorm_.initialize(array_ops::allocate_array<Float>(rshape), rshape);
     for (int i = 0; i < rshape[0]; ++i) {
       for (int j = 0; j < rshape[1]; ++j) {
         for (int k = 0; k < rshape[2]; ++k) {
           // TODO: use get_row or something faster everywhere I call at() in a
           // loop.
-          rnorm_->at(i, j, k) =
+          rnorm_.at(i, j, k) =
               sqrt(rx_[i] * rx_[i] + ry_[j] * ry_[j] + rz_[k] * rz_[k]);
         }
       }
@@ -292,7 +286,7 @@ class Correlator {
                 i, kshape[i]);
       }
     }
-    kgrid_ = new Array3D(kshape);
+    kgrid_.initialize(array_ops::allocate_array<Float>(kshape), kshape);
     fprintf(stdout,
             "# Done setting up the wavevector submatrix of size +-%d, %d, %d\n",
             kshape[0] / 2, kshape[1] / 2, kshape[2] / 2);
@@ -307,17 +301,17 @@ class Correlator {
                    2.0 * k_Nyq / ngrid[2], kshape[2]);
 
     // Frequency of each freqency subgrid cell in physical units.
-    knorm_ = new Array3D(kshape);
+    knorm_.initialize(array_ops::allocate_array<Float>(kshape), kshape);
     for (int i = 0; i < kshape[0]; ++i) {
       for (int j = 0; j < kshape[1]; ++j) {
         for (int k = 0; k < kshape[2]; ++k) {
-          knorm_->at(i, j, k) =
+          knorm_.at(i, j, k) =
               sqrt(kx_[i] * kx_[i] + ky_[j] * ky_[j] + kz_[k] * kz_[k]);
         }
       }
     }
 
-    inv_window_ = new Array3D(kshape);
+    inv_window_.initialize(array_ops::allocate_array<Float>(kshape), kshape);
     Float window;
     for (int i = 0; i < kshape[0]; ++i) {
       for (int j = 0; j < kshape[1]; ++j) {
@@ -345,7 +339,7 @@ class Correlator {
               window = 1.0;
               break;
           }
-          inv_window_->at(i, j, k) = 1.0 / window;
+          inv_window_.at(i, j, k) = 1.0 / window;
           // We will divide the power spectrum by the square of the window
         }
       }
@@ -356,18 +350,18 @@ class Correlator {
   Float rmax_;  // TODO: needed?
   Float kmax_;
   // TODO: use RowMajorArray and allocate on the stack.
-  Array3D *rgrid_;
+  RowMajorArray<Float> rgrid_;
   std::vector<Float> rx_;
   std::vector<Float> ry_;
   std::vector<Float> rz_;
-  Array3D *rnorm_;
+  RowMajorArray<Float> rnorm_;
 
-  Array3D *kgrid_;
+  RowMajorArray<Float> kgrid_;
   std::vector<Float> kx_;
   std::vector<Float> ky_;
   std::vector<Float> kz_;
-  Array3D *knorm_;
-  Array3D *inv_window_;
+  RowMajorArray<Float> knorm_;
+  RowMajorArray<Float> inv_window_;
 
   FftGrid work_;
 };

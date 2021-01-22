@@ -83,7 +83,8 @@ cloud-in-cell to keep up.
 #include <vector>
 
 #include "STimer.cc"
-#include "array3d.h"
+#include "array/array_ops.h"
+#include "array/row_major_array.h"
 #include "correlate.h"
 #include "grid.h"
 #include "grid/config_space_grid.h"
@@ -350,27 +351,28 @@ int main(int argc, char *argv[]) {
   // thing happen with NEAREST_CELL?
   mass_assignor.flush();
 
-  Array3D &dens = grid.data();
+  RowMajorArray<Float> &dens = grid.data();
   fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n",
           mass_assignor.count(), mass_assignor.totw());
-  Float totw2 = dens.sum();
+  Float totw2 = array_ops::sum(dens);
   fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
           totw2 - mass_assignor.totw());
-  fprintf(stdout, "# Sum of squares of grid is %10.4e \n", dens.sumsq());
+  fprintf(stdout, "# Sum of squares of grid is %10.4e \n",
+          array_ops::sumsq(dens));
   if (qperiodic >= 2) {
     // We're asked to set the mean to zero
     Float mean = mass_assignor.totw() / dens.size();
-    dens.add_scalar(-mean);
+    array_ops::add_scalar(-mean, dens);
     fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
     if (qperiodic == 3) {
       // Also divide by the mean.
-      dens.multiply_by(1.0 / mean);
+      array_ops::multiply_by(1.0 / mean, dens);
       fprintf(stdout, "# Also dividing by mean cell density %10.4e\n", mean);
     }
   }
 
   Float totwsq = mass_assignor.totwsq();
-  Float sumsq_dens = dens.sumsq();
+  Float sumsq_dens = array_ops::sumsq(dens);  // TODO: repeated from above
   fprintf(stdout, "# Sum of squares of density = %14.7e\n", sumsq_dens);
   fprintf(stdout,
           "# Sum of squares of weights (divide by I for Pshot) = %14.7e\n",

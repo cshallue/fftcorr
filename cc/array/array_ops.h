@@ -5,10 +5,17 @@
 
 // TODO: most/all of these ops are in too general a namespace. they're really
 // implemented specifically for 3D large grids.
+// We could template many of these functions, but really we only need the Float
+// type mostly.
 namespace array_ops {
 
 template <typename dtype>
 void set_all(dtype value, RowMajorArrayPtr<dtype> &arr);
+
+void add_scalar(Float s, RowMajorArray<Float> &arr);
+void multiply_by(Float s, RowMajorArray<Float> &arr);
+Float sum(const RowMajorArray<Float> &arr);
+Float sumsq(const RowMajorArray<Float> &arr);
 
 // RowMajorArray<Float> create(const std::array<int, 3> &shape) {
 //   RowMajorArray<Float> arr = create_uninitialized(shape);
@@ -17,7 +24,8 @@ void set_all(dtype value, RowMajorArrayPtr<dtype> &arr);
 // }
 
 template <typename dtype>
-inline dtype *allocate_array(uint64 size) {
+inline dtype *allocate_array(const std::array<int, 3> &shape) {
+  uint64 size = (uint64)shape[0] * shape[1] * shape[2];
   dtype *data;
   int err = posix_memalign((void **)&data, PAGE, sizeof(dtype) * size + PAGE);
   assert(err == 0);

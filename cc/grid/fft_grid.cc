@@ -32,8 +32,7 @@ FftGrid::FftGrid(std::array<int, 3> shape) {
   fprintf(stdout, "# Using dsize_z_=%d for FFT r2c padding\n", dsize_z);
 
   std::array<int, 3> dshape = {rshape_[0], rshape_[1], dsize_z};
-  data_ = array_ops::allocate_array<Float>((uint64)dshape[0] * dshape[1] *
-                                           dshape[2]);
+  data_ = array_ops::allocate_array<Float>(dshape);
   arr_.initialize(data_, dshape);
   array_ops::set_all(0.0, arr_);  // Very Important. Touch the whole array.
   // carr_ is a complex view.

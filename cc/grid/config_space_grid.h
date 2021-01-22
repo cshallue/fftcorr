@@ -3,7 +3,8 @@
 
 #include <array>
 
-#include "../array3d.h"
+#include "../array/array_ops.h"
+#include "../array/row_major_array.h"
 #include "../particle_mesh/window_functions.h"
 #include "../types.h"
 
@@ -15,7 +16,7 @@ class ConfigSpaceGrid {
         posmin_(posmin),
         cell_size_(cell_size),
         window_type_(window_type),
-        data_(ngrid_) {}
+        grid_(array_ops::allocate_array<Float>(ngrid_), ngrid_) {}
 
   // TODO: rename ngrid to shape.
   const std::array<int, 3>& ngrid() const { return ngrid_; }
@@ -23,19 +24,18 @@ class ConfigSpaceGrid {
   const std::array<Float, 3>& posmin() const { return posmin_; }
   Float cell_size() const { return cell_size_; }
   WindowType window_type() const { return window_type_; }
-  const Array3D& data() const { return data_; }
+  // TODO: needed for MassAssignor and for fftcorr.cpp normalization.
+  RowMajorArray<Float>& data() { return grid_; }
+  const RowMajorArray<Float>& data() const { return grid_; }
 
   // TODO: just for testing wrapping; delete.
-  void add_scalar(Float s) { data_.add_scalar(s); }
-  void multiply_by(Float s) { data_.multiply_by(s); }
-  Float sum() const { return data_.sum(); }
-  Float sumsq() const { return data_.sumsq(); }
-
-  // TODO: needed for MassAssignor and for fftcorr.cpp normalization.
-  Array3D& data() { return data_; }
+  void add_scalar(Float s) { array_ops::add_scalar(s, grid_); }
+  void multiply_by(Float s) { array_ops::multiply_by(s, grid_); }
+  Float sum() const { return array_ops::sum(grid_); }
+  Float sumsq() const { return array_ops::sumsq(grid_); }
 
   // TODO: for wrapping.
-  Float* raw_data() { return data_.arr().get_row(0, 0); }
+  Float* raw_data() { return grid_.data(); }
 
   inline void change_survey_to_grid_coords(Float& x, Float& y, Float& z) const {
     x = (x - posmin_[0]) / cell_size_;
@@ -53,11 +53,7 @@ class ConfigSpaceGrid {
   // Type of window used in mass assignment.
   WindowType window_type_;
 
-  // TODO: figure out the minimal array type this class needs. It needs to own
-  // and allocate the data, it needs indexing operations, and we need
-  // real-space operations add_scalar, multiply_by, sum, sumsq, although these
-  // could be out-of-class operations on a RowMajorArray.
-  Array3D data_;
+  RowMajorArray<Float> grid_;
 };
 
 #endif  // CONFIG_SPACE_GRID_H
