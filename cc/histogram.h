@@ -23,11 +23,8 @@ class Histogram2D {
   // TODO: Might consider creating more flexible ways to select a binning.
   inline int r2bin(Float r) { return floor(r / binsize_); }
 
-  // TODO: we might want the histogram to own rnorm? If it creates and owns
-  // rnorm, then it makes sense for it to be able to keep track of zerolag
-  // (since it'll know the index corresponding to exactly zero separation).
-  void histcorr(int ell, const RowMajorArrayPtr<Float> &rnorm,
-                const RowMajorArrayPtr<Float> &total) {
+  void histcorr(int ell, const RowMajorArrayPtr<Float, 3> &rnorm,
+                const RowMajorArrayPtr<Float, 3> &total) {
     // Histogram into bins by rnorm[n], adding up weighting by total[n].
     // Add to multipole ell.
     int ih = ell / 2;
@@ -91,8 +88,8 @@ class Histogram1D : public Histogram2D {
  public:
   Histogram1D(Float sep, Float dsep) : Histogram2D(0, sep, dsep) {}
 
-  void histcorr(const RowMajorArrayPtr<Float> &rnorm,
-                const RowMajorArrayPtr<Float> &total) {
+  void histcorr(const RowMajorArrayPtr<Float, 3> &rnorm,
+                const RowMajorArrayPtr<Float, 3> &total) {
     Histogram2D::histcorr(0, rnorm, total);
   }
 };

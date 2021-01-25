@@ -20,14 +20,14 @@ class WindowFunction {
   virtual ~WindowFunction() {}
   virtual int width() = 0;
   virtual void add_particle_to_grid(const Galaxy& g,
-                                    RowMajorArrayPtr<Float>* dens) = 0;
+                                    RowMajorArrayPtr<Float, 3>* dens) = 0;
 };
 
 class NearestCellWindow : public WindowFunction {
   int width() override { return 1; }
 
   void add_particle_to_grid(const Galaxy& g,
-                            RowMajorArrayPtr<Float>* dens) override {
+                            RowMajorArrayPtr<Float, 3>* dens) override {
     int ix = floor(g.x);
     int iy = floor(g.y);
     int iz = floor(g.z);
@@ -39,7 +39,7 @@ class CloudInCellWindow : public WindowFunction {
   int width() override { return 3; }
 
   void add_particle_to_grid(const Galaxy& g,
-                            RowMajorArrayPtr<Float>* dens) override {
+                            RowMajorArrayPtr<Float, 3>* dens) override {
     // This implementation can correctly handle a padded data layout, i.e. the
     // memory layout of dens is a row-major (C-contiguous) array with dimensions
     // [nx1, ny1, nz1], whereas the logical shape of the density field grid is
@@ -169,7 +169,7 @@ class WaveletWindow : public WindowFunction {
   int width() override { return WCELLS; }
 
   void add_particle_to_grid(const Galaxy& g,
-                            RowMajorArrayPtr<Float>* dens) override {
+                            RowMajorArrayPtr<Float, 3>* dens) override {
     // This implementation can correctly handle a padded data layout, i.e. the
     // memory layout of dens is a row-major (C-contiguous) array with dimensions
     // [nx1, ny1, nz1], whereas the logical shape of the density field grid is

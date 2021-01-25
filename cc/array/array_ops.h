@@ -10,15 +10,15 @@
 namespace array_ops {
 
 template <typename dtype>
-void set_all(dtype value, RowMajorArrayPtr<dtype> &arr);
+void set_all(dtype value, RowMajorArrayPtr<dtype, 3> &arr);
 
-void add_scalar(Float s, RowMajorArray<Float> &arr);
-void multiply_by(Float s, RowMajorArray<Float> &arr);
-Float sum(const RowMajorArray<Float> &arr);
-Float sumsq(const RowMajorArray<Float> &arr);
+void add_scalar(Float s, RowMajorArray<Float, 3> &arr);
+void multiply_by(Float s, RowMajorArray<Float, 3> &arr);
+Float sum(const RowMajorArray<Float, 3> &arr);
+Float sumsq(const RowMajorArray<Float, 3> &arr);
 
-// RowMajorArray<Float> create(const std::array<int, 3> &shape) {
-//   RowMajorArray<Float> arr = create_uninitialized(shape);
+// RowMajorArray<Float, 3> create(const std::array<int, 3> &shape) {
+//   RowMajorArray<Float, 3> arr = create_uninitialized(shape);
 //   set_all(0.0, arr);
 //   return std::move(arr);
 // }
@@ -34,13 +34,14 @@ inline dtype *allocate_array(const std::array<int, 3> &shape) {
 }
 
 template <typename dtype>
-void copy(const RowMajorArrayPtr<dtype> &in, RowMajorArrayPtr<dtype> &out);
+void copy(const RowMajorArrayPtr<dtype, 3> &in,
+          RowMajorArrayPtr<dtype, 3> &out);
 
-void copy_into_padded_array(const RowMajorArrayPtr<Float> &in,
-                            RowMajorArrayPtr<Float> &out);
+void copy_into_padded_array(const RowMajorArrayPtr<Float, 3> &in,
+                            RowMajorArrayPtr<Float, 3> &out);
 
-void multiply_with_conjugation(const RowMajorArrayPtr<Complex> &in,
-                               RowMajorArrayPtr<Complex> &out);
+void multiply_with_conjugation(const RowMajorArrayPtr<Complex, 3> &in,
+                               RowMajorArrayPtr<Complex, 3> &out);
 
 }  // namespace array_ops
 

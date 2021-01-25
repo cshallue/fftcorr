@@ -128,9 +128,9 @@ class Correlator {
     // every time? We could do a lazy initialization. Ultimately it probably
     // doesn't matter because they're not expensive, but I just want to be
     // consistent.
-    RowMajorArray<Float> total(array_ops::allocate_array<Float>(rgrid_.shape()),
-                               rgrid_.shape());
-    RowMajorArray<Float> ktotal(
+    RowMajorArray<Float, 3> total(
+        array_ops::allocate_array<Float>(rgrid_.shape()), rgrid_.shape());
+    RowMajorArray<Float, 3> ktotal(
         array_ops::allocate_array<Float>(rgrid_.shape()), kgrid_.shape());
 
     // Correlate .Start();  // Starting the main work
@@ -147,7 +147,7 @@ class Correlator {
     // TODO: are there cases where the dens_fft is not the entire Complex work
     // grid?
     // TODO: abstract all this away into a copy() op or something?
-    RowMajorArray<Complex> dens_fft(
+    RowMajorArray<Complex, 3> dens_fft(
         array_ops::allocate_array<Complex>(work_.carr().shape()),
         work_.carr().shape());
     // TODO: is it okay to do the copy initialization with complex rather than
@@ -349,19 +349,19 @@ class Correlator {
   const ConfigSpaceGrid &dens_;
   Float rmax_;  // TODO: needed?
   Float kmax_;
-  // TODO: use RowMajorArray and allocate on the stack.
-  RowMajorArray<Float> rgrid_;
+
+  RowMajorArray<Float, 3> rgrid_;
   std::vector<Float> rx_;
   std::vector<Float> ry_;
   std::vector<Float> rz_;
-  RowMajorArray<Float> rnorm_;
+  RowMajorArray<Float, 3> rnorm_;
 
-  RowMajorArray<Float> kgrid_;
+  RowMajorArray<Float, 3> kgrid_;
   std::vector<Float> kx_;
   std::vector<Float> ky_;
   std::vector<Float> kz_;
-  RowMajorArray<Float> knorm_;
-  RowMajorArray<Float> inv_window_;
+  RowMajorArray<Float, 3> knorm_;
+  RowMajorArray<Float, 3> inv_window_;
 
   FftGrid work_;
 };

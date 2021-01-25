@@ -5,7 +5,7 @@
 namespace array_ops {
 
 template <typename dtype>
-void set_all(dtype value, RowMajorArrayPtr<dtype> &arr) {
+void set_all(dtype value, RowMajorArrayPtr<dtype, 3> &arr) {
   // Init.Start();
   dtype *data = arr.data();
 #ifdef SLAB
@@ -33,17 +33,18 @@ void set_all(dtype value, RowMajorArrayPtr<dtype> &arr) {
 // to create. Or the third option is to just use one compilation unit for the
 // entire project.
 // https://stackoverflow.com/questions/115703/storing-c-template-function-definitions-in-a-cpp-file
-template void set_all(Float, RowMajorArrayPtr<Float> &);
-template void set_all(Complex, RowMajorArrayPtr<Complex> &);
+template void set_all(Float, RowMajorArrayPtr<Float, 3> &);
+template void set_all(Complex, RowMajorArrayPtr<Complex, 3> &);
 
-// // RowMajorArray<Float> create(const std::array<int, 3> &shape) {
-// //   RowMajorArray<Float> arr = create_uninitialized(shape);
+// // RowMajorArray<Float, 3> create(const std::array<int, 3> &shape) {
+// //   RowMajorArray<Float, 3> arr = create_uninitialized(shape);
 // //   set_all(0.0, arr);
 // //   return std::move(arr);
 // // }
 
 template <typename dtype>
-void copy(const RowMajorArrayPtr<dtype> &in, RowMajorArrayPtr<dtype> &out) {
+void copy(const RowMajorArrayPtr<dtype, 3> &in,
+          RowMajorArrayPtr<dtype, 3> &out) {
   assert(in.shape(0) == out.shape(0));
   assert(in.shape(1) == out.shape(1));
   assert(in.shape(2) == out.shape(2));
@@ -69,12 +70,13 @@ void copy(const RowMajorArrayPtr<dtype> &in, RowMajorArrayPtr<dtype> &out) {
 #endif
   // Init.Stop();
 }
-template void copy(const RowMajorArrayPtr<Float> &, RowMajorArrayPtr<Float> &);
-template void copy(const RowMajorArrayPtr<Complex> &,
-                   RowMajorArrayPtr<Complex> &);
+template void copy(const RowMajorArrayPtr<Float, 3> &,
+                   RowMajorArrayPtr<Float, 3> &);
+template void copy(const RowMajorArrayPtr<Complex, 3> &,
+                   RowMajorArrayPtr<Complex, 3> &);
 
-void copy_into_padded_array(const RowMajorArrayPtr<Float> &in,
-                            RowMajorArrayPtr<Float> &out) {
+void copy_into_padded_array(const RowMajorArrayPtr<Float, 3> &in,
+                            RowMajorArrayPtr<Float, 3> &out) {
   assert(in.shape(0) == out.shape(0));
   assert(in.shape(1) == out.shape(1));
   assert(in.shape(2) <= out.shape(2));
@@ -90,7 +92,7 @@ void copy_into_padded_array(const RowMajorArrayPtr<Float> &in,
   }
 }
 
-void add_scalar(Float s, RowMajorArray<Float> &arr) {
+void add_scalar(Float s, RowMajorArray<Float, 3> &arr) {
   Float *data = arr.data();
 #ifdef SLAB
   int nx = shape_[0];
@@ -111,7 +113,7 @@ void add_scalar(Float s, RowMajorArray<Float> &arr) {
 #endif
 }
 
-void multiply_by(Float s, RowMajorArray<Float> &arr) {
+void multiply_by(Float s, RowMajorArray<Float, 3> &arr) {
   Float *data = arr.data();
 #ifdef SLAB
   int nx = shape_[0];
@@ -131,7 +133,7 @@ void multiply_by(Float s, RowMajorArray<Float> &arr) {
 #endif
 }
 
-Float sum(const RowMajorArray<Float> &arr) {
+Float sum(const RowMajorArray<Float, 3> &arr) {
   const Float *data = arr.data();
   Float tot = 0.0;
 #ifdef SLAB
@@ -154,7 +156,7 @@ Float sum(const RowMajorArray<Float> &arr) {
 }
 
 // TODO: come up with a way to template these parallelizable ops
-Float sumsq(const RowMajorArray<Float> &arr) {
+Float sumsq(const RowMajorArray<Float, 3> &arr) {
   const Float *data = arr.data();
   Float tot = 0.0;
 #ifdef SLAB
@@ -176,8 +178,8 @@ Float sumsq(const RowMajorArray<Float> &arr) {
   return tot;
 }
 
-void multiply_with_conjugation(const RowMajorArrayPtr<Complex> &in,
-                               RowMajorArrayPtr<Complex> &out) {
+void multiply_with_conjugation(const RowMajorArrayPtr<Complex, 3> &in,
+                               RowMajorArrayPtr<Complex, 3> &out) {
   assert(in.shape(0) == out.shape(0));
   assert(in.shape(1) == out.shape(1));
   assert(in.shape(2) == out.shape(2));

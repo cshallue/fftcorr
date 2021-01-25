@@ -211,7 +211,7 @@ void FftGrid::execute_ifft() {
   // FFTonly.Stop();
 }
 
-// void FftGrid::restore_from(const RowMajorArrayPtr<Float> &other) {
+// void FftGrid::restore_from(const RowMajorArrayPtr<Float, 3> &other) {
 //   // TODO: check same dimensions.
 //   if (other.at(0, 0, 1) != arr_.at(0, 0, 1) ||
 //       other.at(0, 1, 1) != arr_.at(0, 1, 1) ||
@@ -222,12 +222,12 @@ void FftGrid::execute_ifft() {
 //   }
 // }
 
-void FftGrid::extract_submatrix(RowMajorArrayPtr<Float> *out) const {
+void FftGrid::extract_submatrix(RowMajorArrayPtr<Float, 3> *out) const {
   extract_submatrix(out, NULL);
 }
 
-void FftGrid::extract_submatrix(RowMajorArrayPtr<Float> *out,
-                                const RowMajorArrayPtr<Float> *mult) const {
+void FftGrid::extract_submatrix(RowMajorArrayPtr<Float, 3> *out,
+                                const RowMajorArrayPtr<Float, 3> *mult) const {
   // TODO: check dimensions.
   // Extract out a submatrix, centered on [0,0,0] of this array
   // Multiply elementwise by mult.
@@ -262,12 +262,13 @@ void FftGrid::extract_submatrix(RowMajorArrayPtr<Float> *out,
   // Extract.Stop();
 }
 
-void FftGrid::extract_submatrix_C2R(RowMajorArrayPtr<Float> *out) const {
+void FftGrid::extract_submatrix_C2R(RowMajorArrayPtr<Float, 3> *out) const {
   extract_submatrix_C2R(out, NULL);
 }
 
-void FftGrid::extract_submatrix_C2R(RowMajorArrayPtr<Float> *out,
-                                    const RowMajorArrayPtr<Float> *mult) const {
+void FftGrid::extract_submatrix_C2R(
+    RowMajorArrayPtr<Float, 3> *out,
+    const RowMajorArrayPtr<Float, 3> *mult) const {
   // Given a large matrix work[ngrid^3/2],
   // extract out a submatrix of size csize^3, centered on work[0,0,0].
   // The input matrix is Complex * with the half-domain Fourier convention.

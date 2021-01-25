@@ -25,8 +25,8 @@ class ConfigSpaceGrid {
   Float cell_size() const { return cell_size_; }
   WindowType window_type() const { return window_type_; }
   // TODO: needed for MassAssignor and for fftcorr.cpp normalization.
-  RowMajorArray<Float>& data() { return grid_; }
-  const RowMajorArray<Float>& data() const { return grid_; }
+  RowMajorArray<Float, 3>& data() { return grid_; }
+  const RowMajorArray<Float, 3>& data() const { return grid_; }
 
   // TODO: just for testing wrapping; delete.
   void add_scalar(Float s) { array_ops::add_scalar(s, grid_); }
@@ -53,7 +53,7 @@ class ConfigSpaceGrid {
   // Type of window used in mass assignment.
   WindowType window_type_;
 
-  RowMajorArray<Float> grid_;
+  RowMajorArray<Float, 3> grid_;
 };
 
 #endif  // CONFIG_SPACE_GRID_H

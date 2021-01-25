@@ -351,7 +351,7 @@ int main(int argc, char *argv[]) {
   // thing happen with NEAREST_CELL?
   mass_assignor.flush();
 
-  RowMajorArray<Float> &dens = grid.data();
+  RowMajorArray<Float, 3> &dens = grid.data();
   fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n",
           mass_assignor.count(), mass_assignor.totw());
   Float totw2 = array_ops::sum(dens);

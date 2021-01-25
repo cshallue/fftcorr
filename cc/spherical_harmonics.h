@@ -9,10 +9,10 @@
 
 /* ============== Spherical Harmonic routine ============== */
 
-void makeYlm(RowMajorArrayPtr<Float> *Ylm, int ell, int m,
+void makeYlm(RowMajorArrayPtr<Float, 3> *Ylm, int ell, int m,
              const std::array<int, 3> &n, const Float *xcell,
              const Float *ycell, const Float *zcell,
-             const RowMajorArrayPtr<Float> *mult, int exponent) {
+             const RowMajorArrayPtr<Float, 3> *mult, int exponent) {
   // TODO: check dimensions
 
   // We're not actually returning Ylm here.

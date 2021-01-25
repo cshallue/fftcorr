@@ -19,12 +19,12 @@ class FftGrid {
   void execute_ifft();
 
   // TODO: consider which copy ops we need to support.
-  // void copy_from(const RowMajorArrayPtr<Float>& other);
+  // void copy_from(const RowMajorArrayPtr<Float, 3>& other);
   // void copy_from(const FftGrid& other);
   // TODO: this could be private if FftGrid initializes the FFTs in its
   // copy constructor, and it is a friend class. Then it would (a) copy, (b)
   // setup_fft, (c) restore_from
-  // void restore_from(const RowMajorArrayPtr<Float>& other);
+  // void restore_from(const RowMajorArrayPtr<Float, 3>& other);
 
   const std::array<int, 3>& rshape() const { return rshape_; }
   const std::array<int, 3>& dshape() const { return arr_.shape(); }
@@ -34,20 +34,20 @@ class FftGrid {
   uint64 rsize() const { return rsize_; }
   uint64 dsize() const { return arr_.size(); }
 
-  RowMajorArray<Float>& arr() { return arr_; }
-  const RowMajorArray<Float>& arr() const { return arr_; }
-  RowMajorArrayPtr<Complex>& carr() { return carr_; }
-  const RowMajorArrayPtr<Complex>& carr() const { return carr_; }
+  RowMajorArray<Float, 3>& arr() { return arr_; }
+  const RowMajorArray<Float, 3>& arr() const { return arr_; }
+  RowMajorArrayPtr<Complex, 3>& carr() { return carr_; }
+  const RowMajorArrayPtr<Complex, 3>& carr() const { return carr_; }
   Float* raw_data() { return data_; }
 
   // TODO: these can be out-of-class operations on two RowMajorArrayPtr<>s?
   // They are quite natural here, because they assume FFT layout.
-  void extract_submatrix(RowMajorArrayPtr<Float>* out) const;
-  void extract_submatrix(RowMajorArrayPtr<Float>* out,
-                         const RowMajorArrayPtr<Float>* mult) const;
-  void extract_submatrix_C2R(RowMajorArrayPtr<Float>* out) const;
-  void extract_submatrix_C2R(RowMajorArrayPtr<Float>* out,
-                             const RowMajorArrayPtr<Float>* mult) const;
+  void extract_submatrix(RowMajorArrayPtr<Float, 3>* out) const;
+  void extract_submatrix(RowMajorArrayPtr<Float, 3>* out,
+                         const RowMajorArrayPtr<Float, 3>* mult) const;
+  void extract_submatrix_C2R(RowMajorArrayPtr<Float, 3>* out) const;
+  void extract_submatrix_C2R(RowMajorArrayPtr<Float, 3>* out,
+                             const RowMajorArrayPtr<Float, 3>* mult) const;
 
  private:
   std::array<int, 3> rshape_;  // Shape as a real array.
@@ -57,8 +57,8 @@ class FftGrid {
 
   Float* data_;     // TODO: needed? owned by arr_, so this is just an alias
   Complex* cdata_;  // TODO: needed? owned by carr_, so this is just an alias
-  RowMajorArray<Float> arr_;
-  RowMajorArrayPtr<Complex> carr_;  // TODO: needed?
+  RowMajorArray<Float, 3> arr_;
+  RowMajorArrayPtr<Complex, 3> carr_;  // TODO: needed?
 
 #ifndef FFTSLAB
   fftw_plan fft_;
