@@ -40,7 +40,7 @@ class Correlator {
             work_.dshape()[1], work_.dshape()[2]);
   }
 
-  void correlate_iso(Histogram1D *h, Histogram1D *kh, Float *zerolag) {
+  void correlate_iso(Histogram *h, Histogram *kh, Float *zerolag) {
     // Copy the density field into work_. We do this after setup_fft, because
     // that can estroy the input. TODO: possible optimization of initializing
     // work_ by copy and then hoping setup_fft doesn't destroy the input, but
@@ -69,7 +69,7 @@ class Correlator {
     uint64 ncells = dens_.data().size();  // TODO: yuck
     Float pnorm = 1.0 / ncells / ncells;
     array_ops::multiply_by(pnorm, kgrid_);
-    kh->histcorr(knorm_, kgrid_);
+    kh->histcorr(knorm_, kgrid_, 0);
 
     // iFFT the result, in place
     fprintf(stdout, "IFFT...");
@@ -86,7 +86,7 @@ class Correlator {
     // second is the factor converting the autocorrelation to the 2PCF.
     Float norm = 1.0 / ncells / ncells;
     array_ops::multiply_by(norm, rgrid_);
-    h->histcorr(rnorm_, rgrid_);
+    h->histcorr(rnorm_, rgrid_, 0);
 
     // Hist.Stop();
     // Correlate.Stop();
@@ -98,8 +98,8 @@ class Correlator {
   // (small but nonzero separations are put in the same bin as the zero
   // separation)
   void correlate_aniso(int maxell, int wide_angle_exponent,
-                       std::array<Float, 3> observer, Histogram2D *h,
-                       Histogram2D *kh, Float *zerolag) {
+                       std::array<Float, 3> observer, Histogram *h,
+                       Histogram *kh, Float *zerolag) {
     // Copy the density field into work_. We do this after setup_fft, because
     // that can estroy the input. TODO: possible optimization of initializing
     // work_ by copy and then hoping setup_fft doesn't destroy the input, but
@@ -206,8 +206,8 @@ class Correlator {
       // Extract.Stop();
       // Histogram total by rnorm
       // Hist.Start();
-      h->histcorr(ell, rnorm_, total);
-      kh->histcorr(ell, knorm_, ktotal);
+      h->histcorr(rnorm_, total, ell / 2);
+      kh->histcorr(knorm_, ktotal, ell / 2);
       // Hist.Stop();
       // TODO: restore
       // if (ell == 0) {

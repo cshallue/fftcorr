@@ -5,9 +5,9 @@
 #include "array/row_major_array.h"
 #include "types.h"
 
-class Histogram2D {
+class Histogram {
  public:
-  Histogram2D(int maxell, Float sep, Float dsep)
+  Histogram(int maxell, Float sep, Float dsep)
       : maxell_(maxell),
         sep_(sep),
         binsize_(dsep),
@@ -21,30 +21,21 @@ class Histogram2D {
   // TODO: Might consider creating more flexible ways to select a binning.
   inline int r2bin(Float r) { return floor(r / binsize_); }
 
-  void histcorr(int ell, const RowMajorArrayPtr<Float, 3> &rnorm,
-                const RowMajorArrayPtr<Float, 3> &total) {
-    // Histogram into bins by rnorm[n], adding up weighting by total[n].
-    // Add to multipole ell.
-    int ih = ell / 2;
-    // TODO: really we only care about rnorm and total as flattened arrays.
-    // There are a few possibilities to simplify this: have a wrapper class
-    // that treats the array as flat (e.g. pass rnorm.flatten() into this
-    // function); make Array3D iterable; make Array3D indexable by a row-major
-    // index (but this is confusing because it's also indexable by a 3-tuple
-    // index).
+  void histcorr(const RowMajorArrayPtr<Float, 3> &rnorm,
+                const RowMajorArrayPtr<Float, 3> &total, int ih) {
+    Float *h = hist_.get_row(ih);
     for (uint64 i = 0; i < rnorm.size(); ++i) {
       int b = r2bin(rnorm[i]);
       if (b >= nbins_ || b < 0) continue;
-      if (ell == 0) cnt_[b]++;
-      hist_.at(ih, b) += total[i];
+      if (ih == 0) cnt_[b]++;
+      h[b] += total[i];
     }
   }
 
-  Float sum(int ell) {
-    // Add up the histogram values for ell
-    int i = ell / 2;
+  Float sum(int ih) {
+    Float *h = hist_.get_row(ih);
     Float total = 0.0;
-    for (int j = 0; j < nbins_; j++) total += hist_.at(i, j);
+    for (int b = 0; b < nbins_; ++b) total += h[b];
     return total;
   }
 
@@ -76,16 +67,6 @@ class Histogram2D {
   int nbins_;
   Array1D<int> cnt_;              // (rbin)
   RowMajorArray<Float, 2> hist_;  // (ell, rbin)
-};
-
-class Histogram1D : public Histogram2D {
- public:
-  Histogram1D(Float sep, Float dsep) : Histogram2D(0, sep, dsep) {}
-
-  void histcorr(const RowMajorArrayPtr<Float, 3> &rnorm,
-                const RowMajorArrayPtr<Float, 3> &total) {
-    Histogram2D::histcorr(0, rnorm, total);
-  }
 };
 
 #endif  // HISTOGRAM_H

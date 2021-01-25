@@ -411,8 +411,8 @@ int main(int argc, char *argv[]) {
   // Compute the correlations.
   Correlator corr(grid, sep, kmax);
   if (isotropic) {
-    Histogram1D h(sep, dsep);
-    Histogram1D kh(kmax, dk);
+    Histogram h(0, sep, dsep);
+    Histogram kh(0, kmax, dk);
     Float zerolag = -12345.0;
     corr.correlate_iso(&h, &kh, &zerolag);
 
@@ -431,8 +431,8 @@ int main(int argc, char *argv[]) {
                          ngrid[0] * ngrid[1] * ngrid[2]));
   } else {
     // Compute the location of the observer, in grid units.
-    Histogram2D h(maxell, sep, dsep);
-    Histogram2D kh(maxell, kmax, dk);
+    Histogram h(maxell, sep, dsep);
+    Histogram kh(maxell, kmax, dk);
     Float zerolag = -12345.0;
     fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
     corr.correlate_aniso(maxell, wide_angle_exponent, g.observer(), &h, &kh,
