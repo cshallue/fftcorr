@@ -177,7 +177,10 @@ class RowMajorArray : public RowMajorArrayPtr<dtype, N> {
 };
 
 // TODO: I could think about making the 1D case have a constructor that's just
-// an integer (not a list). But that'll involve RowMajorArrayBase.
+// an integer (not a list). But that'll involve RowMajorArrayBase. Or could I
+// somehow make Array<type> a base class of the higher dimensional arrays, and
+// avoid this?
+// TODO: Perhaps just 'Array'.
 template <typename dtype>
 using ArrayPtr1D = RowMajorArrayPtr<dtype, 1>;
 

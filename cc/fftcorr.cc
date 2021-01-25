@@ -230,6 +230,22 @@ void usage() {
   exit(1);
 }
 
+void print_hist(const Histogram &h, FILE *fp, int prefix, bool norm) {
+  // Print out the results
+  // If norm==1, divide by counts
+  const Array1D<Float> &bins = h.bins();
+  const Array1D<int> &count = h.count();
+  const RowMajorArray<Float, 2> &accum = h.accum();
+  for (uint64 j = 0; j < bins.size(); ++j) {
+    fprintf(fp, "%1d ", prefix);
+    fprintf(fp, "%7.4f %8.0f", bins[j], (Float)count[j]);
+    Float denom = norm && count[j] != 0 ? count[j] : 1.0;
+    for (int i = 0; i < accum.shape(0); ++i)
+      fprintf(fp, " %16.9e", accum.at(i, j) / denom);
+    fprintf(fp, "\n");
+  }
+}
+
 /* ===========================================================================
  */
 
@@ -241,7 +257,7 @@ int main(int argc, char *argv[]) {
   Float dsep = 10.0;
   Float kmax = 0.03;
   Float dk = 0.01;
-  int maxell = 4;
+  int maxell = 0;
   int wide_angle_exponent = 0;
   int ngridCube = 256;
   int qperiodic = 0;
@@ -409,49 +425,32 @@ int main(int argc, char *argv[]) {
   /* Done setup Grid ======================================================= */
 
   // Compute the correlations.
+  Histogram h(maxell / 2 + 1, 0.0, sep, dsep);
+  Histogram kh(maxell / 2 + 1, 0.0, kmax, dk);
+  Float zerolag = -12345.0;
   Correlator corr(grid, sep, kmax);
   if (isotropic) {
-    Histogram h(0, sep, dsep);
-    Histogram kh(0, kmax, dk);
-    Float zerolag = -12345.0;
-    corr.correlate_iso(&h, &kh, &zerolag);
-
-    Ylm_count.print(stdout);
-    fprintf(stdout, "# Anisotropic power spectrum:\n");
-    kh.print(stdout, 1, true);
-    fprintf(stdout, "# Anisotropic correlations:\n");
-    h.print(stdout, 0, true);
-    // We want to use the correlation at zero lag as the I normalization
-    // factor in the FKP power spectrum.
-    fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", zerolag);
-    // Integral of power spectrum needs a d^3k/(2 pi)^3, which is (1/L)^3 =
-    // (1/(cell_size*ngrid))^3
-    fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",
-            kh.sum(0) / (g.cell_size() * g.cell_size() * g.cell_size() *
-                         ngrid[0] * ngrid[1] * ngrid[2]));
+    corr.correlate_iso(h, kh, zerolag);
   } else {
-    // Compute the location of the observer, in grid units.
-    Histogram h(maxell, sep, dsep);
-    Histogram kh(maxell, kmax, dk);
-    Float zerolag = -12345.0;
     fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-    corr.correlate_aniso(maxell, wide_angle_exponent, g.observer(), &h, &kh,
-                         &zerolag);
-
-    Ylm_count.print(stdout);
-    fprintf(stdout, "# Anisotropic power spectrum:\n");
-    kh.print(stdout, 1, true);
-    fprintf(stdout, "# Anisotropic correlations:\n");
-    h.print(stdout, 0, false);
-    // We want to use the correlation at zero lag as the I normalization
-    // factor in the FKP power spectrum.
-    fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", zerolag);
-    // Integral of power spectrum needs a d^3k/(2 pi)^3, which is (1/L)^3 =
-    // (1/(cell_size*ngrid))^3
-    fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",
-            kh.sum(0) / (g.cell_size() * g.cell_size() * g.cell_size() *
-                         ngrid[0] * ngrid[1] * ngrid[2]));
+    corr.correlate_aniso(maxell, wide_angle_exponent, g.observer(), h, kh,
+                         zerolag);
   }
+  Ylm_count.print(stdout);
+  fprintf(stdout, "# Anisotropic power spectrum:\n");
+  print_hist(kh, stdout, 1, true);
+  fprintf(stdout, "# Anisotropic correlations:\n");
+  print_hist(h, stdout, 0, isotropic);
+  // We want to use the correlation at zero lag as the I normalization
+  // factor in the FKP power spectrum.
+  fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", zerolag);
+  // Integral of power spectrum needs a d^3k/(2 pi)^3, which is (1/L)^3 =
+  // (1/(cell_size*ngrid))^3
+  Float sum_ell0 = 0.0;
+  for (int j = 0; j < kh.nbins(); ++j) sum_ell0 += kh.accum().at(0, j);
+  fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",
+          sum_ell0 / (g.cell_size() * g.cell_size() * g.cell_size() *
+                       ngrid[0] * ngrid[1] * ngrid[2]));
 
   Total.Stop();
   uint64 nfft = 1;
