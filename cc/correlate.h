@@ -128,10 +128,8 @@ class Correlator {
     // every time? We could do a lazy initialization. Ultimately it probably
     // doesn't matter because they're not expensive, but I just want to be
     // consistent.
-    RowMajorArray<Float, 3> total(
-        array_ops::allocate_array<Float>(rgrid_.shape()), rgrid_.shape());
-    RowMajorArray<Float, 3> ktotal(
-        array_ops::allocate_array<Float>(rgrid_.shape()), kgrid_.shape());
+    RowMajorArray<Float, 3> total(rgrid_.shape());
+    RowMajorArray<Float, 3> ktotal(kgrid_.shape());
 
     // Correlate .Start();  // Starting the main work
     // Now compute the FFT of the density field and conjugate it
@@ -147,9 +145,7 @@ class Correlator {
     // TODO: are there cases where the dens_fft is not the entire Complex work
     // grid?
     // TODO: abstract all this away into a copy() op or something?
-    RowMajorArray<Complex, 3> dens_fft(
-        array_ops::allocate_array<Complex>(work_.carr().shape()),
-        work_.carr().shape());
+    RowMajorArray<Complex, 3> dens_fft(work_.carr().shape());
     // TODO: is it okay to do the copy initialization with complex rather than
     // floats for the purpose of assigning to physical hardware?
     array_ops::copy(work_.carr(), dens_fft);
@@ -233,7 +229,7 @@ class Correlator {
     std::array<int, 3> rshape = {sizex, sizex, sizex};
     fprintf(stderr, "rgrid shape = [%d, %d, %d]\n", rshape[0], rshape[1],
             rshape[2]);
-    rgrid_.initialize(array_ops::allocate_array<Float>(rshape), rshape);
+    rgrid_.initialize(rshape);
 
     // The axes of the cell centers in separation space in physical units.
     fprintf(stderr, "capacity = %lu, data = %p\n", rx_.capacity(), rx_.data());
@@ -243,7 +239,7 @@ class Correlator {
     rz_ = sequence(-cell_size * rmax_cells, cell_size, rshape[2]);
 
     // Radius of each separation-space subgrid cell in physical units.
-    rnorm_.initialize(array_ops::allocate_array<Float>(rshape), rshape);
+    rnorm_.initialize(rshape);
     for (int i = 0; i < rshape[0]; ++i) {
       for (int j = 0; j < rshape[1]; ++j) {
         for (int k = 0; k < rshape[2]; ++k) {
@@ -286,7 +282,7 @@ class Correlator {
                 i, kshape[i]);
       }
     }
-    kgrid_.initialize(array_ops::allocate_array<Float>(kshape), kshape);
+    kgrid_.initialize(kshape);
     fprintf(stdout,
             "# Done setting up the wavevector submatrix of size +-%d, %d, %d\n",
             kshape[0] / 2, kshape[1] / 2, kshape[2] / 2);
@@ -301,7 +297,7 @@ class Correlator {
                    2.0 * k_Nyq / ngrid[2], kshape[2]);
 
     // Frequency of each freqency subgrid cell in physical units.
-    knorm_.initialize(array_ops::allocate_array<Float>(kshape), kshape);
+    knorm_.initialize(kshape);
     for (int i = 0; i < kshape[0]; ++i) {
       for (int j = 0; j < kshape[1]; ++j) {
         for (int k = 0; k < kshape[2]; ++k) {
@@ -311,7 +307,7 @@ class Correlator {
       }
     }
 
-    inv_window_.initialize(array_ops::allocate_array<Float>(kshape), kshape);
+    inv_window_.initialize(kshape);
     Float window;
     for (int i = 0; i < kshape[0]; ++i) {
       for (int j = 0; j < kshape[1]; ++j) {

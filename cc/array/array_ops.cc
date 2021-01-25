@@ -36,12 +36,6 @@ void set_all(dtype value, RowMajorArrayPtr<dtype, 3> &arr) {
 template void set_all(Float, RowMajorArrayPtr<Float, 3> &);
 template void set_all(Complex, RowMajorArrayPtr<Complex, 3> &);
 
-// // RowMajorArray<Float, 3> create(const std::array<int, 3> &shape) {
-// //   RowMajorArray<Float, 3> arr = create_uninitialized(shape);
-// //   set_all(0.0, arr);
-// //   return std::move(arr);
-// // }
-
 template <typename dtype>
 void copy(const RowMajorArrayPtr<dtype, 3> &in,
           RowMajorArrayPtr<dtype, 3> &out) {

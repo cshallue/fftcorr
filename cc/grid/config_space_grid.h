@@ -16,7 +16,7 @@ class ConfigSpaceGrid {
         posmin_(posmin),
         cell_size_(cell_size),
         window_type_(window_type),
-        grid_(array_ops::allocate_array<Float>(ngrid_), ngrid_) {}
+        grid_(ngrid_) {}
 
   // TODO: rename ngrid to shape.
   const std::array<int, 3>& ngrid() const { return ngrid_; }

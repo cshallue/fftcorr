@@ -6,6 +6,17 @@
 
 #include "../types.h"
 
+namespace {
+
+template <std::size_t N>
+uint64 compute_size(const std::array<int, N> &shape) {
+  uint64 size = 1;
+  for (int nx : shape) size *= nx;
+  return size;
+}
+
+}  // namespace
+
 // TODO: the RowMajorArray/RowMajorArrayPtr split is nice, but it makes the
 // naming weird across the rest of the code. Can we make RowMajorArray the one
 // used most commonly?
@@ -15,28 +26,24 @@
 template <typename dtype, std::size_t N>
 class RowMajorArrayPtrBase {
  public:
-  RowMajorArrayPtrBase(dtype *data, std::array<int, N> shape)
-      : data_(data), shape_(shape), size_(1) {
-    for (int nx : shape_) size_ *= nx;
-  }
-
   // Default constructor.
   // A default-constructed RowMajorArrayPtr is effectively a null pointer until
   // initialize() is called. Operations should not be called before
   // initialization. We need this constructor so that classes can allocate a
   // RowMajorArrayPtr on the stack even if they construct the array in the body
   // of their constructor.
-  RowMajorArrayPtrBase() : data_(NULL), size_(0) {}
+  RowMajorArrayPtrBase() : size_(0), data_(NULL) {}
+
+  RowMajorArrayPtrBase(std::array<int, N> shape, dtype *data)
+      : shape_(shape), size_(compute_size(shape_)), data_(data) {}
 
   virtual ~RowMajorArrayPtrBase() = default;
 
-  void initialize(dtype *data, const std::array<int, N> &shape) {
+  void initialize(const std::array<int, N> &shape, dtype *data) {
     assert(data_ == NULL);  // Only allowed to initialize once.
-    data_ = data;
-    assert(data_ != NULL);  // Can't initialize to a nullptr.
     shape_ = shape;
-    size_ = 1;
-    for (int nx : shape_) size_ *= nx;
+    size_ = compute_size(shape_);
+    data_ = data;
   }
 
   // TODO: needed?
@@ -47,25 +54,25 @@ class RowMajorArrayPtrBase {
   const dtype *data() const { return data_; }
 
  protected:
-  dtype *data_;
   std::array<int, N> shape_;
   uint64 size_;
+  dtype *data_;
 };
 
 template <typename dtype, std::size_t N>
 class RowMajorArrayPtr : public RowMajorArrayPtrBase<dtype, N> {
  public:
   RowMajorArrayPtr() : RowMajorArrayPtrBase<dtype, N>() {}
-  RowMajorArrayPtr(dtype *data, std::array<int, N> shape)
-      : RowMajorArrayPtrBase<dtype, N>(data, shape) {}
+  RowMajorArrayPtr(std::array<int, N> shape, dtype *data)
+      : RowMajorArrayPtrBase<dtype, N>(shape, data) {}
 };
 
 template <typename dtype>
 class RowMajorArrayPtr<dtype, 3> : public RowMajorArrayPtrBase<dtype, 3> {
  public:
   RowMajorArrayPtr() : RowMajorArrayPtrBase<dtype, 3>() {}
-  RowMajorArrayPtr(dtype *data, std::array<int, 3> shape)
-      : RowMajorArrayPtrBase<dtype, 3>(data, shape) {}
+  RowMajorArrayPtr(std::array<int, 3> shape, dtype *data)
+      : RowMajorArrayPtrBase<dtype, 3>(shape, data) {}
 
   // Indexing.
   uint64 get_index(int ix, int iy, int iz) const {
@@ -87,10 +94,24 @@ class RowMajorArrayPtr<dtype, 3> : public RowMajorArrayPtrBase<dtype, 3> {
 template <typename dtype, std::size_t N>
 class RowMajorArray : public RowMajorArrayPtr<dtype, N> {
  public:
-  RowMajorArray(dtype *data, std::array<int, N> shape)
-      : RowMajorArrayPtr<dtype, N>(data, shape) {}
-
+  // Default constructor: empty array.
   RowMajorArray() : RowMajorArrayPtr<dtype, N>() {}
+
+  // Take ownership of allocated memory.
+  RowMajorArray(std::array<int, N> shape, dtype *data)
+      : RowMajorArrayPtr<dtype, N>(shape, data) {}
+
+  // Allocate memory.
+  RowMajorArray(std::array<int, N> shape)
+      : RowMajorArrayPtr<dtype, N>(shape, NULL) {
+    allocate_data();
+  }
+
+  void initialize(const std::array<int, N> &shape) {
+    assert(this->data_ == NULL);  // Make sure unitialized.
+    RowMajorArrayPtr<dtype, N>::initialize(shape, NULL);  // Set shape and size.
+    allocate_data();
+  }
 
   ~RowMajorArray() {
     if (this->data_ != NULL) free(this->data_);
@@ -100,6 +121,17 @@ class RowMajorArray : public RowMajorArrayPtr<dtype, N> {
   // we'd need to copy the data / transfer ownership.
   RowMajorArray(const RowMajorArray<dtype, N> &) = delete;
   RowMajorArray &operator=(const RowMajorArray<dtype, N> &) = delete;
+
+ private:
+  void allocate_data() {
+    // Page alignment is only important for the big 3D grids, but we don't have
+    // too many smaller arrays, so we just do it for all arrays.
+    assert(this->size_ > 0);
+    int err = posix_memalign((void **)&this->data_, PAGE,
+                             sizeof(dtype) * this->size_ + PAGE);
+    assert(err == 0);
+    assert(this->data_ != NULL);
+  }
 };
 
 #endif  // ROW_MAJOR_ARRAY_H

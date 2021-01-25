@@ -17,22 +17,6 @@ void multiply_by(Float s, RowMajorArray<Float, 3> &arr);
 Float sum(const RowMajorArray<Float, 3> &arr);
 Float sumsq(const RowMajorArray<Float, 3> &arr);
 
-// RowMajorArray<Float, 3> create(const std::array<int, 3> &shape) {
-//   RowMajorArray<Float, 3> arr = create_uninitialized(shape);
-//   set_all(0.0, arr);
-//   return std::move(arr);
-// }
-
-template <typename dtype>
-inline dtype *allocate_array(const std::array<int, 3> &shape) {
-  uint64 size = (uint64)shape[0] * shape[1] * shape[2];
-  dtype *data;
-  int err = posix_memalign((void **)&data, PAGE, sizeof(dtype) * size + PAGE);
-  assert(err == 0);
-  assert(data != NULL);
-  return data;
-}
-
 template <typename dtype>
 void copy(const RowMajorArrayPtr<dtype, 3> &in,
           RowMajorArrayPtr<dtype, 3> &out);
