@@ -146,7 +146,7 @@ class RowMajorArray : public RowMajorArrayPtr<dtype, N> {
   }
 
   // Disable copy construction and copy assignment. We could implement these if
-  // needed, but we'd need to copy the data, and we have specific initializaiton
+  // needed, but we'd need to copy the data, and we have specific initialization
   // requirements for different arrays.
   RowMajorArray(const RowMajorArray<dtype, N> &) = delete;
   RowMajorArray &operator=(const RowMajorArray<dtype, N> &) = delete;
@@ -176,6 +176,8 @@ class RowMajorArray : public RowMajorArrayPtr<dtype, N> {
   }
 };
 
+// TODO: I could think about making the 1D case have a constructor that's just
+// an integer (not a list). But that'll involve RowMajorArrayBase.
 template <typename dtype>
 using ArrayPtr1D = RowMajorArrayPtr<dtype, 1>;
 
