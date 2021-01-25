@@ -14,7 +14,7 @@ class Histogram2D {
         nbins_(floor(sep_ / binsize_)),
         cnt_({nbins_}),
         hist_({maxell_ / 2 + 1, nbins_}) {
-    for (Float &x : cnt_) x = 0.0;
+    for (int &x : cnt_) x = 0;
     for (Float &x : hist_) x = 0.0;
   }
 
@@ -55,9 +55,9 @@ class Histogram2D {
     for (int j = 0; j < nbins_; j++) {
       fprintf(fp, "%1d ", prefix);
       if (sep_ > 2)
-        fprintf(fp, "%6.2f %8.0f", (j + 0.5) * binsize_, cnt_[j]);
+        fprintf(fp, "%6.2f %8.0f", (j + 0.5) * binsize_, (Float)cnt_[j]);
       else
-        fprintf(fp, "%7.4f %8.0f", (j + 0.5) * binsize_, cnt_[j]);
+        fprintf(fp, "%7.4f %8.0f", (j + 0.5) * binsize_, (Float)cnt_[j]);
       if (cnt_[j] != 0 && norm)
         denom = cnt_[j];
       else
@@ -74,7 +74,7 @@ class Histogram2D {
   Float binsize_;
 
   int nbins_;
-  Array1D<Float> cnt_;            // (rbin)  TODO: uint64?
+  Array1D<int> cnt_;              // (rbin)
   RowMajorArray<Float, 2> hist_;  // (ell, rbin)
 };
 
