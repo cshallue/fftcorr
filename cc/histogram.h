@@ -1,8 +1,8 @@
 #ifndef HISTOGRAM_H
 #define HISTOGRAM_H
 
+#include "array/array_ops.h"
 #include "array/row_major_array.h"
-#include "array3d.h"
 #include "types.h"
 
 class Histogram2D {
@@ -12,12 +12,10 @@ class Histogram2D {
         sep_(sep),
         binsize_(dsep),
         nbins_(floor(sep_ / binsize_)),
-        cnt_(nbins_),
-        hist_(maxell_ / 2 + 1, nbins_) {
-    // TODO: once we merge Array1D and Array3D, this should be done in their
-    // constructors.
-    cnt_.set_all(0.0);
-    hist_.set_all(0.0);
+        cnt_({nbins_}),
+        hist_({maxell_ / 2 + 1, nbins_}) {
+    for (Float &x : cnt_) x = 0.0;
+    for (Float &x : hist_) x = 0.0;
   }
 
   // TODO: Might consider creating more flexible ways to select a binning.
@@ -34,15 +32,11 @@ class Histogram2D {
     // function); make Array3D iterable; make Array3D indexable by a row-major
     // index (but this is confusing because it's also indexable by a 3-tuple
     // index).
-    for (int i = 0; i < rnorm.shape(0); ++i) {
-      for (int j = 0; j < rnorm.shape(1); ++j) {
-        for (int k = 0; k < rnorm.shape(2); ++k) {
-          int b = r2bin(rnorm.at(i, j, k));
-          if (b >= nbins_ || b < 0) continue;
-          if (ell == 0) cnt_[b]++;
-          hist_.at(ih, b) += total.at(i, j, k);
-        }
-      }
+    for (uint64 i = 0; i < rnorm.size(); ++i) {
+      int b = r2bin(rnorm[i]);
+      if (b >= nbins_ || b < 0) continue;
+      if (ell == 0) cnt_[b]++;
+      hist_.at(ih, b) += total[i];
     }
   }
 
@@ -80,8 +74,8 @@ class Histogram2D {
   Float binsize_;
 
   int nbins_;
-  Array1D cnt_;   // (rbin)
-  Array2D hist_;  // (ell, rbin)
+  Array1D<Float> cnt_;            // (rbin)  TODO: uint64?
+  RowMajorArray<Float, 2> hist_;  // (ell, rbin)
 };
 
 class Histogram1D : public Histogram2D {

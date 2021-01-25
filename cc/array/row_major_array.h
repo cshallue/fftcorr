@@ -53,6 +53,13 @@ class RowMajorArrayPtrBase {
   dtype *data() { return data_; }
   const dtype *data() const { return data_; }
 
+  inline dtype &operator[](int idx) { return data_[idx]; }
+  inline const dtype &operator[](int idx) const { return data_[idx]; }
+
+  // Iterability.
+  dtype *begin() { return data_; }
+  dtype *end() { return &data_[size()]; }
+
  protected:
   std::array<int, N> shape_;
   uint64 size_;
@@ -65,6 +72,28 @@ class RowMajorArrayPtr : public RowMajorArrayPtrBase<dtype, N> {
   RowMajorArrayPtr() : RowMajorArrayPtrBase<dtype, N>() {}
   RowMajorArrayPtr(std::array<int, N> shape, dtype *data)
       : RowMajorArrayPtrBase<dtype, N>(shape, data) {}
+};
+
+template <typename dtype>
+class RowMajorArrayPtr<dtype, 2> : public RowMajorArrayPtrBase<dtype, 2> {
+ public:
+  RowMajorArrayPtr() : RowMajorArrayPtrBase<dtype, 2>() {}
+  RowMajorArrayPtr(std::array<int, 2> shape, dtype *data)
+      : RowMajorArrayPtrBase<dtype, 2>(shape, data) {}
+
+  // Indexing.
+  uint64 get_index(int ix, int iy) const {
+    return (uint64)iy + ix * this->shape_[1];
+  }
+  dtype &at(int ix, int iy) { return this->data_[get_index(ix, iy)]; }
+  const dtype &at(int ix, int iy) const {
+    return this->data_[get_index(ix, iy)];
+  }
+  // TODO: just use at() syntax instead of a new function? Fewer chars,
+  // but then again, it returns a pointer and this is a RowMajorArray.
+  // Could rename to row()
+  dtype *get_row(int ix) { return &this->at(ix, 0); }
+  const dtype *get_row(int ix) const { return &this->at(ix, 0); }
 };
 
 template <typename dtype>
@@ -102,8 +131,7 @@ class RowMajorArray : public RowMajorArrayPtr<dtype, N> {
       : RowMajorArrayPtr<dtype, N>(shape, data) {}
 
   // Allocate memory.
-  RowMajorArray(std::array<int, N> shape)
-      : RowMajorArrayPtr<dtype, N>(shape, NULL) {
+  RowMajorArray(std::array<int, N> shape) : RowMajorArray(shape, NULL) {
     allocate_data();
   }
 
@@ -117,10 +145,24 @@ class RowMajorArray : public RowMajorArrayPtr<dtype, N> {
     if (this->data_ != NULL) free(this->data_);
   }
 
-  // Disable copy and move operations. We could implement these if needed, but
-  // we'd need to copy the data / transfer ownership.
+  // Disable copy construction and copy assignment. We could implement these if
+  // needed, but we'd need to copy the data, and we have specific initializaiton
+  // requirements for different arrays.
   RowMajorArray(const RowMajorArray<dtype, N> &) = delete;
   RowMajorArray &operator=(const RowMajorArray<dtype, N> &) = delete;
+
+  // Move constructor and assignment.
+  RowMajorArray(RowMajorArray &&other) : RowMajorArray() {
+    std::swap(this->shape_, other.shape_);
+    std::swap(this->size_, other.size_);
+    std::swap(this->data_, other.data_);
+  }
+  RowMajorArray &operator=(RowMajorArray &&other) {
+    std::swap(this->shape_, other.shape_);
+    std::swap(this->size_, other.size_);
+    std::swap(this->data_, other.data_);
+    return *this;
+  }
 
  private:
   void allocate_data() {
@@ -133,5 +175,11 @@ class RowMajorArray : public RowMajorArrayPtr<dtype, N> {
     assert(this->data_ != NULL);
   }
 };
+
+template <typename dtype>
+using ArrayPtr1D = RowMajorArrayPtr<dtype, 1>;
+
+template <typename dtype>
+using Array1D = RowMajorArray<dtype, 1>;
 
 #endif  // ROW_MAJOR_ARRAY_H

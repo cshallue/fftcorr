@@ -5,7 +5,7 @@
 
 #include <array>
 
-#include "../array3d.h"
+#include "../array/row_major_array.h"
 #include "../types.h"
 
 class FftGrid {

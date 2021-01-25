@@ -8,6 +8,7 @@
 #include <vector>
 
 #include "array/array_ops.h"
+#include "array/row_major_array.h"
 #include "grid.h"
 #include "grid/config_space_grid.h"
 #include "grid/fft_grid.h"
@@ -17,13 +18,12 @@
 #include "types.h"
 
 // TODO: locate somewhere else.
-std::vector<Float> sequence(Float start, Float step, int size) {
-  std::vector<Float> seq;  // Passing size would default-initialize elements.
-  seq.reserve(size);
+Array1D<Float> sequence(Float start, Float step, int size) {
+  Array1D<Float> seq({size});
   for (int i = 0; i < size; ++i) {
     seq[i] = start + i * step;
   }
-  return seq;  // Data moved; no copy made.
+  return seq;
 }
 
 class Correlator {
@@ -114,9 +114,9 @@ class Correlator {
     // {0.5, 0.5, 0.5} is the center of first cell in grid coords. Subtracting
     // the location of the observer gives the origin with respect to the
     // observer.
-    std::vector<Float> xcell = sequence(0.5 - observer[0], 1.0, dens_.ngrid(0));
-    std::vector<Float> ycell = sequence(0.5 - observer[1], 1.0, dens_.ngrid(1));
-    std::vector<Float> zcell = sequence(0.5 - observer[2], 1.0, dens_.ngrid(2));
+    Array1D<Float> xcell = sequence(0.5 - observer[0], 1.0, dens_.ngrid(0));
+    Array1D<Float> ycell = sequence(0.5 - observer[1], 1.0, dens_.ngrid(1));
+    Array1D<Float> zcell = sequence(0.5 - observer[2], 1.0, dens_.ngrid(2));
 
     // Multiply total by 4*pi, to match SE15 normalization
     // Include the FFTW normalization
@@ -232,9 +232,7 @@ class Correlator {
     rgrid_.initialize(rshape);
 
     // The axes of the cell centers in separation space in physical units.
-    fprintf(stderr, "capacity = %lu, data = %p\n", rx_.capacity(), rx_.data());
     rx_ = sequence(-cell_size * rmax_cells, cell_size, rshape[0]);
-    fprintf(stderr, "capacity = %lu, data = %p\n", rx_.capacity(), rx_.data());
     ry_ = sequence(-cell_size * rmax_cells, cell_size, rshape[1]);
     rz_ = sequence(-cell_size * rmax_cells, cell_size, rshape[2]);
 
@@ -347,15 +345,15 @@ class Correlator {
   Float kmax_;
 
   RowMajorArray<Float, 3> rgrid_;
-  std::vector<Float> rx_;
-  std::vector<Float> ry_;
-  std::vector<Float> rz_;
+  Array1D<Float> rx_;
+  Array1D<Float> ry_;
+  Array1D<Float> rz_;
   RowMajorArray<Float, 3> rnorm_;
 
   RowMajorArray<Float, 3> kgrid_;
-  std::vector<Float> kx_;
-  std::vector<Float> ky_;
-  std::vector<Float> kz_;
+  Array1D<Float> kx_;
+  Array1D<Float> ky_;
+  Array1D<Float> kz_;
   RowMajorArray<Float, 3> knorm_;
   RowMajorArray<Float, 3> inv_window_;
 

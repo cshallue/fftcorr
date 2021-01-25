@@ -4,7 +4,7 @@
 #include <array>
 #include <memory>
 
-#include "../array3d.h"
+#include "../array/row_major_array.h"
 #include "../galaxy.h"
 #include "../types.h"
 #include "d12.h"  // TODO: possibly incorporate into this file
