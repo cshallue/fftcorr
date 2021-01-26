@@ -1,3 +1,4 @@
+from fftcorr.array cimport RowMajorArrayPtr
 from fftcorr.types cimport Float, array, Three
 cimport numpy as cnp
 
@@ -9,7 +10,7 @@ cdef extern from "config_space_grid.h":
     void multiply_by(Float s)
     Float sum()
     Float sumsq()
-    Float* raw_data()
+    RowMajorArrayPtr[Float, Three]& data()
 
 
 cdef class ConfigSpaceGrid:

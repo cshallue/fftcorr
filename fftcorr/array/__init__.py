@@ -1,3 +1,3 @@
-from fftcorr.array.row_major_array import RowMajorArrayPtr_Float, RowMajorArrayPtr_Complex
+from fftcorr.array.row_major_array import RowMajorArrayPtr3D_Float, RowMajorArrayPtr3D_Complex
 
-__all__ = ["RowMajorArrayPtr_Float", "RowMajorArrayPtr_Complex"]
+__all__ = ["RowMajorArrayPtr3D_Float", "RowMajorArrayPtr3D_Complex"]

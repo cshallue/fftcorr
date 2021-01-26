@@ -1,24 +1,23 @@
 from fftcorr.types cimport Float, Complex, array, Three
+cimport numpy as cnp
 
 cdef extern from "row_major_array.h":
-  cdef cppclass RowMajorArrayPtr[dtype]:
-    RowMajorArrayPtr(dtype *data, array[int, Three]) except +
-    # TODO: not needed in Python (it has the numpy array); only for testing.
-    dtype at(int ix, int iy, int iz)
+  cdef cppclass RowMajorArrayPtr[dtype, N]:
+    RowMajorArrayPtr(array[int, N], dtype *data) except +
+    dtype* data()
+    const array[int, N]& shape()
 
 
 # TODO: since RowMajorArrayPtr has a nullary constructor, we should be able to
 # stack allocate the RowMajorArrayPtr[Float] object.
 # https://cython.readthedocs.io/en/latest/src/userguide/wrapping_CPlusPlus.html
-cdef class RowMajorArrayPtr_Float:
-    cdef RowMajorArrayPtr[Float]* _ptr
-    cdef RowMajorArrayPtr[Float]* ptr(self)
-    # TODO: not needed in Python (it has the numpy array); only for testing.
-    cpdef Float at(self, int ix, int iy, int iz)
+cdef class RowMajorArrayPtr3D_Float:
+    cdef RowMajorArrayPtr[Float, Three]* _ptr
+    cdef RowMajorArrayPtr[Float, Three]* ptr(self)
 
 
-cdef class RowMajorArrayPtr_Complex:
-    cdef RowMajorArrayPtr[Complex]* _ptr
-    cdef RowMajorArrayPtr[Complex]* ptr(self)
-    # TODO: not needed in Python (it has the numpy array); only for testing.
-    #cdef Complex at(self, int ix, int iy, int iz)
+cdef class RowMajorArrayPtr3D_Complex:
+    cdef RowMajorArrayPtr[Complex, Three]* _ptr
+    cdef RowMajorArrayPtr[Complex, Three]* ptr(self)
+
+cdef cnp.ndarray as_numpy(int ndim, const int* shape, Float* data, owner)

@@ -1,5 +1,4 @@
-from fftcorr.array cimport RowMajorArrayPtr_Float
-from cpython cimport Py_INCREF
+from fftcorr.array cimport as_numpy, RowMajorArrayPtr3D_Float
 cimport numpy as cnp
 cnp.import_array()
 
@@ -30,18 +29,11 @@ cdef class FftGrid:
         # hide the padding under the hood. Then we'd need to declare the array
         # operations in the FftGrid class.
         # Wrap the data array as a numpy array.
-        # TODO: helper for this, since I do it multiple times?
-        # TODO: really I'm wrapping a RowMajorArray here, which I might do
-        # elsewhere, and possibly that can be shared.
-        cdef cnp.npy_intp dshape[3]
-        for i in range(3):
-            dshape[i] = self._cc_grid.dshape(i)
-        cdef Float* data_ptr = self._cc_grid.raw_data()
-        # TODO: cnp.NPY_DOUBLE should go in types.pxd
-        self._data_arr = cnp.PyArray_SimpleNewFromData(
-            3, dshape, cnp.NPY_DOUBLE, data_ptr)
-        assert(cnp.PyArray_SetBaseObject(self._data_arr, self) == 0)
-        Py_INCREF(self)
+        self._data_arr = as_numpy(
+            3,
+            self._cc_grid.arr().shape().data(),
+            self._cc_grid.arr().data(),
+            self)
 
     def __dealloc__(self):
         del self._cc_grid
@@ -62,13 +54,13 @@ cdef class FftGrid:
     cpdef extract_submatrix(self, out):
         # TODO: I'm creating a new (thin) wrapper class every time this is
         # called. Might want to accept the wrapper class instead.
-        cdef RowMajorArrayPtr_Float out_wrap = RowMajorArrayPtr_Float(out)
+        cdef RowMajorArrayPtr3D_Float out_wrap = RowMajorArrayPtr3D_Float(out)
         self._cc_grid.extract_submatrix(out_wrap.ptr())
 
     cpdef extract_submatrix_c2r(self, out):
         # TODO: I'm creating a new (thin) wrapper class every time this is
         # called. Might want to accept the wrapper class instead.
-        cdef RowMajorArrayPtr_Float out_wrap = RowMajorArrayPtr_Float(out)
+        cdef RowMajorArrayPtr3D_Float out_wrap = RowMajorArrayPtr3D_Float(out)
         self._cc_grid.extract_submatrix_C2R(out_wrap.ptr())
 
 

@@ -27,3 +27,4 @@ cdef extern from "<array>" namespace "std" nogil:
     cdef cppclass array[T, N]:
       array()
       T& operator[](int)
+      T* data()

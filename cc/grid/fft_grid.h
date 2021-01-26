@@ -38,7 +38,6 @@ class FftGrid {
   const RowMajorArray<Float, 3>& arr() const { return arr_; }
   RowMajorArrayPtr<Complex, 3>& carr() { return carr_; }
   const RowMajorArrayPtr<Complex, 3>& carr() const { return carr_; }
-  Float* raw_data() { return data_; }
 
   // TODO: these can be out-of-class operations on two RowMajorArrayPtr<>s?
   // They are quite natural here, because they assume FFT layout.

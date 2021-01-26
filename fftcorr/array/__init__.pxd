@@ -1,3 +1,3 @@
-from fftcorr.array.row_major_array cimport RowMajorArrayPtr, RowMajorArrayPtr_Float, RowMajorArrayPtr_Complex
+from fftcorr.array.row_major_array cimport as_numpy, RowMajorArrayPtr, RowMajorArrayPtr3D_Float, RowMajorArrayPtr3D_Complex
 
-__all__ = ["RowMajorArrayPtr"]
+__all__ = ["as_numpy", "RowMajorArrayPtr", "RowMajorArrayPtr3D_Float", "RowMajorArrayPtr3D_Complex"]

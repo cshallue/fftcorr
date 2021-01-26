@@ -9,15 +9,15 @@ cdef extern from "fft_grid.h":
     void setup_fft()
     void execute_fft()
     void execute_ifft()
-    void extract_submatrix(RowMajorArrayPtr[Float]* out)
+    RowMajorArrayPtr[Float, Three]& arr()
+    void extract_submatrix(RowMajorArrayPtr[Float, Three]* out)
     # void extract_submatrix(RowMajorArray[Float]* out,
     #                        const RowMajorArray[Float]* mult)
-    void extract_submatrix_C2R(RowMajorArrayPtr[Float]* out)
+    void extract_submatrix_C2R(RowMajorArrayPtr[Float, Three]* out)
     # void extract_submatrix_C2R(RowMajorArrayPtr[Float]* out,
     #                            const RowMajorArrayPtr[Float]* mult)
     int rshape(int i)
     int dshape(int i)
-    Float* raw_data()
 
 
 cdef class FftGrid:
