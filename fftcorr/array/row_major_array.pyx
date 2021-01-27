@@ -1,9 +1,3 @@
-from cpython cimport PyObject, Py_INCREF
-cimport numpy as cnp
-cnp.import_array()
-
-import numpy as np
-
 # The only way to avoid code duplication here might be to generate the wrappers
 # for each type automatically. But we only have two classes, so it's ok for now.
 # https://stackoverflow.com/questions/31436593/cython-templates-in-python-class-wrappers
@@ -43,14 +37,3 @@ cdef class RowMajorArrayPtr3D_Complex:
     cdef RowMajorArrayPtr[Complex, Three]* ptr(self):
         return self._ptr
 
-cdef cnp.ndarray as_numpy(int ndim, const int* shape, Float* data, owner):
-    cdef cnp.npy_intp shape_np[5]  # TODO: ndim
-    cdef int i
-    for i in range(3):  # TODO: ndim
-        shape_np[i] = shape[i]
-    # TODO: cnp.NPY_DOUBLE should go in types.pxd
-    cdef cnp.ndarray arr = cnp.PyArray_SimpleNewFromData(
-        3, shape_np, cnp.NPY_DOUBLE, data)
-    assert(cnp.PyArray_SetBaseObject(arr, owner) == 0)
-    Py_INCREF(owner)
-    return arr

@@ -19,5 +19,3 @@ cdef class RowMajorArrayPtr3D_Float:
 cdef class RowMajorArrayPtr3D_Complex:
     cdef RowMajorArrayPtr[Complex, Three]* _ptr
     cdef RowMajorArrayPtr[Complex, Three]* ptr(self)
-
-cdef cnp.ndarray as_numpy(int ndim, const int* shape, Float* data, owner)

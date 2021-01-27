@@ -1,9 +1,8 @@
 #ifndef HISTOGRAM_H
 #define HISTOGRAM_H
 
-#include "array/array_ops.h"
-#include "array/row_major_array.h"
-#include "types.h"
+#include "../array/row_major_array.h"
+#include "../types.h"
 
 class Histogram {
  public:
@@ -19,7 +18,7 @@ class Histogram {
     for (Float &x : accum_) x = 0.0;
   }
 
-  int nbins() const {return nbins_;}
+  int nbins() const { return nbins_; }
   const Array1D<Float> &bins() const { return bins_; }
   const Array1D<int> &count() const { return count_; }
   const RowMajorArray<Float, 2> &accum() const { return accum_; }

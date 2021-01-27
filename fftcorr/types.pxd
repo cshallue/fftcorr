@@ -21,6 +21,12 @@ cdef extern from "<array>" namespace "std" nogil:
     # defining the class with template arguments. We almost always use 3 as the
     # dimension, so in C++ we might be able to make a templated typedef
     # array3d<type>
+    cdef cppclass One "1":
+        pass
+
+    cdef cppclass Two "2":
+        pass
+
     cdef cppclass Three "3":
         pass
 

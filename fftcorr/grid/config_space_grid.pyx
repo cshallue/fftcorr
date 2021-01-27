@@ -52,6 +52,7 @@ cdef class ConfigSpaceGrid:
         self._data_arr = as_numpy(
             3,
             self._cc_grid.data().shape().data(),
+            cnp.NPY_DOUBLE,
             self._cc_grid.data().data(),
             self)
 

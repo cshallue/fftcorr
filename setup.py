@@ -2,19 +2,26 @@ from distutils.core import setup, Extension
 import numpy
 from Cython.Distutils import build_ext
 
+# TODO: can we put a separate setup.py for each module?
 ext_modules = [
-    # TODO: can we put a separate setup.py for each module?
+    # TODO: combine numpy_adaptor with another module?
+    Extension("fftcorr.array.numpy_adaptor",
+              sources=["fftcorr/array/numpy_adaptor.pyx"],
+              include_dirs=[
+                  numpy.get_include(),
+              ]),
     Extension("fftcorr.array.row_major_array",
               sources=["fftcorr/array/row_major_array.pyx"],
               include_dirs=[numpy.get_include(), "cc/array/"]),
-    Extension("fftcorr.grid.config_space_grid",
-              sources=[
-                  "fftcorr/grid/config_space_grid.pyx", "cc/array/array_ops.cc"
-              ],
-              include_dirs=[
-                  numpy.get_include(), "cc/array", "cc/grid/",
-                  "cc/particle_mesh/"
-              ]),
+    Extension(
+        "fftcorr.grid.config_space_grid",
+        sources=[
+            "fftcorr/grid/config_space_grid.pyx", "cc/array/array_ops.cc"
+        ],
+        # TODO: just add the includes to all extensions?
+        include_dirs=[
+            numpy.get_include(), "cc/array", "cc/grid/", "cc/particle_mesh/"
+        ]),
     # TODO: this should inherit from the row_major_array includes
     Extension("fftcorr.grid.fft_grid",
               sources=[
@@ -29,6 +36,13 @@ ext_modules = [
         include_dirs=[
             numpy.get_include(), "cc/particle_mesh/", "cc/grid/", "cc/array/"
         ]),
+    Extension(
+        "fftcorr.histogram.histogram",
+        sources=[
+            "fftcorr/histogram/histogram.pyx",
+        ],
+        # TODO: just add the includes to all extensions?
+        include_dirs=[numpy.get_include(), "cc/histogram/", "cc/array/"]),
 ]
 
 for e in ext_modules:

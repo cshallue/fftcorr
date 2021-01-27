@@ -88,7 +88,7 @@ cloud-in-cell to keep up.
 #include "correlate.h"
 #include "grid.h"
 #include "grid/config_space_grid.h"
-#include "histogram.h"
+#include "histogram/histogram.h"
 #include "multithreading.h"
 #include "particle_mesh/mass_assignor.h"
 #include "particle_mesh/window_functions.h"
@@ -449,8 +449,8 @@ int main(int argc, char *argv[]) {
   Float sum_ell0 = 0.0;
   for (int j = 0; j < kh.nbins(); ++j) sum_ell0 += kh.accum().at(0, j);
   fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",
-          sum_ell0 / (g.cell_size() * g.cell_size() * g.cell_size() *
-                       ngrid[0] * ngrid[1] * ngrid[2]));
+          sum_ell0 / (g.cell_size() * g.cell_size() * g.cell_size() * ngrid[0] *
+                      ngrid[1] * ngrid[2]));
 
   Total.Stop();
   uint64 nfft = 1;

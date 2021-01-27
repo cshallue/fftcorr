@@ -32,6 +32,7 @@ cdef class FftGrid:
         self._data_arr = as_numpy(
             3,
             self._cc_grid.arr().shape().data(),
+            cnp.NPY_DOUBLE,  # TODO: goes in types.pxd?
             self._cc_grid.arr().data(),
             self)
 
