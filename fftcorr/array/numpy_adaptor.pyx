@@ -14,7 +14,7 @@ import numpy as np
 # does not seem to work for me, even when ptr is an int *.
 
 cdef cnp.ndarray as_numpy(
-    int ndim, const int* shape, int typenum, void* data, base_object):
+        int ndim, const int* shape, int typenum, void* data, base_object):
     cdef cnp.ndarray[cnp.npy_intp] shape_np = np.empty(ndim, dtype=np.intp)
     cdef int i
     for i in range(ndim):
@@ -26,7 +26,7 @@ cdef cnp.ndarray as_numpy(
     return arr
 
 cdef cnp.ndarray as_const_numpy(
-    int ndim, const int* shape, int typenum, const void* data, base_object):
+        int ndim, const int* shape, int typenum, const void* data, base_object):
     cdef cnp.ndarray arr = as_numpy(
         ndim, shape, typenum, <void *>data, base_object)
     arr.setflags(write=False)
