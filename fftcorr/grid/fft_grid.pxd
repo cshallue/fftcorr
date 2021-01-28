@@ -4,8 +4,8 @@ cimport numpy as cnp
 
 
 cdef extern from "fft_grid.h":
-  cdef cppclass cc_FftGrid "FftGrid":
-    cc_FftGrid(array[int, Three]) except +
+  cdef cppclass FftGrid_cc "FftGrid":
+    FftGrid_cc(array[int, Three]) except +
     void setup_fft()
     void execute_fft()
     void execute_ifft()
@@ -23,7 +23,7 @@ cdef extern from "fft_grid.h":
 cdef class FftGrid:
     # Allocate the grid on the heap it would need to have a nullary
     # constructor to allocate it on the stack. TODO: consider this.
-    cdef cc_FftGrid *_cc_grid
+    cdef FftGrid_cc *_cc_grid
     cdef cnp.ndarray _data_arr
     cpdef extract_submatrix(self, out)
     cpdef extract_submatrix_c2r(self, out)

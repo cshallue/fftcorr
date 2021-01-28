@@ -15,3 +15,5 @@ cdef class Histogram:
     cdef cnp.ndarray _bins
     cdef cnp.ndarray _count
     cdef cnp.ndarray _accum
+
+    cdef Histogram_cc* cc_hist(self)

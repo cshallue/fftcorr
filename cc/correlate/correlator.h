@@ -7,15 +7,15 @@
 #include <cmath>
 #include <vector>
 
-#include "array/array_ops.h"
-#include "array/row_major_array.h"
-#include "grid.h"
-#include "grid/config_space_grid.h"
-#include "grid/fft_grid.h"
-#include "histogram/histogram.h"
-#include "particle_mesh/window_functions.h"
-#include "spherical_harmonics.h"
-#include "types.h"
+#include "../array/array_ops.h"
+#include "../array/row_major_array.h"
+#include "../grid.h"
+#include "../grid/config_space_grid.h"
+#include "../grid/fft_grid.h"
+#include "../histogram/histogram.h"
+#include "../particle_mesh/window_functions.h"
+#include "../spherical_harmonics.h"
+#include "../types.h"
 
 // TODO: locate somewhere else.
 Array1D<Float> sequence(Float start, Float step, int size) {
@@ -98,7 +98,7 @@ class Correlator {
   // (small but nonzero separations are put in the same bin as the zero
   // separation)
   void correlate_aniso(int maxell, int wide_angle_exponent,
-                       std::array<Float, 3> observer, Histogram &h,
+                       const std::array<Float, 3> &observer, Histogram &h,
                        Histogram &kh, Float &zerolag) {
     // Copy the density field into work_. We do this after setup_fft, because
     // that can estroy the input. TODO: possible optimization of initializing

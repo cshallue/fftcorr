@@ -9,12 +9,12 @@ from fftcorr.types cimport Float
 # TODO: formatting. 2 space indentation instead of 4?
 cdef class MassAssignor:
     def __cinit__(self, ConfigSpaceGrid grid, int buffer_size):
-        self._cc_ma = new cc_MassAssignor(grid.cc_grid(), buffer_size)
+        self._cc_ma = new MassAssignor_cc(grid.cc_grid(), buffer_size)
 
     # @staticmethod
     # cdef create(_ConfigSpaceGrid grid, WindowType window_type, int buffer_size):
     #     cdef _MassAssignor ma = _MassAssignor()
-    #     ma.cc_ma = new cc_MassAssignor(grid.cc_grid, window_type, buffer_size)
+    #     ma.cc_ma = new MassAssignor_cc(grid.cc_grid, window_type, buffer_size)
     #     return ma
 
     # @staticmethod

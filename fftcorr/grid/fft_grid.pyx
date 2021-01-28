@@ -22,7 +22,7 @@ cdef class FftGrid:
 
         # Create the wrapped C++ ConfigSpaceGrid.
         cdef cnp.ndarray[int, ndim=1, mode="c"] cshape = shape
-        self._cc_grid = new cc_FftGrid((<array[int, Three] *> &cshape[0])[0])
+        self._cc_grid = new FftGrid_cc((<array[int, Three] *> &cshape[0])[0])
         
         # TODO: we might choose not to even expose this, since it comes with
         # padding. We might just expose operations to do on the grid, and

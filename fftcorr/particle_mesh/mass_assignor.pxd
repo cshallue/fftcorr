@@ -1,10 +1,10 @@
-from fftcorr.grid cimport cc_ConfigSpaceGrid
+from fftcorr.grid cimport ConfigSpaceGrid_cc
 from fftcorr.particle_mesh cimport WindowType
 from fftcorr.types cimport Float
 
 cdef extern from "mass_assignor.h":
-  cdef cppclass cc_MassAssignor "MassAssignor":
-    cc_MassAssignor(cc_ConfigSpaceGrid* grid, int buffer_size) except +
+  cdef cppclass MassAssignor_cc "MassAssignor":
+    MassAssignor_cc(ConfigSpaceGrid_cc* grid, int buffer_size) except +
     void add_particle(Float x, Float y, Float z, Float w)
     void flush()
     int count()
@@ -12,6 +12,6 @@ cdef extern from "mass_assignor.h":
     Float totwsq()
 
 cdef class MassAssignor:
-    # Allocate the cc_MassAssignor on the heap; it would need to have a nullary
+    # Allocate the MassAssignor_cc on the heap; it would need to have a nullary
     # constructor to allocate it on the stack. TODO: consider this.
-    cdef cc_MassAssignor *_cc_ma
+    cdef MassAssignor_cc *_cc_ma

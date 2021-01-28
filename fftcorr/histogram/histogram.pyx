@@ -30,6 +30,9 @@ cdef class Histogram:
     def __dealloc__(self):
         del self._cc_hist
 
+    cdef Histogram_cc* cc_hist(self):
+        return self._cc_hist
+
     @property
     def bins(self):
         return self._bins

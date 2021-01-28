@@ -36,13 +36,20 @@ ext_modules = [
         include_dirs=[
             numpy.get_include(), "cc/particle_mesh/", "cc/grid/", "cc/array/"
         ]),
-    Extension(
-        "fftcorr.histogram.histogram",
-        sources=[
-            "fftcorr/histogram/histogram.pyx",
-        ],
-        # TODO: just add the includes to all extensions?
-        include_dirs=[numpy.get_include(), "cc/histogram/", "cc/array/"]),
+    Extension("fftcorr.histogram.histogram",
+              sources=[
+                  "fftcorr/histogram/histogram.pyx",
+              ],
+              include_dirs=[numpy.get_include(), "cc/histogram/",
+                            "cc/array/"]),
+    Extension("fftcorr.correlate.correlator",
+              sources=[
+                  "fftcorr/correlate/correlator.pyx",
+              ],
+              include_dirs=[
+                  numpy.get_include(), "cc/histogram/", "cc/grid/",
+                  "cc/array/", "cc/correlate/"
+              ]),
 ]
 
 for e in ext_modules:

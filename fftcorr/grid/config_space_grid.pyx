@@ -42,7 +42,7 @@ cdef class ConfigSpaceGrid:
         # Create the wrapped C++ ConfigSpaceGrid.
         cdef cnp.ndarray[int, ndim=1, mode="c"] cshape = shape
         cdef cnp.ndarray[double, ndim=1, mode="c"] cposmin = posmin
-        self._cc_grid = new cc_ConfigSpaceGrid(
+        self._cc_grid = new ConfigSpaceGrid_cc(
             (<array[int, Three] *> &cshape[0])[0],
             (<array[Float, Three] *> &cposmin[0])[0],
             cell_size,
@@ -59,7 +59,7 @@ cdef class ConfigSpaceGrid:
     def __dealloc__(self):
         del self._cc_grid
 
-    cdef cc_ConfigSpaceGrid* cc_grid(self):
+    cdef ConfigSpaceGrid_cc* cc_grid(self):
         return self._cc_grid
 
     # TODO: make consistent shape or ngrid in python and C++?

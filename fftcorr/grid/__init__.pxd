@@ -1,2 +1,2 @@
-from fftcorr.grid.config_space_grid cimport cc_ConfigSpaceGrid, ConfigSpaceGrid
-#from fftcorr.grid.fft_grid cimport cc_FftGrid, FftGrid
+from fftcorr.grid.config_space_grid cimport ConfigSpaceGrid_cc, ConfigSpaceGrid
+#from fftcorr.grid.fft_grid cimport FftGrid_cc, FftGrid

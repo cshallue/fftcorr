@@ -42,7 +42,7 @@ void makeYlm(RowMajorArrayPtr<Float, 3> *Ylm, int ell, int m,
     // This case is so easy that we'll do it directly and skip the setup.
     Float value = 1.0 / sqrt(4.0 * M_PI);
 #pragma omp parallel for YLM_SCHEDULE
-    for (uint64 i = 0; i < n[0]; i++) {
+    for (int i = 0; i < n[0]; i++) {
       if (mult) {
         Float *Y;
         const Float *D;
@@ -85,7 +85,7 @@ void makeYlm(RowMajorArrayPtr<Float, 3> *Ylm, int ell, int m,
   Ylm->at(0, 0, 0) = -123456.0;  // A sentinal value
 
 #pragma omp parallel for YLM_SCHEDULE
-  for (uint64 i = 0; i < n[0]; i++) {
+  for (int i = 0; i < n[0]; i++) {
     // Ylm_count.add();
     Float *ir2;  // Need some internal workspace
     err = posix_memalign((void **)&ir2, PAGE, sizeof(Float) * n[2] + PAGE);
