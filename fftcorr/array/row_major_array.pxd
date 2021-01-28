@@ -3,6 +3,7 @@ cimport numpy as cnp
 
 cdef extern from "row_major_array.h":
   cdef cppclass RowMajorArrayPtr[dtype, N]:
+    RowMajorArrayPtr() except +
     RowMajorArrayPtr(array[int, N], dtype *data) except +
     dtype* data()
     const array[int, N]& shape()

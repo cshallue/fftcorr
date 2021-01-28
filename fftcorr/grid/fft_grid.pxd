@@ -25,5 +25,5 @@ cdef class FftGrid:
     # constructor to allocate it on the stack. TODO: consider this.
     cdef FftGrid_cc *_cc_grid
     cdef cnp.ndarray _data_arr
-    cpdef extract_submatrix(self, out)
-    cpdef extract_submatrix_c2r(self, out)
+    cpdef extract_submatrix(self, Float[:, :, ::1] out)
+    cpdef extract_submatrix_c2r(self, Float[:, :, ::1] out)

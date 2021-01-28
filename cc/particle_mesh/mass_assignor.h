@@ -5,6 +5,7 @@
 #include <vector>
 
 // TODO: use include paths in the makefile compiler command
+#include "../array/row_major_array.h"
 #include "../galaxy.h"
 #include "../grid/config_space_grid.h"
 #include "../multithreading.h"
@@ -40,6 +41,16 @@ class MassAssignor {
     count_ += 1;
     totw_ += w;
     totwsq_ += w * w;
+  }
+
+  void add_particles(const RowMajorArrayPtr<Float, 2> &particles) {
+    assert(particles.shape(1) == 4);
+    const Float *posw;
+    for (int i = 0; i < particles.shape(0); ++i) {
+      posw = particles.get_row(i);
+      add_particle(posw[0], posw[1], posw[2], posw[3]);
+    }
+    flush();
   }
 
   void flush() {

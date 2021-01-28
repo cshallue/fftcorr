@@ -1,5 +1,10 @@
 from fftcorr.grid cimport ConfigSpaceGrid
-from fftcorr.types cimport Float
+from fftcorr.types cimport array
+
+cimport numpy as cnp
+cnp.import_array()
+
+import numpy as np
 
 # TODO: consider making MassAssignor a context manager, or wrapping it
 # in a function that is a context manager
@@ -28,6 +33,12 @@ cdef class MassAssignor:
 
     def add_particle(self, Float x, Float y, Float z, Float w):
         self._cc_ma.add_particle(x, y, z, w)
+
+    cpdef add_particles(self, Float[:, ::1] particles):
+        cdef cnp.ndarray[cnp.npy_int] shape = np.array(particles.shape, dtype=np.intc)
+        cdef RowMajorArrayPtr[Float, Two] arr = RowMajorArrayPtr[Float, Two](
+            (<array[int, Two] *> &shape[0])[0], &particles[0,0])
+        self._cc_ma.add_particles(arr)
 
     def flush(self):
         self._cc_ma.flush()

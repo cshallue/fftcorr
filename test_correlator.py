@@ -5,6 +5,7 @@ from fftcorr.histogram import Histogram
 
 import struct
 import numpy as np
+import time
 
 DATA_FILE = "./test_data/abacus/smallmass/corrDD.dat"
 
@@ -34,10 +35,9 @@ galaxies = np.fromfile(DATA_FILE, dtype=np.float64, offset=8 * 8).reshape(
 print("Read {} galaxies from {}".format(len(galaxies), DATA_FILE))
 print()
 
-# TODO: make this fast
-for posw in galaxies:
-    ma.add_particle(*posw)
-ma.flush()
+start = time.time()
+ma.add_particles(galaxies)
+print("Mass assignment took {:.2f} seconds".format(time.time() - start))
 
 print("count = {} vs {}".format(ma.count, len(galaxies)))
 print("totw = {} vs {}".format(ma.totw, np.sum(galaxies[:, 3])))

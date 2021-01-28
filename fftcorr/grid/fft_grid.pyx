@@ -52,13 +52,13 @@ cdef class FftGrid:
     def execute_ifft(self):
         self._cc_grid.execute_ifft()
 
-    cpdef extract_submatrix(self, out):
+    cpdef extract_submatrix(self, Float[:, :, ::1] out):
         # TODO: I'm creating a new (thin) wrapper class every time this is
         # called. Might want to accept the wrapper class instead.
         cdef RowMajorArrayPtr3D_Float out_wrap = RowMajorArrayPtr3D_Float(out)
         self._cc_grid.extract_submatrix(out_wrap.ptr())
 
-    cpdef extract_submatrix_c2r(self, out):
+    cpdef extract_submatrix_c2r(self, Float[:, :, ::1] out):
         # TODO: I'm creating a new (thin) wrapper class every time this is
         # called. Might want to accept the wrapper class instead.
         cdef RowMajorArrayPtr3D_Float out_wrap = RowMajorArrayPtr3D_Float(out)
