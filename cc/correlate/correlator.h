@@ -9,7 +9,6 @@
 
 #include "../array/array_ops.h"
 #include "../array/row_major_array.h"
-#include "../grid.h"
 #include "../grid/config_space_grid.h"
 #include "../grid/fft_grid.h"
 #include "../histogram/histogram.h"

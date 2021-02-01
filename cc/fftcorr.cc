@@ -86,7 +86,6 @@ cloud-in-cell to keep up.
 #include "array/array_ops.h"
 #include "array/row_major_array.h"
 #include "correlate/correlator.h"
-#include "grid.h"
 #include "grid/config_space_grid.h"
 #include "histogram/histogram.h"
 #include "multithreading.h"
@@ -349,11 +348,16 @@ int main(int argc, char *argv[]) {
     box.pad_to_sep(sep);
   }
 
-  // TODO: get rid of Grid class?
-  Grid g(ngrid);
-  cell_size = g.cover_box(box, qperiodic, cell_size);
-  ConfigSpaceGrid grid(ngrid, g.posmin(), cell_size,
-                       window_type);  // TODO: grid name clash
+  // Make sure the cell size covers the data.
+  for (int i = 0; i < 3; ++i) {
+    cell_size = std::max(cell_size, (box.posmax(i) - box.posmin(i)) / ngrid[i]);
+  }
+  fprintf(stdout, "# Adopted cell_size=%f for ngrid=[%d, %d, %d]\n", cell_size,
+          ngrid[0], ngrid[1], ngrid[2]);
+  fprintf(stdout, "# Adopted boxsize: %6.1f %6.1f %6.1f\n",
+          cell_size * ngrid[0], cell_size * ngrid[1], cell_size * ngrid[2]);
+
+  ConfigSpaceGrid grid(ngrid, box.posmin(), cell_size, window_type);
 
   int galaxy_batch_size = 1000000;
   MassAssignor mass_assignor(&grid, galaxy_batch_size);
@@ -433,8 +437,24 @@ int main(int argc, char *argv[]) {
     corr.correlate_iso(h, kh, zerolag);
   } else {
     fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-    corr.correlate_aniso(maxell, wide_angle_exponent, g.observer(), h, kh,
-                         zerolag);
+
+    // Origin of the observer coordinate system, expressed in grid coordinates.
+    std::array<Float, 3> observer;
+    if (qperiodic) {
+      // Place the observer centered in the grid, but displaced far away in the
+      // -x direction
+      for (int j = 0; j < 3; j++) {
+        observer[j] = ngrid[j] / 2.0;
+      }
+      observer[0] -= ngrid[0] * 1e6;  // Observer far away!
+    } else {
+      for (int j = 0; j < 3; j++) {
+        // The origin of the survey coordinates.
+        observer[j] = -box.posmin(j) / cell_size;
+      }
+    }
+
+    corr.correlate_aniso(maxell, wide_angle_exponent, observer, h, kh, zerolag);
   }
   Ylm_count.print(stdout);
   fprintf(stdout, "# Anisotropic power spectrum:\n");
@@ -449,8 +469,8 @@ int main(int argc, char *argv[]) {
   Float sum_ell0 = 0.0;
   for (int j = 0; j < kh.nbins(); ++j) sum_ell0 += kh.accum().at(0, j);
   fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",
-          sum_ell0 / (g.cell_size() * g.cell_size() * g.cell_size() * ngrid[0] *
-                      ngrid[1] * ngrid[2]));
+          sum_ell0 / (cell_size * cell_size * cell_size * ngrid[0] * ngrid[1] *
+                      ngrid[2]));
 
   Total.Stop();
   uint64 nfft = 1;

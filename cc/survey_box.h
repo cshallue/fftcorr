@@ -51,6 +51,8 @@ class SurveyBox {
 
   const std::array<Float, 3>& posmin() const { return posmin_; }
   const std::array<Float, 3>& posmax() const { return posmax_; }
+  Float posmin(int i) const { return posmin_[i]; }
+  Float posmax(int i) const { return posmax_[i]; }
 
  private:
   std::array<Float, 3> posmin_;
