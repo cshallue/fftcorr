@@ -7,7 +7,10 @@ print(dir(fftcorr.grid))
 ngrid = [2, 2, 2]
 posmin = [2, -5, 77]
 cell_size = 25
-g = fftcorr.grid.ConfigSpaceGrid(ngrid, posmin, cell_size, window_type=0)
+g = fftcorr.grid.ConfigSpaceGrid(shape=ngrid,
+                                 posmin=posmin,
+                                 cell_size=cell_size,
+                                 window_type=0)
 print("{0:x}".format(id(g)))
 print(dir(g))
 print("posmin =", posmin)
@@ -40,8 +43,34 @@ print("{0:x}".format(id(d2)))
 
 print(d.flatten())
 
+g2 = fftcorr.grid.ConfigSpaceGrid(shape=ngrid,
+                                  posmin=posmin,
+                                  posmax=[4, 5, 79],
+                                  window_type=0)
+print(g2.cell_size)
+
 try:
-    fftcorr.grid.ConfigSpaceGrid([2, 2], posmin, cell_size, window_type=0)
+    fftcorr.grid.ConfigSpaceGrid(shape=[2, 2],
+                                 posmin=posmin,
+                                 cell_size=cell_size,
+                                 window_type=0)
+except ValueError as e:
+    print(e)
+
+try:
+    fftcorr.grid.ConfigSpaceGrid(shape=ngrid,
+                                 posmin=posmin,
+                                 posmax=[4, 5, 79],
+                                 cell_size=4,
+                                 window_type=0)
+except ValueError as e:
+    print(e)
+
+try:
+    fftcorr.grid.ConfigSpaceGrid(shape=ngrid,
+                                 posmin=posmin,
+                                 posmax=[4, 5, 72],
+                                 window_type=0)
 except ValueError as e:
     print(e)
 

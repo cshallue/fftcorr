@@ -18,7 +18,10 @@ with open(DATA_FILE, "rb") as f:
 ngrid = [256, 256, 256]
 cell_size = 100
 window_type = 0
-dens = ConfigSpaceGrid(ngrid, posmin, cell_size, window_type)
+dens = ConfigSpaceGrid(shape=ngrid,
+                       posmin=posmin,
+                       cell_size=cell_size,
+                       window_type=window_type)
 d = dens.data
 print("created grid")
 print()
@@ -65,11 +68,11 @@ h = Histogram(n=0, minval=0, maxval=rmax, binsize=dr)
 kh = Histogram(n=0, minval=0, maxval=kmax, binsize=dk)
 zerolag = c.correlate_iso(h, kh)
 print("Done correlating! Zerolag = {:.6e}".format(zerolag))
-print(h.bins)
-print(h.count)
-print(h.accum)
-print(kh.bins)
-print(kh.count)
-print(kh.accum)
+# print(h.bins)
+# print(h.count)
+# print(h.accum)
+# print(kh.bins)
+# print(kh.count)
+# print(kh.accum)
 
 print()

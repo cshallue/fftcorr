@@ -9,14 +9,13 @@ import numpy as np
 
 
 cdef class ConfigSpaceGrid:
-    def __cinit__(self, shape, posmin, Float cell_size, WindowType window_type):
+    def __cinit__(self, shape, posmin, posmax=None, cell_size=None, window_type=0):
         # Convert input arrays to contiguous arrays of the correct data type.
         # Then check for errors, as python objects.
         # Insist posmin is copied since it will be retained as a class attribute.
         # TODO: np.double should be declared in the same place as Float.
         shape = np.ascontiguousarray(shape, dtype=np.intc)
         posmin = np.asarray(posmin, dtype=np.double).copy(order="C")
-        posmin.setflags(write=False)
 
         if shape.shape != (3, ):
             raise ValueError(
@@ -32,21 +31,43 @@ cdef class ConfigSpaceGrid:
                 "Expected posmin to have shape (3,), got: {}".format(
                     posmin.shape))
 
-        if cell_size <= 0:
-            raise ValueError(
-                "Expected cell_size to be positive, got: {}".format(cell_size))
+        if ((posmax is None) == (cell_size is None)):
+            raise ValueError("Exactly one of posmax and cell_size is required")
+
+        if cell_size is not None:
+            if cell_size <= 0:
+                raise ValueError(
+                    "Expected cell_size to be positive, got: {}".format(
+                        cell_size))
+        else:
+            posmax = np.asarray(posmax, dtype=np.double)
+
+            if posmax.shape != (3, ):
+                raise ValueError(
+                    "Expected posmax to have shape (3,), got: {}".format(
+                        posmax.shape))
+
+            if np.any(posmax <= posmin):
+                raise ValueError(
+                    "Expected posmin < posmax, got posmin={}, posmax={}".format(
+                        posmin, posmax))
+
+            cell_size = np.amax((posmax - posmin) / shape)
+            print("Adopted cell_size = {}".format(cell_size))
 
         self._posmin = posmin
+        self._posmin.setflags(write=False)
         self._cell_size = cell_size
 
         # Create the wrapped C++ ConfigSpaceGrid.
         cdef cnp.ndarray[int, ndim=1, mode="c"] cshape = shape
         cdef cnp.ndarray[double, ndim=1, mode="c"] cposmin = posmin
+        cdef WindowType wt = window_type
         self._cc_grid = new ConfigSpaceGrid_cc(
             (<array[int, Three] *> &cshape[0])[0],
             (<array[Float, Three] *> &cposmin[0])[0],
             cell_size,
-            window_type)
+            wt)
         
         # Wrap the data array as a numpy array.
         self._data_arr = as_numpy(
