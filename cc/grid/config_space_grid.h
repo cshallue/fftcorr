@@ -22,6 +22,7 @@ class ConfigSpaceGrid {
   const std::array<int, 3>& ngrid() const { return ngrid_; }
   int ngrid(int i) const { return ngrid_[i]; }
   const std::array<Float, 3>& posmin() const { return posmin_; }
+  Float posmin(int i) const { return posmin_[i]; }
   Float cell_size() const { return cell_size_; }
   WindowType window_type() const { return window_type_; }
   // TODO: needed for MassAssignor and for fftcorr.cpp normalization.

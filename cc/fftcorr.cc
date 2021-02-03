@@ -437,24 +437,8 @@ int main(int argc, char *argv[]) {
     corr.correlate_iso(h, kh, zerolag);
   } else {
     fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-
-    // Origin of the observer coordinate system, expressed in grid coordinates.
-    std::array<Float, 3> observer;
-    if (qperiodic) {
-      // Place the observer centered in the grid, but displaced far away in the
-      // -x direction
-      for (int j = 0; j < 3; j++) {
-        observer[j] = ngrid[j] / 2.0;
-      }
-      observer[0] -= ngrid[0] * 1e6;  // Observer far away!
-    } else {
-      for (int j = 0; j < 3; j++) {
-        // The origin of the survey coordinates.
-        observer[j] = -box.posmin(j) / cell_size;
-      }
-    }
-
-    corr.correlate_aniso(maxell, wide_angle_exponent, observer, h, kh, zerolag);
+    corr.correlate_aniso(maxell, wide_angle_exponent, qperiodic, h, kh,
+                         zerolag);
   }
   Ylm_count.print(stdout);
   fprintf(stdout, "# Anisotropic power spectrum:\n");

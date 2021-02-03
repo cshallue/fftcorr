@@ -96,9 +96,8 @@ class Correlator {
   // zerolag is needed because that information is not in the output histograms
   // (small but nonzero separations are put in the same bin as the zero
   // separation)
-  void correlate_aniso(int maxell, int wide_angle_exponent,
-                       const std::array<Float, 3> &observer, Histogram &h,
-                       Histogram &kh, Float &zerolag) {
+  void correlate_aniso(int maxell, int wide_angle_exponent, bool periodic,
+                       Histogram &h, Histogram &kh, Float &zerolag) {
     // Copy the density field into work_. We do this after setup_fft, because
     // that can estroy the input. TODO: possible optimization of initializing
     // work_ by copy and then hoping setup_fft doesn't destroy the input, but
@@ -106,6 +105,22 @@ class Correlator {
     // array if we initialize by copy.
     // TODO: consistency between dens.data() and work.arr()
     array_ops::copy_into_padded_array(dens_.data(), work_.arr());
+
+    // Origin of the observer coordinate system, expressed in grid coordinates.
+    std::array<Float, 3> observer;
+    if (periodic) {
+      // Place the observer centered in the grid, but displaced far away in the
+      // -x direction
+      for (int j = 0; j < 3; j++) {
+        observer[j] = dens_.ngrid(j) / 2.0;
+      }
+      observer[0] -= dens_.ngrid(0) * 1e6;  // Observer far away!
+    } else {
+      for (int j = 0; j < 3; j++) {
+        // The origin of the survey coordinates.
+        observer[j] = -dens_.posmin(j) / dens_.cell_size();
+      }
+    }
 
     // Compute xcell, ycell, zcell, which are the coordinates of the cell
     // centers in each dimension, relative to the origin. Now set up the cell
