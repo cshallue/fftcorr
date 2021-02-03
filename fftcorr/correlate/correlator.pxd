@@ -1,3 +1,5 @@
+from libcpp cimport bool
+
 from fftcorr.grid cimport ConfigSpaceGrid_cc
 from fftcorr.histogram cimport Histogram_cc
 from fftcorr.types cimport Float, array, Three
@@ -9,7 +11,7 @@ cdef extern from "correlator.h":
     void correlate_aniso(
       int maxell,
       int wide_angle_exponent,
-      const array[Float, Three] &observer,
+      bool periodic,
       Histogram_cc &h,
       Histogram_cc &kh,
       Float &zerolag)
