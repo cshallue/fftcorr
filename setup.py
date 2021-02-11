@@ -45,6 +45,8 @@ ext_modules = [
     Extension("fftcorr.correlate.correlator",
               sources=[
                   "fftcorr/correlate/correlator.pyx",
+                  "cc/grid/fft_grid.cc",
+                  "cc/array/array_ops.cc",
               ],
               include_dirs=[
                   numpy.get_include(), "cc/histogram/", "cc/grid/",

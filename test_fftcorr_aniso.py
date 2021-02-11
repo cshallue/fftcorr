@@ -9,6 +9,7 @@ import tempfile
 import numpy as np
 
 from fftcorr import fftcorr
+from fftcorr.correlate import compute_xi
 
 NGRID = 256
 DSEP = 10.0
@@ -121,7 +122,6 @@ class TestCorrelateCPP(BaseTest):
 
 class TestComputeXi(BaseTest):
     # TODO: move this into fftcorr.py
-    @unittest.skip("Turn off while developing C++ code")
     def load_cpp_out(self, filename):
         data = np.loadtxt(os.path.join(self.ref_data_dir, filename))
         data = data[data[:, 0] == 0]  # corr indicated by 0 in first col
@@ -136,7 +136,7 @@ class TestComputeXi(BaseTest):
 
         hist_corrNN, rcen = self.load_cpp_out("corrDD.dat.out")
         hist_corrRR, _ = self.load_cpp_out("corrRR.dat.out")
-        xi = fftcorr.compute_xi(hist_corrNN, hist_corrRR)
+        xi = compute_xi(hist_corrNN, hist_corrRR)
 
         np.testing.assert_allclose(rcen, ref_rcen)
         np.testing.assert_allclose(xi, ref_xi, rtol=1e-5)
