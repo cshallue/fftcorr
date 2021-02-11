@@ -177,8 +177,8 @@ class Correlator {
         // Create the Ylm matrix times work_
         // TODO: here, is it advantageous if dens_ is padded as well, so its
         // boundaries match with those of work?
-        makeYlm(&work_.arr(), ell, m, dens_.ngrid(), xcell.data(), ycell.data(),
-                zcell.data(), &dens_.data(), -wide_angle_exponent);
+        make_ylm(ell, m, -wide_angle_exponent, xcell, ycell, zcell,
+                 &dens_.data(), &work_.arr());
         fprintf(stdout, "Ylm...");
 
         // FFT in place
@@ -192,8 +192,8 @@ class Correlator {
 
         // Extract the anisotropic power spectrum
         // Load the Ylm's and include the CICwindow correction
-        makeYlm(&kgrid_, ell, m, kgrid_.shape(), kx_.data(), ky_.data(),
-                kz_.data(), &inv_window_, wide_angle_exponent);
+        make_ylm(ell, m, wide_angle_exponent, kx_, ky_, kz_, &inv_window_,
+                 &kgrid_);
         // Multiply these Ylm by the power result, and then add to total.
         work_.extract_submatrix_C2R(&ktotal, &kgrid_);
 
@@ -204,8 +204,7 @@ class Correlator {
         // Create Ylm for the submatrix that we'll extract for histogramming
         // The extra multiplication by one here is of negligible cost, since
         // this array is so much smaller than the FFT grid.
-        makeYlm(&rgrid_, ell, m, rgrid_.shape(), rx_.data(), ry_.data(),
-                rz_.data(), NULL, wide_angle_exponent);
+        make_ylm(ell, m, wide_angle_exponent, rx_, ry_, rz_, NULL, &rgrid_);
 
         // Multiply these Ylm by the correlation result, and then add to total.
         work_.extract_submatrix(&total, &rgrid_);

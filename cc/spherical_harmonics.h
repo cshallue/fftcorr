@@ -7,56 +7,58 @@
 
 #include "types.h"
 
-/* ============== Spherical Harmonic routine ============== */
-
-void makeYlm(RowMajorArrayPtr<Float, 3> *Ylm, int ell, int m,
-             const std::array<int, 3> &n, const Float *xcell,
-             const Float *ycell, const Float *zcell,
-             const RowMajorArrayPtr<Float, 3> *mult, int exponent) {
-  // TODO: check dimensions
-
-  // We're not actually returning Ylm here.
-  // m>0 will return Re(Y_lm)*sqrt(2)
-  // m<0 will return Im(Y_l|m|)*sqrt(2)
-  // m=0 will return Y_l0
-  // These are not including common minus signs, since we're only
-  // using them in matched squares.
-  //
-  // Input x[n[0]], y[n[1]], z[n[2]] are the x,y,z centers of this row of bins
-  //
-  // If mult!=NULL, then it should point to a [n[0]][n[1]][n2] vector that will
-  // be multiplied element-wise onto the results.  This can save a store/load to
-  // main memory.
-  //
-  // If exponent!=0, then we will attach a dependence of r^exponent to the Ylm's
-  // exponent must be an even number
+// Evaluates the spherical harmonic function Y_lm on a Cartesian grid.
+// m=0 will return Y_l0
+// m>0 will return Re(Y_lm)*sqrt(2)
+// m<0 will return Im(Y_l|m|)*sqrt(2)
+// We do not include minus signs since we're only using them in matched squares.
+//
+// xcell, ycell, zcell are the x, y, z axes corresponding to the output grid
+// Ylm, with the origin at Ylm[0, 0, 0]. These axes may be smaller than the
+// output grid, in which case only the subgrid spanned by these axes will be
+// filled.
+//
+// The polar angle and azimuthal angle are defined in the usual way with respect
+// to the x, y, and z axes.
+//
+// If mult!=NULL, then it should point to an array that will be multiplied
+// element-wise onto the results.  This can save a store/load to main memory.
+//
+// If exponent!=0, then we will attach a dependence of r^exponent to the Ylm's.
+// exponent must be an even number
+void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
+              const Array1D<Float> &ycell, const Array1D<Float> &zcell,
+              const RowMajorArrayPtr<Float, 3> *mult,
+              RowMajorArrayPtr<Float, 3> *Ylm) {
+  // Check dimensions.
+  const int n0 = xcell.size();
+  const int n1 = ycell.size();
+  const int n2 = zcell.size();
+  assert(Ylm->shape(0) >= n0);
+  assert(Ylm->shape(1) >= n1);
+  assert(Ylm->shape(2) >= n2);
   assert(exponent % 2 == 0);
-  // YlmTime.Start();
-  Float isqpi = sqrt(1.0 / M_PI);
-  if (m != 0) isqpi *= sqrt(2.0);  // Do this up-front, so we don't forget
-  Float tiny = 1e-20;
 
-  const int cn2 = n[2];  // To help with loop vectorization
+  // YlmTime.Start();
 
   if (ell == 0 && m == 0 && exponent == 0) {
     // This case is so easy that we'll do it directly and skip the setup.
     Float value = 1.0 / sqrt(4.0 * M_PI);
 #pragma omp parallel for YLM_SCHEDULE
-    for (int i = 0; i < n[0]; i++) {
+    for (int i = 0; i < n0; ++i) {
       if (mult) {
         Float *Y;
         const Float *D;
-        for (int j = 0; j < n[1]; j++) {
+        for (int j = 0; j < n1; ++j) {
           Y = Ylm->get_row(i, j);
           D = mult->get_row(i, j);
-          for (int k = 0; k < cn2; k++) Y[k] = D[k] * value;
+          for (int k = 0; k < n2; ++k) Y[k] = D[k] * value;
         }
       } else {
-        // TODO: if I end up with set_all in RowMajorArray, just call that.
         Float *Y;
-        for (int j = 0; j < n[1]; j++) {
+        for (int j = 0; j < n1; j++) {
           Y = Ylm->get_row(i, j);
-          for (int k = 0; k < cn2; k++) Y[k] = value;
+          for (int k = 0; k < n2; ++k) Y[k] = value;
         }
       }
     }
@@ -64,132 +66,118 @@ void makeYlm(RowMajorArrayPtr<Float, 3> *Ylm, int ell, int m,
     return;
   }
 
-  // TODO: vector?
-  const Float *z = zcell;
-  Float *z2, *z3, *z4, *ones;
-  int err = posix_memalign((void **)&z2, PAGE, sizeof(Float) * n[2] + PAGE);
-  assert(err == 0);
-  err = posix_memalign((void **)&z3, PAGE, sizeof(Float) * n[2] + PAGE);
-  assert(err == 0);
-  err = posix_memalign((void **)&z4, PAGE, sizeof(Float) * n[2] + PAGE);
-  assert(err == 0);
-  err = posix_memalign((void **)&ones, PAGE, sizeof(Float) * n[2] + PAGE);
-  assert(err == 0);
-  for (int k = 0; k < cn2; k++) {
+  Float isqpi = sqrt(1.0 / M_PI);
+  if (m != 0) isqpi *= sqrt(2.0);  // Do this up-front, so we don't forget
+  Float tiny = 1e-20;
+
+  const Float *z = zcell.data();
+  Array1D<Float> z2({n2});
+  Array1D<Float> z3({n2});
+  Array1D<Float> z4({n2});
+  Array1D<Float> ones({n2});
+  for (int k = 0; k < n2; ++k) {
     z2[k] = z[k] * z[k];
     z3[k] = z2[k] * z[k];
     z4[k] = z3[k] * z[k];
     ones[k] = 1.0;
   }
 
-  Ylm->at(0, 0, 0) = -123456.0;  // A sentinal value
+  (*Ylm)[0] = -123456.0;  // A sentinal value
 
 #pragma omp parallel for YLM_SCHEDULE
-  for (int i = 0; i < n[0]; i++) {
+  for (int i = 0; i < n0; ++i) {
     // Ylm_count.add();
-    Float *ir2;  // Need some internal workspace
-    err = posix_memalign((void **)&ir2, PAGE, sizeof(Float) * n[2] + PAGE);
-    assert(err == 0);
-    Float *rpow;
-    err = posix_memalign((void **)&rpow, PAGE, sizeof(Float) * n[2] + PAGE);
-    assert(err == 0);
-    Float x = xcell[i], x2 = x * x;
+    Array1D<Float> ir2({n2});
+    Array1D<Float> rpow({n2});
+    Float x = xcell[i];
+    Float x2 = x * x;
     Float *R;
     Float *Y;
     const Float *D;
-    for (int j = 0; j < n[1]; j++) {
-      // Important to use .at() for when Ylm and mult are internally padded.
-      Y = Ylm->get_row(i, j);                           // (i, j, 0)
-      D = (mult == NULL) ? ones : mult->get_row(i, j);  // (i, j, 0)
-      Float y = ycell[j], y2 = y * y, y3 = y2 * y, y4 = y3 * y;
-      for (int k = 0; k < cn2; k++) ir2[k] = 1.0 / (x2 + y2 + z2[k] + tiny);
-      // Now figure out the exponent r^n
+    for (int j = 0; j < n1; ++j) {
+      Y = Ylm->get_row(i, j);                                // (i, j, 0)
+      D = mult == NULL ? ones.data() : mult->get_row(i, j);  // (i, j, 0)
+      Float y = ycell[j];
+      Float y2 = y * y;
+      Float y3 = y2 * y;
+      Float y4 = y3 * y;
+      for (int k = 0; k < n2; ++k) ir2[k] = 1.0 / (x2 + y2 + z2[k] + tiny);
+      // Fill R with r^exponent
       if (exponent == 0)
-        R = ones;
-      else if (exponent > 0) {
-        // Fill R with r^exponent
-        R = rpow;
-        for (int k = 0; k < cn2; k++) R[k] = (x2 + y2 + z2[k]);
-        for (int e = exponent; e > 2; e -= 2)
-          for (int k = 0; k < cn2; k++) R[k] *= (x2 + y2 + z2[k]);
-      } else {
-        // Fill R with r^exponent
-        R = rpow;
-        for (int k = 0; k < cn2; k++) R[k] = ir2[k];
-        for (int e = exponent; e < -2; e += 2)
-          for (int k = 0; k < cn2; k++) R[k] *= ir2[k];
+        R = ones.data();
+      else {
+        R = rpow.data();
+        for (int k = 0; k < n2; ++k) {
+          Float rpow = exponent > 0 ? (x2 + y2 + z2[k]) : ir2[k];
+          R[k] = 1.0;
+          for (int e = 1; e <= abs(exponent) / 2; ++e) R[k] *= rpow;
+        }
       }
       // Now ready to compute
-      if (ell == 2) {
+      if (ell == 0) {
+        for (int k = 0; k < n2; ++k) Y[k] = D[k] * R[k] / sqrt(4.0 * M_PI);
+      } else if (ell == 2) {
         if (m == 2)
-          for (int k = 0; k < cn2; k++)
-            Y[k] = D[k] * R[k] * isqpi * sqrt(15. / 32.) * (x2 - y2) * ir2[k];
+          for (int k = 0; k < n2; ++k)
+            Y[k] = D[k] * R[k] * isqpi * sqrt(15.0 / 32.0) * (x2 - y2) * ir2[k];
         else if (m == 1)
-          for (int k = 0; k < cn2; k++)
-            Y[k] = D[k] * R[k] * isqpi * sqrt(15. / 8.) * x * z[k] * ir2[k];
+          for (int k = 0; k < n2; ++k)
+            Y[k] = D[k] * R[k] * isqpi * sqrt(15.0 / 8.0) * x * z[k] * ir2[k];
         else if (m == 0)
-          for (int k = 0; k < cn2; k++)
-            Y[k] = D[k] * R[k] * isqpi * sqrt(5. / 16.) *
+          for (int k = 0; k < n2; ++k)
+            Y[k] = D[k] * R[k] * isqpi * sqrt(5.0 / 16.0) *
                    (2.0 * z2[k] - x2 - y2) * ir2[k];
         else if (m == -1)
-          for (int k = 0; k < cn2; k++)
-            Y[k] = D[k] * R[k] * isqpi * sqrt(15. / 8.) * y * z[k] * ir2[k];
+          for (int k = 0; k < n2; ++k)
+            Y[k] = D[k] * R[k] * isqpi * sqrt(15.0 / 8.0) * y * z[k] * ir2[k];
         else if (m == -2)
-          for (int k = 0; k < cn2; k++)
-            Y[k] = D[k] * R[k] * isqpi * sqrt(15. / 32.) * 2.0 * x * y * ir2[k];
+          for (int k = 0; k < n2; ++k)
+            Y[k] = D[k] * R[k] * isqpi * sqrt(15.0 / 8.0) * x * y * ir2[k];
       } else if (ell == 4) {
         if (m == 4)
-          for (int k = 0; k < cn2; k++)
-            Y[k] = D[k] * R[k] * isqpi * 3.0 / 16.0 * sqrt(35. / 2.) *
+          for (int k = 0; k < n2; ++k)
+            Y[k] = D[k] * R[k] * isqpi * 3.0 / 16.0 * sqrt(35.0 / 2.0) *
                    (x2 * x2 - 6.0 * x2 * y2 + y4) * ir2[k] * ir2[k];
         else if (m == 3)
-          for (int k = 0; k < cn2; k++)
-            Y[k] = D[k] * R[k] * isqpi * 3.0 / 8.0 * sqrt(35.) *
+          for (int k = 0; k < n2; ++k)
+            Y[k] = D[k] * R[k] * isqpi * 3.0 / 8.0 * sqrt(35.0) *
                    (x2 - 3.0 * y2) * z[k] * x * ir2[k] * ir2[k];
         else if (m == 2)
-          for (int k = 0; k < cn2; k++)
-            Y[k] = D[k] * R[k] * isqpi * 3.0 / 8.0 * sqrt(5. / 2.) *
+          for (int k = 0; k < n2; ++k)
+            Y[k] = D[k] * R[k] * isqpi * 3.0 / 8.0 * sqrt(5.0 / 2.0) *
                    (6.0 * z2[k] * (x2 - y2) - x2 * x2 + y4) * ir2[k] * ir2[k];
         else if (m == 1)
-          for (int k = 0; k < cn2; k++)
-            Y[k] = D[k] * R[k] * isqpi * 3.0 / 8.0 * sqrt(5.) * 3.0 *
+          for (int k = 0; k < n2; ++k)
+            Y[k] = D[k] * R[k] * isqpi * 3.0 / 8.0 * sqrt(5.0) * 3.0 *
                    (4.0 / 3.0 * z2[k] - x2 - y2) * x * z[k] * ir2[k] * ir2[k];
         else if (m == 0)
-          for (int k = 0; k < cn2; k++)
+          for (int k = 0; k < n2; ++k)
             Y[k] = D[k] * R[k] * isqpi * 3.0 / 16.0 * 8.0 *
                    (z4[k] - 3.0 * z2[k] * (x2 + y2) +
                     3.0 / 8.0 * (x2 * x2 + 2.0 * x2 * y2 + y4)) *
                    ir2[k] * ir2[k];
         else if (m == -1)
-          for (int k = 0; k < cn2; k++)
-            Y[k] = D[k] * R[k] * isqpi * 3.0 / 8.0 * sqrt(5.) * 3.0 *
+          for (int k = 0; k < n2; ++k)
+            Y[k] = D[k] * R[k] * isqpi * 3.0 / 8.0 * sqrt(5.0) * 3.0 *
                    (4.0 / 3.0 * z2[k] - x2 - y2) * y * z[k] * ir2[k] * ir2[k];
         else if (m == -2)
-          for (int k = 0; k < cn2; k++)
-            Y[k] = D[k] * R[k] * isqpi * 3.0 / 8.0 * sqrt(5. / 2.) *
+          for (int k = 0; k < n2; ++k)
+            Y[k] = D[k] * R[k] * isqpi * 3.0 / 8.0 * sqrt(5.0 / 2.0) *
                    (2.0 * x * y * (6.0 * z2[k] - x2 - y2)) * ir2[k] * ir2[k];
         else if (m == -3)
-          for (int k = 0; k < cn2; k++)
-            Y[k] = D[k] * R[k] * isqpi * 3.0 / 8.0 * sqrt(35.) *
+          for (int k = 0; k < n2; ++k)
+            Y[k] = D[k] * R[k] * isqpi * 3.0 / 8.0 * sqrt(35.0) *
                    (3.0 * x2 * y - y3) * z[k] * ir2[k] * ir2[k];
         else if (m == -4)
-          for (int k = 0; k < cn2; k++)
-            Y[k] = D[k] * R[k] * isqpi * 3.0 / 16.0 * sqrt(35. / 2.) *
+          for (int k = 0; k < n2; ++k)
+            Y[k] = D[k] * R[k] * isqpi * 3.0 / 16.0 * sqrt(35.0 / 2.0) *
                    (4.0 * x * (x2 * y - y3)) * ir2[k] * ir2[k];
-      } else if (ell == 0) {
-        // We only get here if exponent!=0
-        for (int k = 0; k < cn2; k++) Y[k] = D[k] * R[k] / sqrt(4.0 * M_PI);
       }
     }
-    free(ir2);
   }
-  // This traps whether the user entered an illegal (ell,m)
-  assert(Ylm->at(0, 0, 0) != 123456.0);
-  free(z2);
-  free(z3);
-  free(z4);
+  // Traps whether the user entered an illegal (ell,m)
+  assert((*Ylm)[0] != 123456.0);
   // YlmTime.Stop();
-  return;
 }
 
 #endif  // SPHERICAL_HARMONICS_H
