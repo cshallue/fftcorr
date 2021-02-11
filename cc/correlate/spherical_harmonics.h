@@ -5,7 +5,8 @@
 
 #include <array>
 
-#include "types.h"
+#include "../array/row_major_array.h"
+#include "../types.h"
 
 // Evaluates the spherical harmonic function Y_lm on a Cartesian grid.
 // m=0 will return Y_l0

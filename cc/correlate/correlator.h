@@ -13,8 +13,8 @@
 #include "../grid/fft_grid.h"
 #include "../histogram/histogram.h"
 #include "../particle_mesh/window_functions.h"
-#include "../spherical_harmonics.h"
 #include "../types.h"
+#include "spherical_harmonics.h"
 
 // TODO: locate somewhere else.
 Array1D<Float> sequence(Float start, Float step, int size) {
