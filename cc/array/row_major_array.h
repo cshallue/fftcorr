@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "../types.h"
+#include "array.h"
 
 namespace {
 
@@ -24,7 +25,7 @@ uint64 compute_size(const std::array<int, N> &shape) {
 // Can be freely copied and moved.
 // TODO: virtual destructor?
 template <typename dtype, std::size_t N>
-class RowMajorArrayPtrBase {
+class RowMajorArrayPtrBase : public ArrayPtr<dtype> {
  public:
   // Default constructor.
   // A default-constructed RowMajorArrayPtr is effectively a null pointer until
@@ -32,38 +33,23 @@ class RowMajorArrayPtrBase {
   // initialization. We need this constructor so that classes can allocate a
   // RowMajorArrayPtr on the stack even if they construct the array in the body
   // of their constructor.
-  RowMajorArrayPtrBase() : size_(0), data_(NULL) {}
+  RowMajorArrayPtrBase() : ArrayPtr<dtype>() {}
 
   RowMajorArrayPtrBase(std::array<int, N> shape, dtype *data)
-      : shape_(shape), size_(compute_size(shape_)), data_(data) {}
+      : ArrayPtr<dtype>(compute_size(shape), data), shape_(shape) {}
 
   virtual ~RowMajorArrayPtrBase() = default;
 
   void initialize(const std::array<int, N> &shape, dtype *data) {
-    assert(data_ == NULL);  // Only allowed to initialize once.
     shape_ = shape;
-    size_ = compute_size(shape_);
-    data_ = data;
+    ArrayPtr<dtype>::initialize(compute_size(shape_), data);
   }
 
-  // TODO: needed?
   const std::array<int, N> &shape() const { return shape_; }
   int shape(int i) const { return shape_[i]; }
-  uint64 size() const { return size_; }
-  dtype *data() { return data_; }
-  const dtype *data() const { return data_; }
-
-  inline dtype &operator[](int idx) { return data_[idx]; }
-  inline const dtype &operator[](int idx) const { return data_[idx]; }
-
-  // Iterability.
-  dtype *begin() { return data_; }
-  dtype *end() { return &data_[size()]; }
 
  protected:
   std::array<int, N> shape_;
-  uint64 size_;
-  dtype *data_;
 };
 
 template <typename dtype, std::size_t N>
@@ -89,9 +75,6 @@ class RowMajorArrayPtr<dtype, 2> : public RowMajorArrayPtrBase<dtype, 2> {
   const dtype &at(int ix, int iy) const {
     return this->data_[get_index(ix, iy)];
   }
-  // TODO: just use at() syntax instead of a new function? Fewer chars,
-  // but then again, it returns a pointer and this is a RowMajorArray.
-  // Could rename to row()
   dtype *get_row(int ix) { return &this->at(ix, 0); }
   const dtype *get_row(int ix) const { return &this->at(ix, 0); }
 };
@@ -113,9 +96,6 @@ class RowMajorArrayPtr<dtype, 3> : public RowMajorArrayPtrBase<dtype, 3> {
   const dtype &at(int ix, int iy, int iz) const {
     return this->data_[get_index(ix, iy, iz)];
   }
-  // TODO: just use at() syntax instead of a new function? Fewer chars,
-  // but then again, it returns a pointer and this is a RowMajorArray.
-  // Could rename to row()
   dtype *get_row(int ix, int iy) { return &this->at(ix, iy, 0); }
   const dtype *get_row(int ix, int iy) const { return &this->at(ix, iy, 0); }
 };
