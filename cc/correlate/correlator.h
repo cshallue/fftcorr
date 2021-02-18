@@ -18,7 +18,7 @@
 
 // TODO: locate somewhere else.
 Array1D<Float> sequence(Float start, Float step, int size) {
-  Array1D<Float> seq({size});
+  Array1D<Float> seq(size);
   for (int i = 0; i < size; ++i) {
     seq[i] = start + i * step;
   }

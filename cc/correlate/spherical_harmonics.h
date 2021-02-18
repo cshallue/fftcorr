@@ -72,10 +72,10 @@ void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
   Float tiny = 1e-20;
 
   const Float *z = zcell.data();
-  Array1D<Float> z2({n2});
-  Array1D<Float> z3({n2});
-  Array1D<Float> z4({n2});
-  Array1D<Float> ones({n2});
+  Array1D<Float> z2(n2);
+  Array1D<Float> z3(n2);
+  Array1D<Float> z4(n2);
+  Array1D<Float> ones(n2);
   for (int k = 0; k < n2; ++k) {
     z2[k] = z[k] * z[k];
     z3[k] = z2[k] * z[k];
@@ -88,8 +88,8 @@ void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
 #pragma omp parallel for YLM_SCHEDULE
   for (int i = 0; i < n0; ++i) {
     // Ylm_count.add();
-    Array1D<Float> ir2({n2});
-    Array1D<Float> rpow({n2});
+    Array1D<Float> ir2(n2);
+    Array1D<Float> rpow(n2);
     Float x = xcell[i];
     Float x2 = x * x;
     Float *R;

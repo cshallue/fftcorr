@@ -71,6 +71,18 @@ class RowMajorArrayPtr : public ArrayNdPtrBase<dtype, N> {
 };
 
 template <typename dtype>
+class RowMajorArrayPtr<dtype, 1> : public ArrayNdPtrBase<dtype, 1> {
+ public:
+  RowMajorArrayPtr() : ArrayNdPtrBase<dtype, 1>() {}
+  RowMajorArrayPtr(std::array<int, 1> shape, dtype *data)
+      : ArrayNdPtrBase<dtype, 1>(shape, data) {}
+  // In 1D, it's more natural to use integers than single-element tuples.
+  RowMajorArrayPtr(int size, dtype *data)
+      : ArrayNdPtrBase<dtype, 1>({size}, data) {}
+  void set_data(int size, dtype *data) { this->set_data({size}, data); }
+};
+
+template <typename dtype>
 class RowMajorArrayPtr<dtype, 2> : public ArrayNdPtrBase<dtype, 2> {
  public:
   RowMajorArrayPtr() : ArrayNdPtrBase<dtype, 2>() {}
@@ -111,17 +123,19 @@ class RowMajorArrayPtr<dtype, 3> : public ArrayNdPtrBase<dtype, 3> {
 };
 
 template <typename dtype, std::size_t N>
-class RowMajorArray : public RowMajorArrayPtr<dtype, N> {
+class RowMajorArrayBase : public RowMajorArrayPtr<dtype, N> {
  public:
   // Default constructor: empty array.
-  RowMajorArray() : RowMajorArrayPtr<dtype, N>() {}
-
-  // Takes ownership of allocated memory.
-  RowMajorArray(std::array<int, N> shape, dtype *data)
-      : RowMajorArrayPtr<dtype, N>(shape, data) {}
+  RowMajorArrayBase() : RowMajorArrayPtr<dtype, N>() {}
 
   // Allocates memory.
-  RowMajorArray(std::array<int, N> shape) : RowMajorArray() { allocate(shape); }
+  RowMajorArrayBase(const std::array<int, N> &shape) : RowMajorArrayBase() {
+    allocate(shape);
+  }
+
+  ~RowMajorArrayBase() {
+    if (this->data_ != NULL) free(this->data_);
+  }
 
   // Allocates memory.
   void allocate(const std::array<int, N> &shape) {
@@ -135,31 +149,41 @@ class RowMajorArray : public RowMajorArrayPtr<dtype, N> {
     assert(this->data_ != NULL);
   }
 
-  ~RowMajorArray() {
-    if (this->data_ != NULL) free(this->data_);
-  }
-
   // Disable copy construction and copy assignment: users must copy explicitly.
-  RowMajorArray(const RowMajorArray<dtype, N> &) = delete;
-  RowMajorArray &operator=(const RowMajorArray<dtype, N> &) = delete;
+  RowMajorArrayBase(const RowMajorArrayBase<dtype, N> &) = delete;
+  RowMajorArrayBase &operator=(const RowMajorArrayBase<dtype, N> &) = delete;
 
   // Move constructor and assignment.
-  RowMajorArray &operator=(RowMajorArray<dtype, N> &&other) {
+  RowMajorArrayBase &operator=(RowMajorArrayBase<dtype, N> &&other) {
     std::swap(this->shape_, other.shape_);
     std::swap(this->size_, other.size_);
     std::swap(this->data_, other.data_);
     return *this;
   }
-  RowMajorArray(RowMajorArray<dtype, N> &&other) : RowMajorArray() {
+  RowMajorArrayBase(RowMajorArrayBase<dtype, N> &&other) : RowMajorArrayBase() {
     *this = std::move(other);
   }
 };
 
-// TODO: I could think about making the 1D case have a constructor that's just
-// an integer (not a list). But that'll involve RowMajorArrayBase. Or could I
-// somehow make Array<type> a base class of the higher dimensional arrays, and
-// avoid this?
-// TODO: Perhaps just 'Array'.
+template <typename dtype, std::size_t N>
+class RowMajorArray : public RowMajorArrayBase<dtype, N> {
+ public:
+  RowMajorArray() : RowMajorArrayBase<dtype, N>() {}
+  RowMajorArray(const std::array<int, N> &shape)
+      : RowMajorArrayBase<dtype, N>(shape) {}
+};
+
+template <typename dtype>
+class RowMajorArray<dtype, 1> : public RowMajorArrayBase<dtype, 1> {
+ public:
+  RowMajorArray() : RowMajorArrayBase<dtype, 1>() {}
+  RowMajorArray(const std::array<int, 1> &shape)
+      : RowMajorArrayBase<dtype, 1>(shape) {}
+  // In 1D, it's more natural to use integers than single-element tuples.
+  RowMajorArray(int size) : RowMajorArrayBase<dtype, 1>({size}) {}
+  void allocate(int size) { this->allocate({size}); }
+};
+
 template <typename dtype>
 using ArrayPtr1D = RowMajorArrayPtr<dtype, 1>;
 

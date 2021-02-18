@@ -11,8 +11,8 @@ class Histogram {
       : minval_(minval),
         binsize_(binsize),
         nbins_(floor((maxval - minval) / binsize)),
-        bins_({nbins_}),
-        count_({nbins_}),
+        bins_(nbins_),
+        count_(nbins_),
         accum_({n, nbins_}) {
     for (int i = 0; i < nbins_; ++i) bins_[i] = (i + 0.5) * binsize_;
     for (int &x : count_) x = 0;
