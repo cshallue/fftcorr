@@ -10,9 +10,8 @@
 template <typename dtype>
 class Array {
  public:
-  // TODO: do I need to make this constructor protected? Or is the fact that
+  // TODO: do I need to make the constructor protected? Or is the fact that
   // there are = 0's enough to make it non constructible?
-  Array() {}
   virtual ~Array() = default;
   virtual uint64 size() const = 0;
   virtual dtype *data() = 0;

@@ -5,62 +5,7 @@
 #include <utility>
 
 #include "../types.h"
-#include "array.h"
-
-// TODO: move this into a class with ArrayNd interface.
-// Base class for an n-dimensional array pointer. Does not implement a data
-// layout.
-template <typename dtype, std::size_t N>
-class ArrayNdPtrBase : public Array<dtype> {
- public:
-  // A default-constructed array pointer is effectively a null pointer until
-  // set_data() is called. Operations should not be called before
-  // initialization.
-  ArrayNdPtrBase() : Array<dtype>(), size_(0), data_(NULL) {}
-
-  ArrayNdPtrBase(const std::array<int, N> &shape, dtype *data)
-      : ArrayNdPtrBase() {
-    set_data(shape, data);
-  }
-
-  virtual ~ArrayNdPtrBase() = default;
-
-  void set_data(const std::array<int, N> &shape, dtype *data) {
-    assert(data_ == NULL);  // Make sure unitialized.
-    assert(data != NULL);   // Can't initialize with NULL data.
-    set_shape(shape);
-    data_ = data;
-  }
-
-  const std::array<int, N> &shape() const { return shape_; }
-  int shape(int i) const { return shape_[i]; }
-  uint64 size() const { return size_; }
-  dtype *data() { return data_; }
-  const dtype *data() const { return data_; }
-
-  // TODO: delete? random access raises questions about indexing for nd arrays
-  // and the user can already get data* or iterate directly - are these enough?
-  dtype &operator[](uint64 idx) { return data_[idx]; }
-  const dtype &operator[](uint64 idx) const { return data_[idx]; }
-
-  // Iterator through the flattened array.
-  dtype *begin() { return data_; }
-  dtype *end() { return &data_[size()]; }
-
- protected:
-  void set_shape(const std::array<int, N> &shape) {
-    shape_ = shape;
-    size_ = 1;
-    for (int nx : shape_) {
-      assert(nx > 0);
-      size_ *= nx;
-    }
-  }
-
-  std::array<int, N> shape_;
-  uint64 size_;
-  dtype *data_;
-};
+#include "array_nd.h"
 
 template <typename dtype, std::size_t N>
 class RowMajorArrayPtr : public ArrayNdPtrBase<dtype, N> {
