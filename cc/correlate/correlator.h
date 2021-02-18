@@ -242,7 +242,7 @@ class Correlator {
     std::array<int, 3> rshape = {sizex, sizex, sizex};
     fprintf(stderr, "rgrid shape = [%d, %d, %d]\n", rshape[0], rshape[1],
             rshape[2]);
-    rgrid_.initialize(rshape);
+    rgrid_.allocate(rshape);
 
     // The axes of the cell centers in separation space in physical units.
     rx_ = sequence(-cell_size * rmax_cells, cell_size, rshape[0]);
@@ -250,7 +250,7 @@ class Correlator {
     rz_ = sequence(-cell_size * rmax_cells, cell_size, rshape[2]);
 
     // Radius of each separation-space subgrid cell in physical units.
-    rnorm_.initialize(rshape);
+    rnorm_.allocate(rshape);
     for (int i = 0; i < rshape[0]; ++i) {
       for (int j = 0; j < rshape[1]; ++j) {
         for (int k = 0; k < rshape[2]; ++k) {
@@ -293,7 +293,7 @@ class Correlator {
                 i, kshape[i]);
       }
     }
-    kgrid_.initialize(kshape);
+    kgrid_.allocate(kshape);
     fprintf(stdout,
             "# Done setting up the wavevector submatrix of size +-%d, %d, %d\n",
             kshape[0] / 2, kshape[1] / 2, kshape[2] / 2);
@@ -308,7 +308,7 @@ class Correlator {
                    2.0 * k_Nyq / ngrid[2], kshape[2]);
 
     // Frequency of each freqency subgrid cell in physical units.
-    knorm_.initialize(kshape);
+    knorm_.allocate(kshape);
     for (int i = 0; i < kshape[0]; ++i) {
       for (int j = 0; j < kshape[1]; ++j) {
         for (int k = 0; k < kshape[2]; ++k) {
@@ -318,7 +318,7 @@ class Correlator {
       }
     }
 
-    inv_window_.initialize(kshape);
+    inv_window_.allocate(kshape);
     Float window;
     for (int i = 0; i < kshape[0]; ++i) {
       for (int j = 0; j < kshape[1]; ++j) {

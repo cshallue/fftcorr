@@ -1,6 +1,7 @@
 #ifndef HISTOGRAM_H
 #define HISTOGRAM_H
 
+#include "../array/array.h"
 #include "../array/row_major_array.h"
 #include "../types.h"
 
@@ -25,10 +26,10 @@ class Histogram {
 
   int to_bin_index(Float val) { return floor((val - minval_) / binsize_); }
 
-  void accumulate(const RowMajorArrayPtr<Float, 3> &rnorm,
-                  const RowMajorArrayPtr<Float, 3> &total, int ih) {
+  void accumulate(const Array<Float> &rnorm, const Array<Float> &total,
+                  int ih) {
     Float *h = accum_.get_row(ih);
-    for (int i = 0; i < (int)rnorm.size(); ++i) {
+    for (uint64 i = 0; i < rnorm.size(); ++i) {
       int b = to_bin_index(rnorm[i]);
       if (b >= nbins_ || b < 0) continue;
       if (ih == 0) ++count_[b];

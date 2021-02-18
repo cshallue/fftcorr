@@ -32,11 +32,11 @@ FftGrid::FftGrid(std::array<int, 3> shape) {
   fprintf(stdout, "# Using dsize_z_=%d for FFT r2c padding\n", dsize_z);
 
   std::array<int, 3> dshape = {rshape_[0], rshape_[1], dsize_z};
-  arr_.initialize(dshape);
+  arr_.allocate(dshape);
   data_ = arr_.data();
   array_ops::set_all(0.0, arr_);  // Very Important. Touch the whole array.
   // carr_ is a complex view.
-  carr_.initialize({dshape[0], dshape[1], dshape[2] / 2}, (Complex *)data_);
+  carr_.set_data({dshape[0], dshape[1], dshape[2] / 2}, (Complex *)data_);
   cdata_ = carr_.data();
 
 // NULL is a valid fftw_plan value; the planner will return NULL if it fails.
