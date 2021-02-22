@@ -11,6 +11,11 @@ g = fftcorr.grid.ConfigSpaceGrid(shape=ngrid,
                                  posmin=posmin,
                                  cell_size=cell_size,
                                  window_type=0)
+print(g.cell_size)
+print(g.posmin)
+print(g.posmax)
+print()
+
 print("{0:x}".format(id(g)))
 print(dir(g))
 print("posmin =", posmin)
@@ -42,12 +47,16 @@ print("{0:x}".format(id(d)))
 print("{0:x}".format(id(d2)))
 
 print(d.flatten())
+print()
 
 g2 = fftcorr.grid.ConfigSpaceGrid(shape=ngrid,
                                   posmin=posmin,
                                   posmax=[4, 5, 79],
                                   window_type=0)
 print(g2.cell_size)
+print(g2.posmin)
+print(g2.posmax)
+print()
 
 try:
     fftcorr.grid.ConfigSpaceGrid(shape=[2, 2],

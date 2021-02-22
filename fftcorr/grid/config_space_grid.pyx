@@ -39,8 +39,11 @@ cdef class ConfigSpaceGrid:
                 raise ValueError(
                     "Expected cell_size to be positive, got: {}".format(
                         cell_size))
+
+            print("Requested cell size {}".format(cell_size))
         else:
-            posmax = np.asarray(posmax, dtype=np.double)
+            # Posmax is not None.
+            posmax = np.array(posmax, dtype=np.double)
 
             if posmax.shape != (3, ):
                 raise ValueError(
@@ -52,11 +55,18 @@ cdef class ConfigSpaceGrid:
                     "Expected posmin < posmax, got posmin={}, posmax={}".format(
                         posmin, posmax))
 
+            print("Requested volume with {} cubic cells spanning "
+                  "posmin = {}, posmax = {}".format(shape, posmin, posmax))
             cell_size = np.amax((posmax - posmin) / shape)
-            print("Adopted cell_size = {}".format(cell_size))
+
+        posmax = posmin + shape * cell_size
+        print("Adopted ngrid = {}, cell_size = {}, posmin = {}, posmax = {}".format(
+                    shape, cell_size, posmin, posmax))
 
         self._posmin = posmin
-        self._posmin.setflags(write=False)
+        self._posmax = posmax
+        for arr in [posmin, posmax]:
+            arr.setflags(write=False)
         self._cell_size = cell_size
 
         # Create the wrapped C++ ConfigSpaceGrid.
@@ -87,6 +97,14 @@ cdef class ConfigSpaceGrid:
     @property
     def shape(self):
         return self.data.shape
+
+    @property
+    def posmin(self):
+        return self._posmin
+
+    @property
+    def posmax(self):
+        return self._posmax
 
     @property
     def cell_size(self):
