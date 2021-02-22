@@ -1,20 +1,20 @@
-from fftcorr.histogram import Histogram
+from fftcorr.histogram import HistogramList
 import numpy as np
 
-print("Imported Histogram class")
+print("Imported HistogramList class")
 # print(dir(Wrapper))
 
-h = Histogram(2, 0, 10, 2)
+h = HistogramList(2, 0, 10, 2)
 print(dir(h))
 
 bins = h.bins
-count = h.count
-accum = h.accum
+counts = h.counts
+hist_values = h.hist_values
 print(bins)
-print(count)
-print(accum)
+print(counts)
+print(hist_values)
 try:
-    accum[0][0] = 5
+    hist_values[0][0] = 5
 except ValueError as e:
     print(e)
-print(accum)
+print(hist_values)

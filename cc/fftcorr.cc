@@ -87,7 +87,7 @@ cloud-in-cell to keep up.
 #include "array/row_major_array.h"
 #include "correlate/correlator.h"
 #include "grid/config_space_grid.h"
-#include "histogram/histogram.h"
+#include "histogram/histogram_list.h"
 #include "multithreading.h"
 #include "particle_mesh/mass_assignor.h"
 #include "particle_mesh/window_functions.h"
@@ -229,18 +229,19 @@ void usage() {
   exit(1);
 }
 
-void print_hist(const Histogram &h, FILE *fp, int prefix, bool norm) {
-  // Print out the results
+void print_hist(const HistogramList &h, FILE *fp, int prefix, bool normalize) {
   // If norm==1, divide by counts
   const Array1D<Float> &bins = h.bins();
-  const Array1D<int> &count = h.count();
-  const RowMajorArray<Float, 2> &accum = h.accum();
+  const RowMajorArray<int, 2> &counts = h.counts();
+  const RowMajorArray<Float, 2> &hist_values = h.hist_values();
   for (uint64 j = 0; j < bins.size(); ++j) {
+    Float pos = bins[j];
+    Float count = counts.at(0, j);
+    Float denom = normalize && count != 0 ? count : 1.0;
     fprintf(fp, "%1d ", prefix);
-    fprintf(fp, "%7.4f %8.0f", bins[j], (Float)count[j]);
-    Float denom = norm && count[j] != 0 ? count[j] : 1.0;
-    for (int i = 0; i < accum.shape(0); ++i)
-      fprintf(fp, " %16.9e", accum.at(i, j) / denom);
+    fprintf(fp, "%7.4f %8.0f", pos, count);
+    for (int i = 0; i < hist_values.shape(0); ++i)
+      fprintf(fp, " %16.9e", hist_values.at(i, j) / denom);
     fprintf(fp, "\n");
   }
 }
@@ -429,8 +430,8 @@ int main(int argc, char *argv[]) {
   /* Done setup Grid ======================================================= */
 
   // Compute the correlations.
-  Histogram h(maxell / 2 + 1, 0.0, sep, dsep);
-  Histogram kh(maxell / 2 + 1, 0.0, kmax, dk);
+  HistogramList h(maxell / 2 + 1, 0.0, sep, dsep);
+  HistogramList kh(maxell / 2 + 1, 0.0, kmax, dk);
   Float zerolag = -12345.0;
   Correlator corr(grid, sep, kmax);
   if (isotropic) {
@@ -451,7 +452,7 @@ int main(int argc, char *argv[]) {
   // Integral of power spectrum needs a d^3k/(2 pi)^3, which is (1/L)^3 =
   // (1/(cell_size*ngrid))^3
   Float sum_ell0 = 0.0;
-  for (int j = 0; j < kh.nbins(); ++j) sum_ell0 += kh.accum().at(0, j);
+  for (int j = 0; j < kh.nbins(); ++j) sum_ell0 += kh.hist_values().at(0, j);
   fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",
           sum_ell0 / (cell_size * cell_size * cell_size * ngrid[0] * ngrid[1] *
                       ngrid[2]));

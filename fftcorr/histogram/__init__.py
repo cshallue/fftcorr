@@ -1,1 +1,1 @@
-from fftcorr.histogram.histogram import Histogram
+from fftcorr.histogram.histogram_list import HistogramList

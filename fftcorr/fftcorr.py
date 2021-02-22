@@ -365,7 +365,7 @@ def hist_corr_grid(corr, rcorr, bins):
 
 def correlate(pos, w, grid, bins):
     # Run the correlation for the given pos, w pairing
-    # Histogram the results onto the given binning
+    # HistogramList the results onto the given binning
     #
     # Convert the points to the grid
     t = timer()

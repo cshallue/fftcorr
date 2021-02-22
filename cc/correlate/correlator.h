@@ -11,7 +11,7 @@
 #include "../array/row_major_array.h"
 #include "../grid/config_space_grid.h"
 #include "../grid/fft_grid.h"
-#include "../histogram/histogram.h"
+#include "../histogram/histogram_list.h"
 #include "../particle_mesh/window_functions.h"
 #include "../types.h"
 #include "spherical_harmonics.h"
@@ -39,7 +39,7 @@ class Correlator {
             work_.dshape()[1], work_.dshape()[2]);
   }
 
-  void correlate_iso(Histogram &h, Histogram &kh, Float &zerolag) {
+  void correlate_iso(HistogramList &h, HistogramList &kh, Float &zerolag) {
     // Copy the density field into work_. We do this after setup_fft, because
     // that can estroy the input. TODO: possible optimization of initializing
     // work_ by copy and then hoping setup_fft doesn't destroy the input, but
@@ -68,7 +68,7 @@ class Correlator {
     uint64 ncells = dens_.data().size();  // TODO: yuck
     Float pnorm = 1.0 / ncells / ncells;
     array_ops::multiply_by(pnorm, kgrid_);
-    kh.accumulate(knorm_, kgrid_, 0);
+    kh.accumulate(0, knorm_, kgrid_);
 
     // iFFT the result, in place
     fprintf(stdout, "IFFT...");
@@ -85,7 +85,7 @@ class Correlator {
     // second is the factor converting the autocorrelation to the 2PCF.
     Float norm = 1.0 / ncells / ncells;
     array_ops::multiply_by(norm, rgrid_);
-    h.accumulate(rnorm_, rgrid_, 0);
+    h.accumulate(0, rnorm_, rgrid_);
 
     // Hist.Stop();
     // Correlate.Stop();
@@ -97,7 +97,7 @@ class Correlator {
   // (small but nonzero separations are put in the same bin as the zero
   // separation)
   void correlate_aniso(int maxell, int wide_angle_exponent, bool periodic,
-                       Histogram &h, Histogram &kh, Float &zerolag) {
+                       HistogramList &h, HistogramList &kh, Float &zerolag) {
     // Copy the density field into work_. We do this after setup_fft, because
     // that can estroy the input. TODO: possible optimization of initializing
     // work_ by copy and then hoping setup_fft doesn't destroy the input, but
@@ -217,10 +217,10 @@ class Correlator {
       array_ops::multiply_by(norm, total);
       array_ops::multiply_by(pnorm, ktotal);
       // Extract.Stop();
-      // Histogram total by rnorm
+      // HistogramList total by rnorm
       // Hist.Start();
-      h.accumulate(rnorm_, total, ell / 2);
-      kh.accumulate(knorm_, ktotal, ell / 2);
+      h.accumulate(ell / 2, rnorm_, total);
+      kh.accumulate(ell / 2, knorm_, ktotal);
       // Hist.Stop();
       // TODO: restore
       // if (ell == 0) {

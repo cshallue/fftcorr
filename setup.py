@@ -36,9 +36,9 @@ ext_modules = [
         include_dirs=[
             numpy.get_include(), "cc/particle_mesh/", "cc/grid/", "cc/array/"
         ]),
-    Extension("fftcorr.histogram.histogram",
+    Extension("fftcorr.histogram.histogram_list",
               sources=[
-                  "fftcorr/histogram/histogram.pyx",
+                  "fftcorr/histogram/histogram_list.pyx",
               ],
               include_dirs=[numpy.get_include(), "cc/histogram/",
                             "cc/array/"]),

@@ -1,7 +1,7 @@
 from fftcorr.grid import ConfigSpaceGrid
 from fftcorr.particle_mesh import MassAssignor
 from fftcorr.correlate import Correlator
-from fftcorr.histogram import Histogram
+from fftcorr.histogram import HistogramList
 
 import struct
 import numpy as np
@@ -64,15 +64,15 @@ dr = 5
 kmax = 0.4
 dk = 0.002
 c = Correlator(dens, rmax, kmax)
-h = Histogram(n=0, minval=0, maxval=rmax, binsize=dr)
-kh = Histogram(n=0, minval=0, maxval=kmax, binsize=dk)
+h = HistogramList(n=0, minval=0, maxval=rmax, binsize=dr)
+kh = HistogramList(n=0, minval=0, maxval=kmax, binsize=dk)
 zerolag = c.correlate_iso(h, kh)
 print("Done correlating! Zerolag = {:.6e}".format(zerolag))
 # print(h.bins)
-# print(h.count)
-# print(h.accum)
+# print(h.counts()
+# print(h.hist_values)
 # print(kh.bins)
-# print(kh.count)
-# print(kh.accum)
+# print(kh.counts()
+# print(kh.hist_values)
 
 print()
