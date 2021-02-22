@@ -3,9 +3,9 @@
 
 // TODO: use include paths in the makefile compiler command
 #include "../STimer.cc"
-#include "../galaxy.h"
+#include "particle.h"
 
-typedef Galaxy Merge;
+typedef Particle Merge;
 STimer Sorting, Merging;
 
 void merge(Merge a[], Merge temp[], int size, int size2) {

@@ -5,9 +5,9 @@
 #include <memory>
 
 #include "../array/row_major_array.h"
-#include "../galaxy.h"
 #include "../types.h"
 #include "d12.h"  // TODO: possibly incorporate into this file
+#include "particle.h"
 
 enum WindowType {
   kNearestCell = 0,
@@ -19,14 +19,14 @@ class WindowFunction {
  public:
   virtual ~WindowFunction() {}
   virtual int width() = 0;
-  virtual void add_particle_to_grid(const Galaxy& g,
+  virtual void add_particle_to_grid(const Particle& g,
                                     RowMajorArrayPtr<Float, 3>* dens) = 0;
 };
 
 class NearestCellWindow : public WindowFunction {
   int width() override { return 1; }
 
-  void add_particle_to_grid(const Galaxy& g,
+  void add_particle_to_grid(const Particle& g,
                             RowMajorArrayPtr<Float, 3>* dens) override {
     int ix = floor(g.x);
     int iy = floor(g.y);
@@ -38,7 +38,7 @@ class NearestCellWindow : public WindowFunction {
 class CloudInCellWindow : public WindowFunction {
   int width() override { return 3; }
 
-  void add_particle_to_grid(const Galaxy& g,
+  void add_particle_to_grid(const Particle& g,
                             RowMajorArrayPtr<Float, 3>* dens) override {
     // This implementation can correctly handle a padded data layout, i.e. the
     // memory layout of dens is a row-major (C-contiguous) array with dimensions
@@ -168,7 +168,7 @@ class CloudInCellWindow : public WindowFunction {
 class WaveletWindow : public WindowFunction {
   int width() override { return WCELLS; }
 
-  void add_particle_to_grid(const Galaxy& g,
+  void add_particle_to_grid(const Particle& g,
                             RowMajorArrayPtr<Float, 3>* dens) override {
     // This implementation can correctly handle a padded data layout, i.e. the
     // memory layout of dens is a row-major (C-contiguous) array with dimensions

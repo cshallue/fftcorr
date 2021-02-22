@@ -360,8 +360,8 @@ int main(int argc, char *argv[]) {
 
   ConfigSpaceGrid grid(ngrid, box.posmin(), cell_size, window_type);
 
-  int galaxy_batch_size = 1000000;
-  MassAssignor mass_assignor(&grid, galaxy_batch_size);
+  int particle_batch_size = 1000000;
+  MassAssignor mass_assignor(&grid, particle_batch_size);
   SurveyReader reader(&mass_assignor);
   reader.read_galaxies(infile);
   if (infile2 != NULL) {

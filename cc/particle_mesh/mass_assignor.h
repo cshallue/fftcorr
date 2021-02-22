@@ -6,11 +6,11 @@
 
 // TODO: use include paths in the makefile compiler command
 #include "../array/row_major_array.h"
-#include "../galaxy.h"
 #include "../grid/config_space_grid.h"
 #include "../multithreading.h"
 #include "../types.h"
 #include "merge_sort_omp.h"
+#include "particle.h"
 #include "window_functions.h"
 
 class MassAssignor {
@@ -32,7 +32,7 @@ class MassAssignor {
   void add_particle(Float x, Float y, Float z, Float w) {
     grid_->change_survey_to_grid_coords(x, y, z);
     uint64 index = grid_->data().get_index(floor(x), floor(y), floor(z));
-    gal_.push_back(Galaxy(x, y, z, w, index));
+    gal_.push_back(Particle(x, y, z, w, index));
     if (gal_.size() >= buffer_size_) {
       // IO.Stop();
       flush();
@@ -106,8 +106,8 @@ class MassAssignor {
   std::unique_ptr<WindowFunction> window_func_;
 
   uint64 buffer_size_;
-  std::vector<Galaxy> gal_;
-  std::vector<Galaxy> buf_;  // Used for mergesort.
+  std::vector<Particle> gal_;
+  std::vector<Particle> buf_;  // Used for mergesort.
 
   int count_;
   Float totw_;

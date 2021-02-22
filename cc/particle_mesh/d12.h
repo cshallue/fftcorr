@@ -8,7 +8,7 @@
 // wavesample[] is the original sampling vector, in x order.
 // wave[] is the same thing, but transposed so that a given fractional point
 // has the integer offsets contiguous in memory.  In this way, a particular
-// galaxy has the relevant information in 8 continuous elements.
+// particle has the relevant information in 8 continuous elements.
 
 #define WAVESAMPLE 64
 #define WMIN (-1)
