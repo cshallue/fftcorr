@@ -31,6 +31,7 @@ class Correlator {
       : dens_(dens), rmax_(rmax), kmax_(kmax), work_(dens_.ngrid()) {
     setup_rgrid();
     setup_kgrid();
+    setup_ylm_grid();
 
     // TODO: we could use the quick FFTW setup for the isotropic case, since we
     // only FFT and inverse FFT once each.
@@ -39,6 +40,8 @@ class Correlator {
             work_.dshape()[1], work_.dshape()[2]);
   }
 
+  // TODO: histograms and zerolag could be part of the class now that both
+  // functions expand in spherical harmonics?
   void correlate_iso(HistogramList &h, HistogramList &kh, Float &zerolag) {
     // Copy the density field into work_. We do this after setup_fft, because
     // that can estroy the input. TODO: possible optimization of initializing
@@ -96,6 +99,7 @@ class Correlator {
   // zerolag is needed because that information is not in the output histograms
   // (small but nonzero separations are put in the same bin as the zero
   // separation)
+  // TODO: does wide_angle_exponent apply to the periodic isotropic case too?
   void correlate_aniso(int maxell, int wide_angle_exponent, bool periodic,
                        HistogramList &h, HistogramList &kh, Float &zerolag) {
     // Copy the density field into work_. We do this after setup_fft, because
@@ -106,6 +110,7 @@ class Correlator {
     // TODO: consistency between dens.data() and work.arr()
     array_ops::copy_into_padded_array(dens_.data(), work_.arr());
 
+    // TODO: not needed for anisotropic case anymore?
     // Origin of the observer coordinate system, expressed in grid coordinates.
     std::array<Float, 3> observer;
     if (periodic) {
@@ -138,13 +143,6 @@ class Correlator {
     Float norm = 4.0 * M_PI / ncells;
     Float pnorm = 4.0 * M_PI;
 
-    // TODO: okay so we keep one of these as a class member and create the other
-    // every time? We could do a lazy initialization. Ultimately it probably
-    // doesn't matter because they're not expensive, but I just want to be
-    // consistent.
-    RowMajorArray<Float, 3> total(rgrid_.shape());
-    RowMajorArray<Float, 3> ktotal(kgrid_.shape());
-
     // Correlate .Start();  // Starting the main work
     // Now compute the FFT of the density field and conjugate it
     // FFT(work) in place and conjugate it, storing in dens_fft
@@ -169,8 +167,8 @@ class Correlator {
     // Loop over each ell to compute the anisotropic correlations
     for (int ell = 0; ell <= maxell; ell += 2) {
       // Initialize the submatrix
-      array_ops::set_all(0.0, total);
-      array_ops::set_all(0.0, ktotal);
+      array_ops::set_all(0.0, rgrid_);
+      array_ops::set_all(0.0, kgrid_);
       // Loop over m
       for (int m = -ell; m <= ell; m++) {
         fprintf(stdout, "# Computing %d %2d...", ell, m);
@@ -193,9 +191,9 @@ class Correlator {
         // Extract the anisotropic power spectrum
         // Load the Ylm's and include the CICwindow correction
         make_ylm(ell, m, wide_angle_exponent, kx_, ky_, kz_, &inv_window_,
-                 &kgrid_);
+                 &ylm_grid_);
         // Multiply these Ylm by the power result, and then add to total.
-        work_.extract_submatrix_C2R(&ktotal, &kgrid_);
+        work_.extract_submatrix_C2R(&kgrid_, &ylm_grid_);
 
         // iFFT the result, in place
         work_.execute_ifft();
@@ -204,23 +202,23 @@ class Correlator {
         // Create Ylm for the submatrix that we'll extract for histogramming
         // The extra multiplication by one here is of negligible cost, since
         // this array is so much smaller than the FFT grid.
-        make_ylm(ell, m, wide_angle_exponent, rx_, ry_, rz_, &rgrid_);
+        make_ylm(ell, m, wide_angle_exponent, rx_, ry_, rz_, &ylm_grid_);
 
         // Multiply these Ylm by the correlation result, and then add to total.
-        work_.extract_submatrix(&total, &rgrid_);
+        work_.extract_submatrix(&rgrid_, &ylm_grid_);
 
         fprintf(stdout, "Done!\n");
         fflush(NULL);
       }
 
       // Extract.Start();
-      array_ops::multiply_by(norm, total);
-      array_ops::multiply_by(pnorm, ktotal);
+      array_ops::multiply_by(norm, rgrid_);
+      array_ops::multiply_by(pnorm, kgrid_);
       // Extract.Stop();
       // HistogramList total by rnorm
       // Hist.Start();
-      h.accumulate(ell / 2, rnorm_, total);
-      kh.accumulate(ell / 2, knorm_, ktotal);
+      h.accumulate(ell / 2, rnorm_, rgrid_);
+      kh.accumulate(ell / 2, knorm_, kgrid_);
       // Hist.Stop();
       // TODO: restore
       // if (ell == 0) {
@@ -353,6 +351,21 @@ class Correlator {
     }
   }
 
+  void setup_ylm_grid() {
+    const std::array<int, 3> &rshape = rgrid_.shape();
+    const std::array<int, 3> &kshape = kgrid_.shape();
+    fprintf(stderr, "rshape = [%d, %d, %d]\n", rshape[0], rshape[1], rshape[2]);
+    fprintf(stderr, "kshape = [%d, %d, %d]\n", kshape[0], kshape[1], kshape[2]);
+
+    std::array<int, 3> ylm_shape;
+    for (int i = 0; i < 3; ++i) ylm_shape[i] = std::max(rshape[i], kshape[i]);
+    fprintf(stderr, "ylm_shape = [%d, %d, %d]\n", ylm_shape[0], ylm_shape[1],
+            ylm_shape[2]);
+
+    // TODO: do we want to initialize this in some advantageous way?
+    ylm_grid_.allocate(ylm_shape);
+  }
+
   const ConfigSpaceGrid &dens_;
   Float rmax_;  // TODO: needed?
   Float kmax_;
@@ -370,6 +383,7 @@ class Correlator {
   RowMajorArray<Float, 3> knorm_;
   RowMajorArray<Float, 3> inv_window_;
 
+  RowMajorArray<Float, 3> ylm_grid_;
   FftGrid work_;
 };
 
