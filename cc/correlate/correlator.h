@@ -65,7 +65,7 @@ class Correlator {
     // by a factor of ncells, and we've squared the DFT result.
     // TODO: there are too many variables called 'norm' and they have different
     // types.
-    uint64 ncells = dens_.data().size();  // TODO: yuck
+    uint64 ncells = dens_.data().size();
     Float pnorm = 1.0 / ncells / ncells;
     array_ops::multiply_by(pnorm, kgrid_);
     kh.accumulate(0, knorm_, kgrid_);
@@ -204,7 +204,7 @@ class Correlator {
         // Create Ylm for the submatrix that we'll extract for histogramming
         // The extra multiplication by one here is of negligible cost, since
         // this array is so much smaller than the FFT grid.
-        make_ylm(ell, m, wide_angle_exponent, rx_, ry_, rz_, NULL, &rgrid_);
+        make_ylm(ell, m, wide_angle_exponent, rx_, ry_, rz_, &rgrid_);
 
         // Multiply these Ylm by the correlation result, and then add to total.
         work_.extract_submatrix(&total, &rgrid_);

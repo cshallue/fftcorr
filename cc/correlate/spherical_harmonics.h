@@ -30,14 +30,14 @@
 void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
               const Array1D<Float> &ycell, const Array1D<Float> &zcell,
               const RowMajorArrayPtr<Float, 3> *mult,
-              RowMajorArrayPtr<Float, 3> *Ylm) {
+              RowMajorArrayPtr<Float, 3> *ylm) {
   // Check dimensions.
   const int n0 = xcell.size();
   const int n1 = ycell.size();
   const int n2 = zcell.size();
-  assert(Ylm->shape(0) >= n0);
-  assert(Ylm->shape(1) >= n1);
-  assert(Ylm->shape(2) >= n2);
+  assert(ylm->shape(0) >= n0);
+  assert(ylm->shape(1) >= n1);
+  assert(ylm->shape(2) >= n2);
   assert(exponent % 2 == 0);
 
   // YlmTime.Start();
@@ -51,14 +51,14 @@ void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
         Float *Y;
         const Float *D;
         for (int j = 0; j < n1; ++j) {
-          Y = Ylm->get_row(i, j);
+          Y = ylm->get_row(i, j);
           D = mult->get_row(i, j);
           for (int k = 0; k < n2; ++k) Y[k] = D[k] * value;
         }
       } else {
         Float *Y;
         for (int j = 0; j < n1; j++) {
-          Y = Ylm->get_row(i, j);
+          Y = ylm->get_row(i, j);
           for (int k = 0; k < n2; ++k) Y[k] = value;
         }
       }
@@ -83,11 +83,10 @@ void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
     ones[k] = 1.0;
   }
 
-  (*Ylm)[0] = -123456.0;  // A sentinal value
+  (*ylm)[0] = -123456.0;  // A sentinal value
 
 #pragma omp parallel for YLM_SCHEDULE
   for (int i = 0; i < n0; ++i) {
-    // Ylm_count.add();
     Array1D<Float> ir2(n2);
     Array1D<Float> rpow(n2);
     Float x = xcell[i];
@@ -96,7 +95,7 @@ void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
     Float *Y;
     const Float *D;
     for (int j = 0; j < n1; ++j) {
-      Y = Ylm->get_row(i, j);                                // (i, j, 0)
+      Y = ylm->get_row(i, j);                                // (i, j, 0)
       D = mult == NULL ? ones.data() : mult->get_row(i, j);  // (i, j, 0)
       Float y = ycell[j];
       Float y2 = y * y;
@@ -177,8 +176,14 @@ void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
     }
   }
   // Traps whether the user entered an illegal (ell,m)
-  assert((*Ylm)[0] != 123456.0);
-  // YlmTime.Stop();
+  assert((*ylm)[0] != 123456.0);
+  // ylmTime.Stop();
+}
+
+void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
+              const Array1D<Float> &ycell, const Array1D<Float> &zcell,
+              RowMajorArrayPtr<Float, 3> *ylm) {
+  return make_ylm(ell, m, exponent, xcell, ycell, zcell, NULL, ylm);
 }
 
 #endif  // SPHERICAL_HARMONICS_H
