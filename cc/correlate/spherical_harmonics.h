@@ -68,6 +68,7 @@ void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
   }
 
   Float isqpi = sqrt(1.0 / M_PI);
+  // TODO: do we really want to do this?
   if (m != 0) isqpi *= sqrt(2.0);  // Do this up-front, so we don't forget
   Float tiny = 1e-20;
 

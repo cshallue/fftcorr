@@ -435,7 +435,7 @@ int main(int argc, char *argv[]) {
   Float zerolag = -12345.0;
   Correlator corr(grid, sep, kmax);
   if (isotropic) {
-    corr.correlate_iso(h, kh, zerolag);
+    corr.correlate_iso(maxell, h, kh, zerolag);
   } else {
     fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
     corr.correlate_aniso(maxell, wide_angle_exponent, qperiodic, h, kh,

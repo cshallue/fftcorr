@@ -31,7 +31,6 @@ class Correlator {
       : dens_(dens), rmax_(rmax), kmax_(kmax), work_(dens_.ngrid()) {
     setup_rgrid();
     setup_kgrid();
-    setup_ylm_grid();
 
     // TODO: we could use the quick FFTW setup for the isotropic case, since we
     // only FFT and inverse FFT once each.
@@ -41,8 +40,10 @@ class Correlator {
   }
 
   // TODO: histograms and zerolag could be part of the class now that both
-  // functions expand in spherical harmonics?
-  void correlate_iso(HistogramList &h, HistogramList &kh, Float &zerolag) {
+  // functions expand in spherical harmonics? This makes sense also because they
+  // must share maxell.
+  void correlate_iso(int maxell, HistogramList &h, HistogramList &kh,
+                     Float &zerolag) {
     // Copy the density field into work_. We do this after setup_fft, because
     // that can estroy the input. TODO: possible optimization of initializing
     // work_ by copy and then hoping setup_fft doesn't destroy the input, but
@@ -60,18 +61,25 @@ class Correlator {
     // TODO: inplace abs^2
     array_ops::multiply_with_conjugation(work_.carr(), work_.carr());
 
-    // Extract power spectrum.
-    // TODO: should this include a CICwindow correction like the aniso case?
-    work_.extract_submatrix_C2R(&kgrid_);
-
     // We must divide by ncells^2: DFT differs from Fourier series coefficients
     // by a factor of ncells, and we've squared the DFT result.
     // TODO: there are too many variables called 'norm' and they have different
     // types.
     uint64 ncells = dens_.data().size();
     Float pnorm = 1.0 / ncells / ncells;
-    array_ops::multiply_by(pnorm, kgrid_);
-    kh.accumulate(0, knorm_, kgrid_);
+    for (int ell = 0; ell <= maxell; ell += 2) {
+      // Extract the anisotropic power spectrum
+      // TODO: include &inv_window if appropriate in this case.
+      // TODO: does wide_angle_exponent apply?
+      make_ylm(ell, 0, 0, kx_, ky_, kz_, NULL, &kylm_);
+      work_.extract_submatrix_C2R(&kgrid_, &kylm_);
+
+      // Spherical harmonics normalization. TODO: do this more cleanly?
+      Float coeff = pnorm * sqrt((4.0 * M_PI) / (2 * ell + 1));
+      array_ops::multiply_by(coeff, kgrid_);
+
+      kh.accumulate(ell / 2, knorm_, kgrid_);
+    }
 
     // iFFT the result, in place
     fprintf(stdout, "IFFT...");
@@ -81,14 +89,20 @@ class Correlator {
     fprintf(stdout, "# Done!\n");
     fflush(NULL);
 
-    work_.extract_submatrix(&rgrid_);
-
     // We must divide by two factors of ncells: the first one completes the
     // inverse FFT (FFTW doesn't include this factor automatically) and the
     // second is the factor converting the autocorrelation to the 2PCF.
     Float norm = 1.0 / ncells / ncells;
-    array_ops::multiply_by(norm, rgrid_);
-    h.accumulate(0, rnorm_, rgrid_);
+    for (int ell = 0; ell <= maxell; ell += 2) {
+      make_ylm(ell, 0, 0, rx_, ry_, rz_, &rylm_);
+      work_.extract_submatrix(&rgrid_, &rylm_);
+
+      // Spherical harmonics normalization. TODO: do this more cleanly?
+      Float coeff = norm * sqrt((4.0 * M_PI) / (2 * ell + 1));
+      array_ops::multiply_by(coeff, rgrid_);
+
+      h.accumulate(ell / 2, rnorm_, rgrid_);
+    }
 
     // Hist.Stop();
     // Correlate.Stop();
@@ -191,9 +205,9 @@ class Correlator {
         // Extract the anisotropic power spectrum
         // Load the Ylm's and include the CICwindow correction
         make_ylm(ell, m, wide_angle_exponent, kx_, ky_, kz_, &inv_window_,
-                 &ylm_grid_);
+                 &kylm_);
         // Multiply these Ylm by the power result, and then add to total.
-        work_.extract_submatrix_C2R(&kgrid_, &ylm_grid_);
+        work_.extract_submatrix_C2R(&kgrid_, &kylm_);
 
         // iFFT the result, in place
         work_.execute_ifft();
@@ -202,10 +216,10 @@ class Correlator {
         // Create Ylm for the submatrix that we'll extract for histogramming
         // The extra multiplication by one here is of negligible cost, since
         // this array is so much smaller than the FFT grid.
-        make_ylm(ell, m, wide_angle_exponent, rx_, ry_, rz_, &ylm_grid_);
+        make_ylm(ell, m, wide_angle_exponent, rx_, ry_, rz_, &rylm_);
 
         // Multiply these Ylm by the correlation result, and then add to total.
-        work_.extract_submatrix(&rgrid_, &ylm_grid_);
+        work_.extract_submatrix(&rgrid_, &rylm_);
 
         fprintf(stdout, "Done!\n");
         fflush(NULL);
@@ -259,8 +273,7 @@ class Correlator {
         }
       }
     }
-    fprintf(stdout, "# Done setting up the separation submatrix of size +-%d\n",
-            rmax_cells);
+    rylm_.allocate(rshape);
     // Index of r=0.
     // TODO: need this
     // std::array<int, 3> rzero = {rmax_cells, rmax_cells, rmax_cells};
@@ -315,7 +328,9 @@ class Correlator {
         }
       }
     }
+    kylm_.allocate(kshape);
 
+    // Set up window correction.
     inv_window_.allocate(kshape);
     Float window;
     for (int i = 0; i < kshape[0]; ++i) {
@@ -351,39 +366,25 @@ class Correlator {
     }
   }
 
-  void setup_ylm_grid() {
-    const std::array<int, 3> &rshape = rgrid_.shape();
-    const std::array<int, 3> &kshape = kgrid_.shape();
-    fprintf(stderr, "rshape = [%d, %d, %d]\n", rshape[0], rshape[1], rshape[2]);
-    fprintf(stderr, "kshape = [%d, %d, %d]\n", kshape[0], kshape[1], kshape[2]);
-
-    std::array<int, 3> ylm_shape;
-    for (int i = 0; i < 3; ++i) ylm_shape[i] = std::max(rshape[i], kshape[i]);
-    fprintf(stderr, "ylm_shape = [%d, %d, %d]\n", ylm_shape[0], ylm_shape[1],
-            ylm_shape[2]);
-
-    // TODO: do we want to initialize this in some advantageous way?
-    ylm_grid_.allocate(ylm_shape);
-  }
-
   const ConfigSpaceGrid &dens_;
   Float rmax_;  // TODO: needed?
   Float kmax_;
 
-  RowMajorArray<Float, 3> rgrid_;
+  RowMajorArray<Float, 3> rgrid_;  // TODO: rtotal_?
   Array1D<Float> rx_;
   Array1D<Float> ry_;
   Array1D<Float> rz_;
   RowMajorArray<Float, 3> rnorm_;
+  RowMajorArray<Float, 3> rylm_;
 
-  RowMajorArray<Float, 3> kgrid_;
+  RowMajorArray<Float, 3> kgrid_;  // TODO: ktotal_?
   Array1D<Float> kx_;
   Array1D<Float> ky_;
   Array1D<Float> kz_;
   RowMajorArray<Float, 3> knorm_;
+  RowMajorArray<Float, 3> kylm_;
   RowMajorArray<Float, 3> inv_window_;
 
-  RowMajorArray<Float, 3> ylm_grid_;
   FftGrid work_;
 };
 
