@@ -92,26 +92,25 @@ void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
     Array1D<Float> rpow(n2);
     Float x = xcell[i];
     Float x2 = x * x;
-    Float *R;
-    Float *Y;
-    const Float *D;
     for (int j = 0; j < n1; ++j) {
-      Y = ylm->get_row(i, j);                                // (i, j, 0)
-      D = mult == NULL ? ones.data() : mult->get_row(i, j);  // (i, j, 0)
+      Float *Y = ylm->get_row(i, j);
+      const Float *D = mult == NULL ? ones.data() : mult->get_row(i, j);
       Float y = ycell[j];
       Float y2 = y * y;
       Float y3 = y2 * y;
       Float y4 = y3 * y;
       for (int k = 0; k < n2; ++k) ir2[k] = 1.0 / (x2 + y2 + z2[k] + tiny);
       // Fill R with r^exponent
-      if (exponent == 0)
+      Float *R;
+      if (exponent == 0) {
         R = ones.data();
-      else {
+      } else {
         R = rpow.data();
         for (int k = 0; k < n2; ++k) {
-          Float rpow = exponent > 0 ? (x2 + y2 + z2[k]) : ir2[k];
           R[k] = 1.0;
-          for (int e = 1; e <= abs(exponent) / 2; ++e) R[k] *= rpow;
+          // r^(2*sign(exponent))
+          Float rmult = exponent > 0 ? (x2 + y2 + z2[k]) : ir2[k];
+          for (int e = 1; e <= abs(exponent) / 2; ++e) R[k] *= rmult;
         }
       }
       // Now ready to compute
