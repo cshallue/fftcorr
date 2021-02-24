@@ -63,6 +63,7 @@ class Correlator {
 
     uint64 ncells = dens_.data().size();
     for (int ell = 0; ell <= maxell; ell += 2) {
+      array_ops::set_all(0.0, kgrid_);
       // TODO: include &inv_window if appropriate in this case.
       // TODO: does wide_angle_exponent apply?
       // Factor converting Y_l0 to P_l.
@@ -85,6 +86,7 @@ class Correlator {
     fflush(NULL);
 
     for (int ell = 0; ell <= maxell; ell += 2) {
+      array_ops::set_all(0.0, rgrid_);
       // Factor converting Y_l0 to P_l.
       Float coeff = sqrt((4.0 * M_PI) / (2 * ell + 1));
       // Include two normalization factors of (1/ncells): the first one
