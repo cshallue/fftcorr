@@ -61,23 +61,18 @@ class Correlator {
     // TODO: inplace abs^2
     array_ops::multiply_with_conjugation(work_.carr(), work_.carr());
 
-    // We must divide by ncells^2: DFT differs from Fourier series coefficients
-    // by a factor of ncells, and we've squared the DFT result.
-    // TODO: there are too many variables called 'norm' and they have different
-    // types.
     uint64 ncells = dens_.data().size();
-    Float pnorm = 1.0 / ncells / ncells;
     for (int ell = 0; ell <= maxell; ell += 2) {
-      // Extract the anisotropic power spectrum
       // TODO: include &inv_window if appropriate in this case.
       // TODO: does wide_angle_exponent apply?
-      make_ylm(ell, 0, 0, kx_, ky_, kz_, NULL, &kylm_);
+      // Factor converting Y_l0 to P_l.
+      Float coeff = sqrt((4.0 * M_PI) / (2 * ell + 1));
+      // Include a normalization factor of (1/ncells^2): DFT differs from
+      // Fourier series coefficients by a factor of ncells, and we've squared
+      // the DFT result.
+      coeff *= (1.0 / ncells / ncells);
+      make_ylm(ell, 0, kx_, ky_, kz_, coeff, 0, NULL, &kylm_);
       work_.extract_submatrix_C2R(&kgrid_, &kylm_);
-
-      // Spherical harmonics normalization. TODO: do this more cleanly?
-      Float coeff = pnorm * sqrt((4.0 * M_PI) / (2 * ell + 1));
-      array_ops::multiply_by(coeff, kgrid_);
-
       kh.accumulate(ell / 2, knorm_, kgrid_);
     }
 
@@ -89,18 +84,16 @@ class Correlator {
     fprintf(stdout, "# Done!\n");
     fflush(NULL);
 
-    // We must divide by two factors of ncells: the first one completes the
-    // inverse FFT (FFTW doesn't include this factor automatically) and the
-    // second is the factor converting the autocorrelation to the 2PCF.
-    Float norm = 1.0 / ncells / ncells;
     for (int ell = 0; ell <= maxell; ell += 2) {
-      make_ylm(ell, 0, 0, rx_, ry_, rz_, &rylm_);
+      // Factor converting Y_l0 to P_l.
+      Float coeff = sqrt((4.0 * M_PI) / (2 * ell + 1));
+      // Include two normalization factors of (1/ncells): the first one
+      // completes the inverse FFT (FFTW doesn't include this factor
+      // automatically) and the second is the factor converting the
+      // autocorrelation to the 2PCF.
+      coeff *= (1.0 / ncells / ncells);
+      make_ylm(ell, 0, rx_, ry_, rz_, coeff, 0, NULL, &rylm_);
       work_.extract_submatrix(&rgrid_, &rylm_);
-
-      // Spherical harmonics normalization. TODO: do this more cleanly?
-      Float coeff = norm * sqrt((4.0 * M_PI) / (2 * ell + 1));
-      array_ops::multiply_by(coeff, rgrid_);
-
       h.accumulate(ell / 2, rnorm_, rgrid_);
     }
 
@@ -154,8 +147,6 @@ class Correlator {
     // Multiply total by 4*pi, to match SE15 normalization
     // Include the FFTW normalization
     uint64 ncells = dens_.data().size();
-    Float norm = 4.0 * M_PI / ncells;
-    Float pnorm = 4.0 * M_PI;
 
     // Correlate .Start();  // Starting the main work
     // Now compute the FFT of the density field and conjugate it
@@ -186,10 +177,11 @@ class Correlator {
       // Loop over m
       for (int m = -ell; m <= ell; m++) {
         fprintf(stdout, "# Computing %d %2d...", ell, m);
+
         // Create the Ylm matrix times work_
         // TODO: here, is it advantageous if dens_ is padded as well, so its
         // boundaries match with those of work?
-        make_ylm(ell, m, -wide_angle_exponent, xcell, ycell, zcell,
+        make_ylm(ell, m, xcell, ycell, zcell, 1.0, -wide_angle_exponent,
                  &dens_.data(), &work_.arr());
         fprintf(stdout, "Ylm...");
 
@@ -203,9 +195,10 @@ class Correlator {
         // AtimesB.Stop();
 
         // Extract the anisotropic power spectrum
-        // Load the Ylm's and include the CICwindow correction
-        make_ylm(ell, m, wide_angle_exponent, kx_, ky_, kz_, &inv_window_,
-                 &kylm_);
+        // Load the Ylm's. Include the window correction and the SE15
+        // normalization.
+        make_ylm(ell, m, kx_, ky_, kz_, 4.0 * M_PI, wide_angle_exponent,
+                 &inv_window_, &kylm_);
         // Multiply these Ylm by the power result, and then add to total.
         work_.extract_submatrix_C2R(&kgrid_, &kylm_);
 
@@ -214,9 +207,10 @@ class Correlator {
         fprintf(stdout, "FFT...");
 
         // Create Ylm for the submatrix that we'll extract for histogramming
-        // The extra multiplication by one here is of negligible cost, since
-        // this array is so much smaller than the FFT grid.
-        make_ylm(ell, m, wide_angle_exponent, rx_, ry_, rz_, &rylm_);
+        // Include the SE15 normalization and the factor of ncells to finish the
+        // inverse FFT (FFTW doesn't include this factor automatically).
+        make_ylm(ell, m, rx_, ry_, rz_, 4.0 * M_PI / ncells,
+                 wide_angle_exponent, NULL, &rylm_);
 
         // Multiply these Ylm by the correlation result, and then add to total.
         work_.extract_submatrix(&rgrid_, &rylm_);
@@ -226,8 +220,6 @@ class Correlator {
       }
 
       // Extract.Start();
-      array_ops::multiply_by(norm, rgrid_);
-      array_ops::multiply_by(pnorm, kgrid_);
       // Extract.Stop();
       // HistogramList total by rnorm
       // Hist.Start();

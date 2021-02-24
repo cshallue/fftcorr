@@ -9,10 +9,15 @@
 #include "../types.h"
 
 // Evaluates the spherical harmonic function Y_lm on a Cartesian grid.
-// m=0 will return Y_l0
-// m>0 will return Re(Y_lm)*sqrt(2)
-// m<0 will return Im(Y_l|m|)*sqrt(2)
-// We do not include minus signs since we're only using them in matched squares.
+//   m = 0 will return Y_l0,
+//   m > 0 will return sqrt(2) * Re(Y_lm),
+//   m < 0 will return sqrt(2) * Im(Y_l|m|),
+// up to an arbitrary choice of sign for each l, m.
+//
+// This convention is so we can use the following identity when summing over m:
+//
+//     Y_lm(r1) * conj(Y_lm(r2)) + Y_l(-m)(r1) * conj(Y_l(-m)(r2)) =
+//       2 * Re[Y_lm(r1)] * Re[Y_lm(r2)] + 2 * Im[Y_lm(r1)] * Im[Y_lm(r2)]
 //
 // xcell, ycell, zcell are the x, y, z axes corresponding to the output grid
 // Ylm, with the origin at Ylm[0, 0, 0]. These axes may be smaller than the
@@ -22,14 +27,11 @@
 // The polar angle and azimuthal angle are defined in the usual way with respect
 // to the x, y, and z axes.
 //
-// If mult!=NULL, then it should point to an array that will be multiplied
-// element-wise onto the results.  This can save a store/load to main memory.
-//
-// If exponent!=0, then we will attach a dependence of r^exponent to the Ylm's.
-// exponent must be an even number
-void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
+// In addition, the results are multiplied by coeff * r^exponent * mult[r],
+// where mult (if not null) is a grid with the same dimensions as ylm.
+void make_ylm(int ell, int m, const Array1D<Float> &xcell,
               const Array1D<Float> &ycell, const Array1D<Float> &zcell,
-              const RowMajorArrayPtr<Float, 3> *mult,
+              Float coeff, int exponent, const RowMajorArrayPtr<Float, 3> *mult,
               RowMajorArrayPtr<Float, 3> *ylm) {
   // Check dimensions.
   const int n0 = xcell.size();
@@ -44,7 +46,7 @@ void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
 
   if (ell == 0 && m == 0 && exponent == 0) {
     // This case is so easy that we'll do it directly and skip the setup.
-    Float value = 1.0 / sqrt(4.0 * M_PI);
+    Float value = coeff / sqrt(4.0 * M_PI);
 #pragma omp parallel for YLM_SCHEDULE
     for (int i = 0; i < n0; ++i) {
       if (mult) {
@@ -67,25 +69,24 @@ void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
     return;
   }
 
-  Float isqpi = sqrt(1.0 / M_PI);
-  // TODO: do we really want to do this?
-  if (m != 0) isqpi *= sqrt(2.0);  // Do this up-front, so we don't forget
-  Float tiny = 1e-20;
+  (*ylm)[0] = -123456.0;  // A sentinal value.
 
-  const Float *z = zcell.data();
+  // Precompute some terms.
   Array1D<Float> z2(n2);
   Array1D<Float> z3(n2);
   Array1D<Float> z4(n2);
   Array1D<Float> ones(n2);
+  const Float *z = zcell.data();
   for (int k = 0; k < n2; ++k) {
     z2[k] = z[k] * z[k];
     z3[k] = z2[k] * z[k];
     z4[k] = z3[k] * z[k];
     ones[k] = 1.0;
   }
-
-  (*ylm)[0] = -123456.0;  // A sentinal value
-
+  Float isqpi = sqrt(1.0 / M_PI);
+  isqpi *= coeff;
+  if (m != 0) isqpi *= sqrt(2.0);
+  Float tiny = 1e-20;
 #pragma omp parallel for YLM_SCHEDULE
   for (int i = 0; i < n0; ++i) {
     Array1D<Float> ir2(n2);
@@ -115,7 +116,7 @@ void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
       }
       // Now ready to compute
       if (ell == 0) {
-        for (int k = 0; k < n2; ++k) Y[k] = D[k] * R[k] / sqrt(4.0 * M_PI);
+        for (int k = 0; k < n2; ++k) Y[k] = D[k] * R[k] * isqpi / 2.0;
       } else if (ell == 2) {
         if (m == 2)
           for (int k = 0; k < n2; ++k)
@@ -178,12 +179,6 @@ void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
   // Traps whether the user entered an illegal (ell,m)
   assert((*ylm)[0] != 123456.0);
   // ylmTime.Stop();
-}
-
-void make_ylm(int ell, int m, int exponent, const Array1D<Float> &xcell,
-              const Array1D<Float> &ycell, const Array1D<Float> &zcell,
-              RowMajorArrayPtr<Float, 3> *ylm) {
-  return make_ylm(ell, m, exponent, xcell, ycell, zcell, NULL, ylm);
 }
 
 #endif  // SPHERICAL_HARMONICS_H
