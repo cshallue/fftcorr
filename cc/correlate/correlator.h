@@ -61,17 +61,20 @@ class Correlator {
     // TODO: inplace abs^2
     array_ops::multiply_with_conjugation(work_.carr(), work_.carr());
 
+    // We must multiply the DFT result by (1/ncells^2): DFT differs from Fourier
+    // series coefficients by a factor of ncells, and we've squared the DFT.
     uint64 ncells = dens_.data().size();
+    Float k_rescale = (1.0 / ncells / ncells);
+
+    // Extract the power spectrum, expanded in Legendre polynomials.
     for (int ell = 0; ell <= maxell; ell += 2) {
       array_ops::set_all(0.0, kgrid_);
+      // P_l = Y_l0 * sqrt(4.0 * M_PI / (2 * ell + 1)) and then we need to
+      // multiply by (2 * ell + 1) to account for the normalization of P_l's.
+      // Also include the DFT scaling.
+      Float coeff = sqrt((4.0 * M_PI) * (2 * ell + 1)) * k_rescale;
       // TODO: include &inv_window if appropriate in this case.
       // TODO: does wide_angle_exponent apply?
-      // Factor converting Y_l0 to P_l.
-      Float coeff = sqrt((4.0 * M_PI) / (2 * ell + 1));
-      // Include a normalization factor of (1/ncells^2): DFT differs from
-      // Fourier series coefficients by a factor of ncells, and we've squared
-      // the DFT result.
-      coeff *= (1.0 / ncells / ncells);
       make_ylm(ell, 0, kx_, ky_, kz_, coeff, 0, NULL, &kylm_);
       work_.extract_submatrix_C2R(&kgrid_, &kylm_);
       kh.accumulate(ell / 2, knorm_, kgrid_);
@@ -81,19 +84,23 @@ class Correlator {
     fprintf(stdout, "IFFT...");
     fflush(NULL);
     work_.execute_ifft();
-
     fprintf(stdout, "# Done!\n");
     fflush(NULL);
 
+    // We must multiply the IFT by two factors of (1/ncells): the  first one
+    // completes the inverse FFT (FFTW doesn't include this factor
+    // automatically) and the second is the factor converting the
+    // autocorrelation to the 2PCF.
+    Float r_rescale = (1.0 / ncells / ncells);
+
+    // Extract the 2PCF, expanded in Legendre polynomials.
     for (int ell = 0; ell <= maxell; ell += 2) {
       array_ops::set_all(0.0, rgrid_);
-      // Factor converting Y_l0 to P_l.
-      Float coeff = sqrt((4.0 * M_PI) / (2 * ell + 1));
-      // Include two normalization factors of (1/ncells): the first one
-      // completes the inverse FFT (FFTW doesn't include this factor
-      // automatically) and the second is the factor converting the
-      // autocorrelation to the 2PCF.
-      coeff *= (1.0 / ncells / ncells);
+      // P_l = Y_l0 * sqrt(4.0 * M_PI / (2 * ell + 1)) and then we need to
+      // multiply by (2 * ell + 1) to account for the normalization of P_l's.
+      // Also include the IFT scaling.
+      Float coeff = sqrt((4.0 * M_PI) * (2 * ell + 1)) * r_rescale;
+      // TODO: does wide_angle_exponent apply?
       make_ylm(ell, 0, rx_, ry_, rz_, coeff, 0, NULL, &rylm_);
       work_.extract_submatrix(&rgrid_, &rylm_);
       h.accumulate(ell / 2, rnorm_, rgrid_);
