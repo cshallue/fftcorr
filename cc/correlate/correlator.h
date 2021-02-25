@@ -27,23 +27,29 @@ Array1D<Float> sequence(Float start, Float step, int size) {
 
 class Correlator {
  public:
-  Correlator(const ConfigSpaceGrid &dens, Float rmax, Float kmax)
-      : dens_(dens), rmax_(rmax), kmax_(kmax), work_(dens_.ngrid()) {
-    setup_rgrid();
-    setup_kgrid();
+  Correlator(const ConfigSpaceGrid &dens, Float rmax, Float dr, Float kmax,
+             Float dk, int maxell)
+      : dens_(dens),
+        maxell_(maxell),
+        work_(dens_.ngrid()),
+        rhist_(maxell / 2 + 1, 0.0, rmax, dr),
+        khist_(maxell / 2 + 1, 0.0, kmax, dk) {
+    setup_rgrid(rmax);
+    setup_kgrid(kmax);
 
     // TODO: we could use the quick FFTW setup for the isotropic case, since we
     // only FFT and inverse FFT once each.
+    // TODO: if we always use the same setup, this can go in the work
+    // constructor.
     work_.setup_fft();
     fprintf(stderr, "work size = [%d, %d, %d]\n", work_.dshape()[0],
             work_.dshape()[1], work_.dshape()[2]);
   }
 
-  // TODO: histograms and zerolag could be part of the class now that both
-  // functions expand in spherical harmonics? This makes sense also because they
-  // must share maxell.
-  void correlate_iso(int maxell, HistogramList &h, HistogramList &kh,
-                     Float &zerolag) {
+  void correlate_iso() {
+    rhist_.reset();
+    khist_.reset();
+
     // Copy the density field into work_. We do this after setup_fft, because
     // that can estroy the input. TODO: possible optimization of initializing
     // work_ by copy and then hoping setup_fft doesn't destroy the input, but
@@ -67,7 +73,7 @@ class Correlator {
     Float k_rescale = (1.0 / ncells / ncells);
 
     // Extract the power spectrum, expanded in Legendre polynomials.
-    for (int ell = 0; ell <= maxell; ell += 2) {
+    for (int ell = 0; ell <= maxell_; ell += 2) {
       array_ops::set_all(0.0, kgrid_);
       // P_l = Y_l0 * sqrt(4.0 * M_PI / (2 * ell + 1)) and then we need to
       // multiply by (2 * ell + 1) to account for the normalization of P_l's.
@@ -77,7 +83,7 @@ class Correlator {
       // TODO: does wide_angle_exponent apply?
       make_ylm(ell, 0, kx_, ky_, kz_, coeff, 0, NULL, &kylm_);
       work_.extract_submatrix_C2R(&kgrid_, &kylm_);
-      kh.accumulate(ell / 2, knorm_, kgrid_);
+      khist_.accumulate(ell / 2, knorm_, kgrid_);
     }
 
     // iFFT the result, in place
@@ -94,7 +100,7 @@ class Correlator {
     Float r_rescale = (1.0 / ncells / ncells);
 
     // Extract the 2PCF, expanded in Legendre polynomials.
-    for (int ell = 0; ell <= maxell; ell += 2) {
+    for (int ell = 0; ell <= maxell_; ell += 2) {
       array_ops::set_all(0.0, rgrid_);
       // P_l = Y_l0 * sqrt(4.0 * M_PI / (2 * ell + 1)) and then we need to
       // multiply by (2 * ell + 1) to account for the normalization of P_l's.
@@ -103,21 +109,21 @@ class Correlator {
       // TODO: does wide_angle_exponent apply?
       make_ylm(ell, 0, rx_, ry_, rz_, coeff, 0, NULL, &rylm_);
       work_.extract_submatrix(&rgrid_, &rylm_);
-      h.accumulate(ell / 2, rnorm_, rgrid_);
+      rhist_.accumulate(ell / 2, rnorm_, rgrid_);
+      if (ell == 0) {
+        zerolag_ = rgrid_.at(rzero_[0], rzero_[1], rzero_[2]);
+      }
     }
 
     // Hist.Stop();
     // Correlate.Stop();
-    // TODO: restore
-    // zerolag = corr.at(rzero[0], rzero[1], rzero[2]);
   }
 
-  // zerolag is needed because that information is not in the output histograms
-  // (small but nonzero separations are put in the same bin as the zero
-  // separation)
   // TODO: does wide_angle_exponent apply to the periodic isotropic case too?
-  void correlate_aniso(int maxell, int wide_angle_exponent, bool periodic,
-                       HistogramList &h, HistogramList &kh, Float &zerolag) {
+  void correlate_aniso(int wide_angle_exponent, bool periodic) {
+    rhist_.reset();
+    khist_.reset();
+
     // Copy the density field into work_. We do this after setup_fft, because
     // that can estroy the input. TODO: possible optimization of initializing
     // work_ by copy and then hoping setup_fft doesn't destroy the input, but
@@ -179,7 +185,7 @@ class Correlator {
 
     /* ------------ Loop over ell & m --------------- */
     // Loop over each ell to compute the anisotropic correlations
-    for (int ell = 0; ell <= maxell; ell += 2) {
+    for (int ell = 0; ell <= maxell_; ell += 2) {
       // Initialize the submatrix
       array_ops::set_all(0.0, rgrid_);
       array_ops::set_all(0.0, kgrid_);
@@ -232,23 +238,39 @@ class Correlator {
       // Extract.Stop();
       // HistogramList total by rnorm
       // Hist.Start();
-      h.accumulate(ell / 2, rnorm_, rgrid_);
-      kh.accumulate(ell / 2, knorm_, kgrid_);
+      rhist_.accumulate(ell / 2, rnorm_, rgrid_);
+      khist_.accumulate(ell / 2, knorm_, kgrid_);
       // Hist.Stop();
-      // TODO: restore
-      // if (ell == 0) {
-      //   zerolag = total.at(rzero[0], rzero[1], rzero[2]);
-      // }
+      if (ell == 0) {
+        zerolag_ = rgrid_.at(rzero_[0], rzero_[1], rzero_[2]);
+      }
     }
     // Correlate.Stop();
   }
 
+  // Access the outputs.
+  Float zerolag() const { return zerolag_; }
+  const Array1D<Float> &correlation_r() const { return rhist_.bins(); }
+  const RowMajorArray<int, 2> &correlation_counts() const {
+    return rhist_.counts();
+  }
+  const RowMajorArray<Float, 2> &correlation_histogram() const {
+    return rhist_.hist_values();
+  }
+  const Array1D<Float> &power_spectrum_k() const { return khist_.bins(); }
+  const RowMajorArray<int, 2> &power_spectrum_counts() const {
+    return khist_.counts();
+  }
+  const RowMajorArray<Float, 2> &power_spectrum_histogram() const {
+    return khist_.hist_values();
+  }
+
  private:
-  void setup_rgrid() {
+  void setup_rgrid(Float rmax) {
     // Create the separation-space subgrid.
     Float cell_size = dens_.cell_size();
-    int rmax_cells = ceil(rmax_ / cell_size);  // rmax in grid cell units.
-    fprintf(stderr, "rmax = %f, cell_size = %f, rmax_cells =%d\n", rmax_,
+    int rmax_cells = ceil(rmax / cell_size);  // rmax in grid cell units.
+    fprintf(stderr, "rmax = %f, cell_size = %f, rmax_cells =%d\n", rmax,
             cell_size, rmax_cells);
     // Number of cells in each dimension of the subgrid.
     int sizex = 2 * rmax_cells + 1;  // Include negative separation vectors.
@@ -274,13 +296,12 @@ class Correlator {
         }
       }
     }
+    // Index corresponding to zero separation (r=0).
+    for (int &x : rzero_) x = rmax_cells;
     rylm_.allocate(rshape);
-    // Index of r=0.
-    // TODO: need this
-    // std::array<int, 3> rzero = {rmax_cells, rmax_cells, rmax_cells};
   }
 
-  void setup_kgrid() {
+  void setup_kgrid(Float kmax) {
     // Create the Fourier-space subgrid.
     // Our box has cubic-sized cells, so k_Nyquist is the same in all
     // directions. The spacing of modes is therefore 2*k_Nyq/ngrid.
@@ -290,10 +311,10 @@ class Correlator {
     // Number of cells in the subgrid.
     std::array<int, 3> kshape;
     for (int i = 0; i < 3; ++i) {
-      kshape[i] = 2 * ceil(kmax_ / (2.0 * k_Nyq / ngrid[i])) + 1;
+      kshape[i] = 2 * ceil(kmax / (2.0 * k_Nyq / ngrid[i])) + 1;
     }
     fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq = %6.4f\n",
-            kmax_, k_Nyq);
+            kmax, k_Nyq);
     for (int i = 0; i < 3; ++i) {
       if (kshape[i] > ngrid[i]) {
         // TODO: in the corner case of kmax ~= k_Nyq, this can be greater than
@@ -367,17 +388,20 @@ class Correlator {
     }
   }
 
+  // Inputs.
   const ConfigSpaceGrid &dens_;
-  Float rmax_;  // TODO: needed?
-  Float kmax_;
+  int maxell_;
 
+  // Separation-space arrays.
   RowMajorArray<Float, 3> rgrid_;  // TODO: rtotal_?
+  std::array<int, 3> rzero_;
   Array1D<Float> rx_;
   Array1D<Float> ry_;
   Array1D<Float> rz_;
   RowMajorArray<Float, 3> rnorm_;
   RowMajorArray<Float, 3> rylm_;
 
+  // Fourier-space arrays.
   RowMajorArray<Float, 3> kgrid_;  // TODO: ktotal_?
   Array1D<Float> kx_;
   Array1D<Float> ky_;
@@ -386,7 +410,13 @@ class Correlator {
   RowMajorArray<Float, 3> kylm_;
   RowMajorArray<Float, 3> inv_window_;
 
+  // Workspace.
   FftGrid work_;
+
+  // Outputs.
+  HistogramList rhist_;
+  HistogramList khist_;
+  Float zerolag_ = -1.0;
 };
 
 #endif  // CORRELATE_H

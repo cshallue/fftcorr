@@ -6,9 +6,9 @@ cdef extern from "histogram_list.h":
   cdef cppclass HistogramList_cc "HistogramList":
     HistogramList_cc(int n, Float minval, Float maxval, Float binsize) except +
     int nbins()
-    RowMajorArrayPtr[Float, One]& bins()
-    RowMajorArrayPtr[int, Two]& counts()
-    RowMajorArrayPtr[Float, Two]& hist_values()
+    const RowMajorArrayPtr[Float, One]& bins()
+    const RowMajorArrayPtr[int, Two]& counts()
+    const RowMajorArrayPtr[Float, Two]& hist_values()
 
 cdef class HistogramList:
     cdef HistogramList_cc* _cc_hist_list

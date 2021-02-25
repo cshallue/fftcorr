@@ -229,11 +229,10 @@ void usage() {
   exit(1);
 }
 
-void print_hist(const HistogramList &h, FILE *fp, int prefix, bool normalize) {
+void print_hist(const Array1D<Float> &bins, const RowMajorArray<int, 2> &counts,
+                const RowMajorArray<Float, 2> &hist_values, FILE *fp,
+                int prefix, bool normalize) {
   // If norm==1, divide by counts
-  const Array1D<Float> &bins = h.bins();
-  const RowMajorArray<int, 2> &counts = h.counts();
-  const RowMajorArray<Float, 2> &hist_values = h.hist_values();
   for (uint64 j = 0; j < bins.size(); ++j) {
     Float pos = bins[j];
     Float count = counts.at(0, j);
@@ -430,29 +429,28 @@ int main(int argc, char *argv[]) {
   /* Done setup Grid ======================================================= */
 
   // Compute the correlations.
-  HistogramList h(maxell / 2 + 1, 0.0, sep, dsep);
-  HistogramList kh(maxell / 2 + 1, 0.0, kmax, dk);
-  Float zerolag = -12345.0;
-  Correlator corr(grid, sep, kmax);
+  Correlator corr(grid, sep, dsep, kmax, dk, maxell);
   if (isotropic) {
-    corr.correlate_iso(maxell, h, kh, zerolag);
+    corr.correlate_iso();
   } else {
     fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-    corr.correlate_aniso(maxell, wide_angle_exponent, qperiodic, h, kh,
-                         zerolag);
+    corr.correlate_aniso(wide_angle_exponent, qperiodic);
   }
   Ylm_count.print(stdout);
   fprintf(stdout, "# Anisotropic power spectrum:\n");
-  print_hist(kh, stdout, 1, true);
+  print_hist(corr.power_spectrum_k(), corr.power_spectrum_counts(),
+             corr.power_spectrum_histogram(), stdout, 1, true);
   fprintf(stdout, "# Anisotropic correlations:\n");
-  print_hist(h, stdout, 0, isotropic);
+  print_hist(corr.correlation_r(), corr.correlation_counts(),
+             corr.correlation_histogram(), stdout, 0, isotropic);
   // We want to use the correlation at zero lag as the I normalization
   // factor in the FKP power spectrum.
-  fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", zerolag);
+  fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", corr.zerolag());
   // Integral of power spectrum needs a d^3k/(2 pi)^3, which is (1/L)^3 =
   // (1/(cell_size*ngrid))^3
   Float sum_ell0 = 0.0;
-  for (int j = 0; j < kh.nbins(); ++j) sum_ell0 += kh.hist_values().at(0, j);
+  const RowMajorArray<Float, 2> &kh = corr.power_spectrum_histogram();
+  for (int j = 0; j < kh.shape(1); ++j) sum_ell0 += kh.at(0, j);
   fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",
           sum_ell0 / (cell_size * cell_size * cell_size * ngrid[0] * ngrid[1] *
                       ngrid[2]));
