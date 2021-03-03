@@ -9,7 +9,13 @@ import numpy as np
 
 
 cdef class ConfigSpaceGrid:
-    def __cinit__(self, shape, posmin, posmax=None, cell_size=None, window_type=0):
+    def __cinit__(self,
+                  shape,
+                  posmin,
+                  posmax=None,
+                  cell_size=None,
+                  padding=None,
+                  window_type=0):
         # Convert input arrays to contiguous arrays of the correct data type.
         # Then check for errors, as python objects.
         # Insist posmin is copied since it will be retained as a class attribute.
@@ -34,16 +40,26 @@ cdef class ConfigSpaceGrid:
         if ((posmax is None) == (cell_size is None)):
             raise ValueError("Exactly one of posmax and cell_size is required")
 
+        if padding is not None:
+            if padding < 0:
+                raise ValueError("Expected padding > 0, got {}".format(padding))
+
+            print("Padding boundaries by {:.6g}".format(padding))
+            posmin -= padding
+        else:
+            padding = 0
+
         if cell_size is not None:
             if cell_size <= 0:
                 raise ValueError(
                     "Expected cell_size to be positive, got: {}".format(
                         cell_size))
 
-            print("Requested cell size {}".format(cell_size))
+            print("Requested cell size {:.6g}".format(cell_size))
         else:
             # Posmax is not None.
-            posmax = np.array(posmax, dtype=np.double)
+            posmax = np.asarray(posmax, dtype=np.double).copy(order="C")
+            posmax += padding
 
             if posmax.shape != (3, ):
                 raise ValueError(
@@ -55,13 +71,14 @@ cdef class ConfigSpaceGrid:
                     "Expected posmin < posmax, got posmin={}, posmax={}".format(
                         posmin, posmax))
 
-            print("Requested volume with {} cubic cells spanning "
-                  "posmin = {}, posmax = {}".format(shape, posmin, posmax))
             cell_size = np.amax((posmax - posmin) / shape)
 
         posmax = posmin + shape * cell_size
-        print("Adopted ngrid = {}, cell_size = {}, posmin = {}, posmax = {}".format(
-                    shape, cell_size, posmin, posmax))
+        print("Adopting:")
+        print("  ngrid = [" + ", ".join(["{}".format(x) for x in shape]) + "]")
+        print("  cell_size = {:.6g}".format(cell_size))
+        print("  posmin = [" + ", ".join(["{:.6g}".format(x) for x in posmin]) + "]")
+        print("  posmax = [" + ", ".join(["{:.6g}".format(x) for x in posmax]) + "]")
 
         self._posmin = posmin
         self._posmax = posmax
