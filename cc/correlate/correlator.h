@@ -123,35 +123,15 @@ class Correlator {
   void correlate_nonperiodic(int wide_angle_exponent) {
     rhist_.reset();
     khist_.reset();
+    setup_cell_coords();
 
-    // Copy the density field into work_. We do this after setup_fft, because
-    // that can estroy the input. TODO: possible optimization of initializing
-    // work_ by copy and then hoping setup_fft doesn't destroy the input, but
-    // we'd also need to make to ensure that we touch the whole padded work
-    // array if we initialize by copy.
+    // Copy the density field into work_. We do this after setup_fft,
+    // because that can estroy the input. TODO: possible optimization of
+    // initializing work_ by copy and then hoping setup_fft doesn't destroy
+    // the input, but we'd also need to make to ensure that we touch the
+    // whole padded work array if we initialize by copy.
     // TODO: consistency between dens.data() and work.arr()
     array_ops::copy_into_padded_array(dens_.data(), work_.arr());
-
-    // Location of the observer relative to posmin, in grid units.
-    std::array<Float, 3> observer;
-    // Put the observer at the origin of the survey coordinate system.
-    for (int i = 0; i < 3; ++i) {
-      observer[i] = -dens_.posmin(i) / dens_.cell_size();
-    }
-    // We cab simulate a periodic box by puting the observer centered in the
-    // grid, but displaced far away in the -x direction. This is an inefficient
-    // way to compute the periodic case, but it's a good sanity check.
-    // for (int i = 0; i < 3; ++i) {
-    //   observer[i] = dens_.ngrid(i) / 2.0;
-    // }
-    // observer[0] -= dens_.ngrid(0) * 1e6;  // Observer far away!
-
-    // Coordinates of the cell centers in each dimension, relative to the
-    // observer. We're using grid units (scale doesn't matter when computing
-    // Ylms).
-    Array1D<Float> xcell = sequence(0.5 - observer[0], 1.0, dens_.ngrid(0));
-    Array1D<Float> ycell = sequence(0.5 - observer[1], 1.0, dens_.ngrid(1));
-    Array1D<Float> zcell = sequence(0.5 - observer[2], 1.0, dens_.ngrid(2));
 
     // Multiply total by 4*pi, to match SE15 normalization
     // Include the FFTW normalization
@@ -190,7 +170,7 @@ class Correlator {
         // Create the Ylm matrix times work_
         // TODO: here, is it advantageous if dens_ is padded as well, so its
         // boundaries match with those of work?
-        make_ylm(ell, m, xcell, ycell, zcell, 1.0, -wide_angle_exponent,
+        make_ylm(ell, m, xcell_, ycell_, zcell_, 1.0, -wide_angle_exponent,
                  &dens_.data(), &work_.arr());
         fprintf(stdout, "Ylm...");
 
@@ -242,7 +222,7 @@ class Correlator {
     // Correlate.Stop();
   }
 
-  // Access the outputs.
+  // Output accessors.
   Float zerolag() const { return zerolag_; }
   const Array1D<Float> &correlation_r() const { return rhist_.bins(); }
   const RowMajorArray<int, 2> &correlation_counts() const {
@@ -260,6 +240,29 @@ class Correlator {
   }
 
  private:
+  void setup_cell_coords() {
+    // Location of the observer relative to posmin, in grid units.
+    std::array<Float, 3> observer;
+    // Put the observer at the origin of the survey coordinate system.
+    for (int i = 0; i < 3; ++i) {
+      observer[i] = -dens_.posmin(i) / dens_.cell_size();
+    }
+    // We cab simulate a periodic box by puting the observer centered in the
+    // grid, but displaced far away in the -x direction. This is an inefficient
+    // way to compute the periodic case, but it's a good sanity check.
+    // for (int i = 0; i < 3; ++i) {
+    //   observer[i] = dens_.ngrid(i) / 2.0;
+    // }
+    // observer[0] -= dens_.ngrid(0) * 1e6;  // Observer far away!
+
+    // Coordinates of the cell centers in each dimension, relative to the
+    // observer. We're using grid units (scale doesn't matter when computing
+    // Ylms).
+    xcell_ = sequence(0.5 - observer[0], 1.0, dens_.ngrid(0));
+    ycell_ = sequence(0.5 - observer[1], 1.0, dens_.ngrid(1));
+    zcell_ = sequence(0.5 - observer[2], 1.0, dens_.ngrid(2));
+  }
+
   void setup_rgrid(Float rmax) {
     // Create the separation-space subgrid.
     Float cell_size = dens_.cell_size();
@@ -385,6 +388,11 @@ class Correlator {
   // Inputs.
   const ConfigSpaceGrid &dens_;
   int maxell_;
+
+  // Configuration-space arrays
+  Array1D<Float> xcell_;
+  Array1D<Float> ycell_;
+  Array1D<Float> zcell_;
 
   // Separation-space arrays.
   RowMajorArray<Float, 3> rgrid_;  // TODO: rtotal_?
