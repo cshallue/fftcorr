@@ -29,13 +29,11 @@ class BaseTest(abc.ABC, unittest.TestCase):
     def setUp(self):
         # These are set in test() for each run.
         self.hemisphere = None
-        self.periodic = None
 
     @property
     def ref_data_dir(self):
         """Returns the reference (ground truth) data directory."""
-        return os.path.join(DATA_DIR, self.hemisphere,
-                            "periodic" if self.periodic else "nonperiodic")
+        return os.path.join(DATA_DIR, self.hemisphere, "nonperiodic")
 
     @abc.abstractmethod
     def run_test(self):
@@ -44,15 +42,13 @@ class BaseTest(abc.ABC, unittest.TestCase):
     def test(self):
         """Runs run_test on all possible configurations."""
         for hemisphere in ["north", "south"]:
-            for periodic in [True, False]:
-                self.hemisphere = hemisphere
-                self.periodic = periodic
-                # TODO: make qperiodic nonglobal
-                qperiodic_save = fftcorr.QPERIODIC
-                fftcorr.QPERIODIC = self.periodic
-                with self.subTest(hemisphere=hemisphere, periodic=periodic):
-                    self.run_test()
-                fftcorr.QPERIODIC = qperiodic_save
+            self.hemisphere = hemisphere
+            # TODO: make qperiodic nonglobal
+            qperiodic_save = fftcorr.QPERIODIC
+            fftcorr.QPERIODIC = False
+            with self.subTest(hemisphere=hemisphere):
+                self.run_test()
+            fftcorr.QPERIODIC = qperiodic_save
 
     def assertSameData(self, f1, f2, fmt):
         """Asserts that the numeric contents of f1 and f2 match closely."""
@@ -98,8 +94,6 @@ class TestCorrelateCPP(BaseTest):
         ref_nn_outfile = os.path.join(self.ref_data_dir, "corrDD.dat.out")
         ref_rr_outfile = os.path.join(self.ref_data_dir, "corrRR.dat.out")
         with tempfile.TemporaryDirectory() as test_dir:
-            test_dir = "/Users/shallue/tmp/fftcorr-test3/{}/{}/".format(
-                self.hemisphere, self.periodic)
             # Copy the CPP inputs.
             # TODO: don't do this once the python code is refactored.
             dd_infile = os.path.join(test_dir, "corrDD.dat")
@@ -111,10 +105,9 @@ class TestCorrelateCPP(BaseTest):
                                  DSEP,
                                  NGRID,
                                  MAX_ELL,
-                                 self.periodic,
+                                 False,
                                  file2=rr_infile)
-            fftcorr.correlateCPP(rr_infile, DSEP, NGRID, MAX_ELL,
-                                 self.periodic)
+            fftcorr.correlateCPP(rr_infile, DSEP, NGRID, MAX_ELL, False)
             # Check outputs.
             self.assertSameData(dd_infile + ".out", ref_nn_outfile, "txt")
             self.assertSameData(rr_infile + ".out", ref_rr_outfile, "txt")

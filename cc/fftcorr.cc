@@ -208,14 +208,9 @@ void usage() {
   fprintf(stderr, "   -dr <float> (or -dsep): Binning of separation.\n");
   fprintf(stderr, "   -kmax <float>: Maximum wavenumber for power spectrum.\n");
   fprintf(stderr, "   -dk <float>: Binning of wavenumber.\n");
-  fprintf(stderr, "   -periodic (or -p): Configure for cubic periodic box.\n");
   fprintf(stderr,
-          "   -zeromean (or -z): Configure for cubic periodic box and set mean "
-          "density to zero.\n");
-  fprintf(stderr,
-          "   -normalize: Configure for cubic periodic box, set mean "
+          "   -periodic (or -p): Configure for cubic periodic box, set mean "
           "density to zero and divide by the mean.\n");
-  fprintf(stderr, "   -iso: Isotropic correlations.\n");
   fprintf(stderr,
           "   -w <int> (or -window): Window function for mass assignment. See "
           "enum WindowType.\n");
@@ -259,9 +254,8 @@ int main(int argc, char *argv[]) {
   int maxell = 0;
   int wide_angle_exponent = 0;
   int ngridCube = 256;
-  int qperiodic = 0;
+  bool periodic = false;
   WindowType window_type = kWavelet;
-  bool isotropic = false;
   std::array<int, 3> ngrid = {-1, -1, -1};
   Float cell_size = -123.0;  // Default to what's implied by the file
   const char default_fname[] = "/tmp/corrRR.dat";
@@ -298,13 +292,7 @@ int main(int argc, char *argv[]) {
     else if (!strcmp(argv[i], "-out") || !strcmp(argv[i], "-o"))
       outfile = argv[++i];
     else if (!strcmp(argv[i], "-periodic") || !strcmp(argv[i], "-p"))
-      qperiodic = 1;
-    else if (!strcmp(argv[i], "-zeromean") || !strcmp(argv[i], "-z"))
-      qperiodic = 2;
-    else if (!strcmp(argv[i], "-normalize"))
-      qperiodic = 3;
-    else if (!strcmp(argv[i], "-iso"))
-      isotropic = true;
+      periodic = true;
     else if (!strcmp(argv[i], "-window") || !strcmp(argv[i], "-w"))
       window_type = WindowType(atoi(argv[++i]));
     else
@@ -319,8 +307,8 @@ int main(int argc, char *argv[]) {
   assert(dsep > 0.0);
   assert(kmax != 0.0);
   assert(dk > 0.0);
-  // If qperiodic is set, user cannot supply a cell_size
-  assert(qperiodic == 0 || cell_size < 0);
+  // If periodic is set, user cannot supply a cell_size
+  assert(!periodic || cell_size < 0);
   if (infile == NULL) infile = (char *)default_fname;
   if (outfile != NULL) {
     // printf("%s\n", outfile);
@@ -344,7 +332,7 @@ int main(int argc, char *argv[]) {
   // Read box dimensions from catalog header.
   SurveyBox box;
   box.read_header(infile);
-  if (!qperiodic) {
+  if (!periodic) {
     box.pad_to_sep(sep);
   }
 
@@ -379,16 +367,12 @@ int main(int argc, char *argv[]) {
           totw2 - mass_assignor.totw());
   fprintf(stdout, "# Sum of squares of grid is %10.4e \n",
           array_ops::sumsq(dens));
-  if (qperiodic >= 2) {
-    // We're asked to set the mean to zero
+  if (periodic) {
+    // Set the mean to zero, then divide by the mean.
     Float mean = mass_assignor.totw() / dens.size();
+    fprintf(stdout, "# Normalizing by mean cell density %10.4e\n", mean);
     array_ops::add_scalar(-mean, dens);
-    fprintf(stdout, "# Subtracting mean cell density %10.4e\n", mean);
-    if (qperiodic == 3) {
-      // Also divide by the mean.
-      array_ops::multiply_by(1.0 / mean, dens);
-      fprintf(stdout, "# Also dividing by mean cell density %10.4e\n", mean);
-    }
+    array_ops::multiply_by(1.0 / mean, dens);
   }
 
   Float totwsq = mass_assignor.totwsq();
@@ -430,11 +414,11 @@ int main(int argc, char *argv[]) {
 
   // Compute the correlations.
   Correlator corr(grid, sep, dsep, kmax, dk, maxell);
-  if (isotropic) {
-    corr.correlate_iso();
+  if (periodic) {
+    corr.correlate_periodic();
   } else {
     fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-    corr.correlate_aniso(wide_angle_exponent, qperiodic);
+    corr.correlate_nonperiodic(wide_angle_exponent);
   }
   Ylm_count.print(stdout);
   fprintf(stdout, "# Anisotropic power spectrum:\n");
@@ -442,7 +426,7 @@ int main(int argc, char *argv[]) {
              corr.power_spectrum_histogram(), stdout, 1, true);
   fprintf(stdout, "# Anisotropic correlations:\n");
   print_hist(corr.correlation_r(), corr.correlation_counts(),
-             corr.correlation_histogram(), stdout, 0, isotropic);
+             corr.correlation_histogram(), stdout, 0, periodic);
   // We want to use the correlation at zero lag as the I normalization
   // factor in the FKP power spectrum.
   fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", corr.zerolag());

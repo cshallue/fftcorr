@@ -46,7 +46,7 @@ class Correlator {
             work_.dshape()[1], work_.dshape()[2]);
   }
 
-  void correlate_iso() {
+  void correlate_periodic() {
     rhist_.reset();
     khist_.reset();
 
@@ -120,7 +120,7 @@ class Correlator {
   }
 
   // TODO: does wide_angle_exponent apply to the periodic isotropic case too?
-  void correlate_aniso(int wide_angle_exponent, bool periodic) {
+  void correlate_nonperiodic(int wide_angle_exponent) {
     rhist_.reset();
     khist_.reset();
 
@@ -132,29 +132,23 @@ class Correlator {
     // TODO: consistency between dens.data() and work.arr()
     array_ops::copy_into_padded_array(dens_.data(), work_.arr());
 
-    // TODO: not needed for anisotropic case anymore?
-    // Origin of the observer coordinate system, expressed in grid coordinates.
+    // Location of the observer relative to posmin, in grid units.
     std::array<Float, 3> observer;
-    if (periodic) {
-      // Place the observer centered in the grid, but displaced far away in the
-      // -x direction
-      for (int j = 0; j < 3; j++) {
-        observer[j] = dens_.ngrid(j) / 2.0;
-      }
-      observer[0] -= dens_.ngrid(0) * 1e6;  // Observer far away!
-    } else {
-      for (int j = 0; j < 3; j++) {
-        // The origin of the survey coordinates.
-        observer[j] = -dens_.posmin(j) / dens_.cell_size();
-      }
+    // Put the observer at the origin of the survey coordinate system.
+    for (int i = 0; i < 3; ++i) {
+      observer[i] = -dens_.posmin(i) / dens_.cell_size();
     }
+    // We cab simulate a periodic box by puting the observer centered in the
+    // grid, but displaced far away in the -x direction. This is an inefficient
+    // way to compute the periodic case, but it's a good sanity check.
+    // for (int i = 0; i < 3; ++i) {
+    //   observer[i] = dens_.ngrid(i) / 2.0;
+    // }
+    // observer[0] -= dens_.ngrid(0) * 1e6;  // Observer far away!
 
-    // Compute xcell, ycell, zcell, which are the coordinates of the cell
-    // centers in each dimension, relative to the origin. Now set up the cell
-    // centers relative to the origin, in grid units.
-    // {0.5, 0.5, 0.5} is the center of first cell in grid coords. Subtracting
-    // the location of the observer gives the origin with respect to the
-    // observer.
+    // Coordinates of the cell centers in each dimension, relative to the
+    // observer. We're using grid units (scale doesn't matter when computing
+    // Ylms).
     Array1D<Float> xcell = sequence(0.5 - observer[0], 1.0, dens_.ngrid(0));
     Array1D<Float> ycell = sequence(0.5 - observer[1], 1.0, dens_.ngrid(1));
     Array1D<Float> zcell = sequence(0.5 - observer[2], 1.0, dens_.ngrid(2));
