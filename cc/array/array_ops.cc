@@ -6,7 +6,6 @@ namespace array_ops {
 
 template <typename dtype>
 void set_all(dtype value, RowMajorArrayPtr<dtype, 3> &arr) {
-  // Init.Start();
   dtype *data = arr.data();
 #ifdef SLAB
   int nx = arr.shape(0);
@@ -24,7 +23,6 @@ void set_all(dtype value, RowMajorArrayPtr<dtype, 3> &arr) {
     data[i] = value;
   }
 #endif
-  // Init.Stop();
 }
 // Since we're using this template function in separate compilation units, we
 // can't put its definition in the header or it'll be defined in both
@@ -42,7 +40,6 @@ void copy(const RowMajorArrayPtr<dtype, 3> &in,
   assert(in.shape(0) == out.shape(0));
   assert(in.shape(1) == out.shape(1));
   assert(in.shape(2) == out.shape(2));
-  // Init.Start();
   const dtype *in_data = in.data();
   dtype *out_data = out.data();
 #ifdef SLAB
@@ -62,7 +59,6 @@ void copy(const RowMajorArrayPtr<dtype, 3> &in,
     out_data[i] = in_data[i];
   }
 #endif
-  // Init.Stop();
 }
 template void copy(const RowMajorArrayPtr<Float, 3> &,
                    RowMajorArrayPtr<Float, 3> &);
@@ -196,7 +192,6 @@ void multiply_with_conjugation(const RowMajorArrayPtr<Complex, 3> &in,
     out_data[i] *= std::conj(in_data[i]);
   }
 #endif
-  // Init.Stop();
 }
 
 }  // namespace array_ops

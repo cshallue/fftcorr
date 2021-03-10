@@ -6,6 +6,7 @@
 #include <array>
 
 #include "../array/row_major_array.h"
+#include "../profiling/timer.h"
 #include "../types.h"
 
 class FftGrid {
@@ -28,6 +29,10 @@ class FftGrid {
   const std::array<int, 3>& dshape() const { return arr_.shape(); }
   int rshape(int i) const { return rshape_[i]; }
   int dshape(int i) const { return arr_.shape(i); }
+  Float setup_time() const { return setup_time_.elapsed_sec(); }
+  Float plan_time() const { return plan_time_.elapsed_sec(); }
+  Float fft_time() const { return fft_time_.elapsed_sec(); }
+  Float extract_time() const { return extract_time_.elapsed_sec(); }
 
   uint64 rsize() const { return rsize_; }
   uint64 dsize() const { return arr_.size(); }
@@ -48,7 +53,7 @@ class FftGrid {
 
  private:
   // TODO: allow the user to pass fft flags? I.e. FFT_MEASURE, etc.
-  void setup_fft();
+  void plan_fft();
 
   std::array<int, 3> rshape_;  // Shape as a real array.
   std::array<int, 3> cshape_;  // Shape as a complex array.
@@ -60,14 +65,22 @@ class FftGrid {
   RowMajorArray<Float, 3> arr_;
   RowMajorArrayPtr<Complex, 3> carr_;  // TODO: needed?
 
+  mutable Timer setup_time_;
+  mutable Timer plan_time_;
+  mutable Timer fft_time_;
+  mutable Timer extract_time_;
+
 #ifndef FFTSLAB
   fftw_plan fft_;
   fftw_plan ifft_;
 #else
-  fftw_plan fftX_;
-  fftw_plan fftYZ_;
-  fftw_plan ifftYZ_;
-  fftw_plan ifftX_;
+  fftw_plan fftx_;
+  fftw_plan fftyz_;
+  fftw_plan ifftyz_;
+  fftw_plan ifftx_;
+
+  Timer fftx_time_;
+  Timer fftyz_time_;
 #endif
 };
 

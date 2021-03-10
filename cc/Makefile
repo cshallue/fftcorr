@@ -21,14 +21,17 @@ OMP = -DOPENMP -DFFTSLAB -DSLAB
 
 default: fftcorr
 
-fftcorr: fftcorr.cc fft_grid.o array_ops.o
-	${CXX} ${CXXFLAGS} fftcorr.cc -o fftcorr fft_grid.o array_ops.o ${FFTW}
+fftcorr: fftcorr.cc fft_grid.o array_ops.o timer.o
+	${CXX} ${CXXFLAGS} fftcorr.cc -o fftcorr fft_grid.o array_ops.o timer.o ${FFTW}
 
 array_ops.o: array/array_ops.cc array/array_ops.h types.h
 	${CXX} ${CXXFLAGS} -c array/array_ops.cc
 
-fft_grid.o: grid/fft_grid.cc grid/fft_grid.h types.h array_ops.o
+fft_grid.o: grid/fft_grid.cc grid/fft_grid.h types.h array_ops.o timer.o
 	${CXX} ${CXXFLAGS} ${FFTW_INCLUDE} -c grid/fft_grid.cc
+
+timer.o: profiling/timer.cc profiling/timer.h
+	${CXX} ${CXXFLAGS} -c profiling/timer.cc
 
 clean:
 	rm fftcorr array_ops.o fft_grid.o

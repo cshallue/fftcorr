@@ -5,6 +5,7 @@
 #include "../array/array_ops.h"
 
 FftGrid::FftGrid(std::array<int, 3> shape) {
+  setup_time_.start();
   rshape_ = shape;
   cshape_ = std::array<int, 3>({shape[0], shape[1], rshape_[2] / 2 + 1});
   rsize_ = (uint64)rshape_[0] * rshape_[1] * rshape_[2];
@@ -44,13 +45,13 @@ FftGrid::FftGrid(std::array<int, 3> shape) {
   fft_ = NULL;
   ifft_ = NULL;
 #else
-  fftX_ = NULL;
-  fftYZ_ = NULL;
-  ifftYZ_ = NULL;
-  ifftX_ = NULL;
+  fftx_ = NULL;
+  fftyz_ = NULL;
+  ifftyz_ = NULL;
+  ifftx_ = NULL;
 #endif
-
-  setup_fft();
+  setup_time_.stop();
+  plan_fft();
 }
 
 FftGrid::~FftGrid() {
@@ -59,10 +60,10 @@ FftGrid::~FftGrid() {
   if (fft_ != NULL) fftw_destroy_plan(fft_);
   if (ifft_ != NULL) fftw_destroy_plan(ifft_);
 #else
-  if (fftX_ != NULL) fftw_destroy_plan(fftX_);
-  if (fftYZ_ != NULL) fftw_destroy_plan(fftYZ_);
-  if (ifftX_ != NULL) fftw_destroy_plan(ifftX_);
-  if (ifftYZ_ != NULL) fftw_destroy_plan(ifftTZ_);
+  if (fftx_ != NULL) fftw_destroy_plan(fftx_);
+  if (fftyz_ != NULL) fftw_destroy_plan(fftyz_);
+  if (ifftx_ != NULL) fftw_destroy_plan(ifftx_);
+  if (ifftyz_ != NULL) fftw_destroy_plan(ifftTZ_);
 #endif
 #ifdef OPENMP
 #ifndef FFTSLAB
@@ -71,11 +72,11 @@ FftGrid::~FftGrid() {
 #endif
 }
 
-void FftGrid::setup_fft() {
+void FftGrid::plan_fft() {
+  plan_time_.start();
   // Setup the FFTW plans, possibly from disk, and save the wisdom
   fprintf(stdout, "# Planning the FFTs...");
   fflush(NULL);
-  // FFTW.Start();
   FILE *fp = NULL;
 #ifdef OPENMP
 #ifndef FFTSLAB
@@ -136,9 +137,9 @@ void FftGrid::setup_fft() {
   int nYZ[2];
   nYZ[0] = rshape_[1];
   nYZ[1] = rshape_[2];
-  fftYZ_ = fftw_plan_many_dft_r2c(2, nYZ, 1, data, nfft2, 1, 0, cdata, nfft2c,
+  fftyz_ = fftw_plan_many_dft_r2c(2, nYZ, 1, data, nfft2, 1, 0, cdata, nfft2c,
                                   1, 0, FFTW_MEASURE);
-  ifftYZ_ = fftw_plan_many_dft_c2r(2, nYZ, 1, cdata, nfft2c, 1, 0, data, nfft2,
+  ifftyz_ = fftw_plan_many_dft_c2r(2, nYZ, 1, cdata, nfft2c, 1, 0, data, nfft2,
                                    1, 0, FFTW_MEASURE);
 
   // After we've done the 2D r2c FFT, we have to do the 1D c2c transform.
@@ -147,10 +148,10 @@ void FftGrid::setup_fft() {
   // Elements in the X direction are separated by ngrid[1]*dsize_z/2 complex
   // numbers.
   int nX = rshape_[0];
-  fftX_ = fftw_plan_many_dft(1, &nX, (rshape_[2] / 2 + 1), cdata, NULL,
+  fftx_ = fftw_plan_many_dft(1, &nX, (rshape_[2] / 2 + 1), cdata, NULL,
                              rshape_[1] * dsize_z / 2, 1, cdata, NULL,
                              rshape_[1] * dsize_z / 2, 1, -1, FFTW_MEASURE);
-  ifftX_ = fftw_plan_many_dft(1, &nX, (rshape_[2] / 2 + 1), cdata, NULL,
+  ifftx_ = fftw_plan_many_dft(1, &nX, (rshape_[2] / 2 + 1), cdata, NULL,
                               rshape_[1] * dsize_z / 2, 1, cdata, NULL,
                               rshape_[1] * dsize_z / 2, 1, +1, FFTW_MEASURE);
 #endif
@@ -161,56 +162,60 @@ void FftGrid::setup_fft() {
   fclose(fp);
   fprintf(stdout, "Done!\n");
   fflush(NULL);
-  // FFTW.Stop();
+  plan_time_.stop();
 }
 
 void FftGrid::execute_fft() {
   // TODO: assert that setup has been called. Decide best way to crash with
   // informative message. Same with execute_ifft
-  // FFTonly.Start();
+  fft_time_.start();
 #ifndef FFTSLAB
   fftw_execute(fft_);
 #else
-  // FFTyz.Start();
+  fftyz_time_.start();
   // Then need to call this for every slab.  Can OMP these lines
   int dsize_z = arr_.shape(2);
 #pragma omp parallel for MY_SCHEDULE
-  for (int x = 0; x < rshape_[0]; x++)
-    fftw_execute_dft_r2c(fftYZ_, data + x * rshape_[1] * dsize_z,
+  for (int x = 0; x < rshape_[0]; x++) {
+    fftw_execute_dft_r2c(fftyz_, data + x * rshape_[1] * dsize_z,
                          (fftw_complex *)data + x * rshape_[1] * dsize_z / 2);
-    // FFTyz.Stop();
-    // FFTx.Start();
+  }
+  fftyz_time_.stop();
+  fftx_time_.start();
 #pragma omp parallel for schedule(dynamic, 1)
-  for (int y = 0; y < rshape_[1]; y++)
-    fftw_execute_dft(fftX_, (fftw_complex *)data + y * dsize_z / 2,
+  for (int y = 0; y < rshape_[1]; y++) {
+    fftw_execute_dft(fftx_, (fftw_complex *)data + y * dsize_z / 2,
                      (fftw_complex *)data + y * dsize_z / 2);
-    // FFTx.Stop();
+  }
+  fftx_time_.stop();
 #endif
-  // FFTonly.Stop();
+  fft_time_.stop();
 }
 
 void FftGrid::execute_ifft() {
-  // FFTonly.Start();
+  fft_time_.start();
 #ifndef FFTSLAB
   fftw_execute(ifft_);
 #else
-  // FFTx.Start();
+  fftx_time_.start();
   // Then need to call this for every slab.  Can OMP these lines
   int dsize_z = arr_.shape(2);
 #pragma omp parallel for schedule(dynamic, 1)
-  for (int y = 0; y < rshape_[1]; y++)
-    fftw_execute_dft(ifftX_, (fftw_complex *)data + y * dsize_z / 2,
+  for (int y = 0; y < rshape_[1]; y++) {
+    fftw_execute_dft(ifftx_, (fftw_complex *)data + y * dsize_z / 2,
                      (fftw_complex *)data + y * dsize_z / 2);
-    // FFTx.Stop();
-    // FFTyz.Start();
+  }
+  fftx_time_.stop();
+  fftyz_time_.start();
 #pragma omp parallel for MY_SCHEDULE
-  for (int x = 0; x < rshape_[0]; x++)
-    fftw_execute_dft_c2r(ifftYZ_,
+  for (int x = 0; x < rshape_[0]; x++) {
+    fftw_execute_dft_c2r(ifftyz_,
                          (fftw_complex *)data + x * rshape_[1] * dsize_z / 2,
                          data + x * rshape_[1] * dsize_z);
-    // FFTyz.Stop();
+  }
+  fftyz_time_.stop();
 #endif
-  // FFTonly.Stop();
+  fft_time_.stop();
 }
 
 // void FftGrid::restore_from(const RowMajorArrayPtr<Float, 3> &other) {
@@ -218,9 +223,9 @@ void FftGrid::execute_ifft() {
 //   if (other.at(0, 0, 1) != arr_.at(0, 0, 1) ||
 //       other.at(0, 1, 1) != arr_.at(0, 1, 1) ||
 //       other.at(1, 1, 1) != arr_.at(1, 1, 1)) {
-//     // Init.Start();
+//     setup_time_.start();
 //     arr_.copy_from(other);
-//     // Init.Stop();
+//     setup_time_.stop();
 //   }
 // }
 
@@ -230,10 +235,10 @@ void FftGrid::extract_submatrix(RowMajorArrayPtr<Float, 3> *out) const {
 
 void FftGrid::extract_submatrix(RowMajorArrayPtr<Float, 3> *out,
                                 const RowMajorArrayPtr<Float, 3> *mult) const {
+  extract_time_.start();
   // TODO: check dimensions.
   // Extract out a submatrix, centered on [0,0,0] of this array
   // Multiply elementwise by mult.
-  // Extract.Start();
   const std::array<int, 3> &oshape = out->shape();
   int ox = oshape[0] / 2;  // This is the middle of the submatrix
   int oy = oshape[1] / 2;  // This is the middle of the submatrix
@@ -261,7 +266,7 @@ void FftGrid::extract_submatrix(RowMajorArrayPtr<Float, 3> *out,
       }
     }
   }
-  // Extract.Stop();
+  extract_time_.stop();
 }
 
 void FftGrid::extract_submatrix_C2R(RowMajorArrayPtr<Float, 3> *out) const {
@@ -271,6 +276,7 @@ void FftGrid::extract_submatrix_C2R(RowMajorArrayPtr<Float, 3> *out) const {
 void FftGrid::extract_submatrix_C2R(
     RowMajorArrayPtr<Float, 3> *out,
     const RowMajorArrayPtr<Float, 3> *mult) const {
+  extract_time_.start();
   // Given a large matrix work[ngrid^3/2],
   // extract out a submatrix of size csize^3, centered on work[0,0,0].
   // The input matrix is Complex * with the half-domain Fourier convention.
@@ -280,7 +286,6 @@ void FftGrid::extract_submatrix_C2R(
   // by two. Multiply the result by corr[csize^3] and add it onto total[csize^3]
   // Again, zero lag is mapping to corr(csize/2, csize/2, csize/2),
   // but it is at (0,0,0) in the FFT grid.
-  // Extract.Start();
   const std::array<int, 3> &oshape = out->shape();
   int ox = oshape[0] / 2;  // This is the middle of the submatrix
   int oy = oshape[1] / 2;  // This is the middle of the submatrix
@@ -317,5 +322,5 @@ void FftGrid::extract_submatrix_C2R(
       }
     }
   }
-  // Extract.Stop();
+  extract_time_.stop();
 }

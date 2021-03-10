@@ -4,6 +4,7 @@
 #include <assert.h>
 
 #include "particle_mesh/mass_assignor.h"
+#include "profiling/timer.h"
 #include "types.h"
 
 #define BUFFER_SIZE 512
@@ -15,10 +16,10 @@ class SurveyReader {
   SurveyReader(MassAssignor *mass_assignor) : mass_assignor_(mass_assignor) {}
 
   void read_galaxies(const char filename[]) {
+    total_time_.start();
     double tmp[8];
     double *b;
 
-    // IO.Start();
     int count = 0;
     fprintf(stdout, "# Reading from file named %s\n", filename);
     FILE *fp = fopen(filename, "rb");
@@ -35,15 +36,19 @@ class SurveyReader {
     }
     fprintf(stdout, "# Found %d galaxies in this file\n", count);
     fclose(fp);
-    // IO.Stop();
     // Add the remaining galaxies to the grid
     // mass_assignor_->flush();
+    total_time_.stop();
   }
+
+  Float total_time() const { return total_time_.elapsed_sec(); }
 
  private:
   MassAssignor *mass_assignor_;
 
   double buffer_[BUFFER_SIZE];
+
+  Timer total_time_;
 };
 
 #endif  // READ_GALAXIES_H

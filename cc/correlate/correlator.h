@@ -13,6 +13,7 @@
 #include "../grid/fft_grid.h"
 #include "../histogram/histogram_list.h"
 #include "../particle_mesh/window_functions.h"
+#include "../profiling/timer.h"
 #include "../types.h"
 #include "spherical_harmonics.h"
 
@@ -38,11 +39,9 @@ class Correlator {
         khist_(maxell / 2 + 1, 0.0, kmax, dk) {}
 
   void correlate_periodic() {
+    total_time_.start();
     setup(true);
 
-    // Setup.Stop();
-
-    // Correlate .Start();  // Starting the main work
     fprintf(stdout, "# Computing the density FFT...");
     fflush(NULL);
     work_.execute_fft();
@@ -51,8 +50,10 @@ class Correlator {
 
     fprintf(stdout, "# Multiply...");
     fflush(NULL);
-    // TODO: inplace abs^2
+    // TODO: inplace abs^2?
+    mult_time_.start();
     array_ops::multiply_with_conjugation(work_.carr(), work_.carr());
+    mult_time_.stop();
 
     // We must multiply the DFT result by (1/ncells^2): DFT differs from Fourier
     // series coefficients by a factor of ncells, and we've squared the DFT.
@@ -61,15 +62,21 @@ class Correlator {
 
     // Extract the power spectrum, expanded in Legendre polynomials.
     for (int ell = 0; ell <= maxell_; ell += 2) {
+      setup_time_.start();
       array_ops::set_all(0.0, kgrid_);
+      setup_time_.stop();
       // P_l = Y_l0 * sqrt(4.0 * M_PI / (2 * ell + 1)) and then we need to
       // multiply by (2 * ell + 1) to account for the normalization of P_l's.
       // Also include the DFT scaling.
       Float coeff = sqrt((4.0 * M_PI) * (2 * ell + 1)) * k_rescale;
       // TODO: include &inv_window if appropriate in this case.
+      ylm_time_.start();
       make_ylm(ell, 0, kx_, ky_, kz_, coeff, 0, NULL, &kylm_);
+      ylm_time_.stop();
       work_.extract_submatrix_C2R(&kgrid_, &kylm_);
+      hist_time_.start();
       khist_.accumulate(ell / 2, knorm_, kgrid_);
+      hist_time_.stop();
     }
 
     // iFFT the result, in place
@@ -87,44 +94,50 @@ class Correlator {
 
     // Extract the 2PCF, expanded in Legendre polynomials.
     for (int ell = 0; ell <= maxell_; ell += 2) {
+      setup_time_.start();
       array_ops::set_all(0.0, rgrid_);
+      setup_time_.stop();
       // P_l = Y_l0 * sqrt(4.0 * M_PI / (2 * ell + 1)) and then we need to
       // multiply by (2 * ell + 1) to account for the normalization of P_l's.
       // Also include the IFT scaling.
       Float coeff = sqrt((4.0 * M_PI) * (2 * ell + 1)) * r_rescale;
+      ylm_time_.start();
       make_ylm(ell, 0, rx_, ry_, rz_, coeff, 0, NULL, &rylm_);
+      ylm_time_.stop();
       work_.extract_submatrix(&rgrid_, &rylm_);
+      hist_time_.start();
       rhist_.accumulate(ell / 2, rnorm_, rgrid_);
+      hist_time_.stop();
       if (ell == 0) {
         zerolag_ = rgrid_.at(rzero_[0], rzero_[1], rzero_[2]);
       }
     }
-
-    // Hist.Stop();
-    // Correlate.Stop();
+    total_time_.stop();
   }
 
   void correlate_nonperiodic(int wide_angle_exponent) {
+    total_time_.start();
     setup(false);
 
-    // Correlate .Start();  // Starting the main work
     fprintf(stdout, "# Computing the density FFT...");
     fflush(NULL);
     work_.execute_fft();
     fprintf(stdout, "# Done!\n");
     fflush(NULL);
 
-    // Correlate.Stop();  // We're tracking initialization separately
     // TODO: we could copy with conjugation.
+    setup_time_.start();
     array_ops::copy(work_.carr(), dens_fft_);
-    // Correlate.Start();
+    setup_time_.stop();
 
     /* ------------ Loop over ell & m --------------- */
     // Loop over each ell to compute the anisotropic correlations
     for (int ell = 0; ell <= maxell_; ell += 2) {
       // Initialize the submatrix
+      setup_time_.start();
       array_ops::set_all(0.0, rgrid_);
       array_ops::set_all(0.0, kgrid_);
+      setup_time_.stop();
       // Loop over m
       for (int m = -ell; m <= ell; m++) {
         fprintf(stdout, "# Computing %d %2d...", ell, m);
@@ -132,24 +145,28 @@ class Correlator {
         // Create the Ylm matrix times work_
         // TODO: here, is it advantageous if dens_ is padded as well, so its
         // boundaries match with those of work?
+        ylm_time_.start();
         make_ylm(ell, m, xcell_, ycell_, zcell_, 1.0, -wide_angle_exponent,
                  &dens_.data(), &work_.arr());
+        ylm_time_.stop();
         fprintf(stdout, "Ylm...");
 
         // FFT in place
         work_.execute_fft();
 
         // Multiply by conj(dens_fft), as complex numbers
-        // AtimesB.Start();
         // TODO: we could just store the conjugate form of dens_fft.
+        mult_time_.start();
         array_ops::multiply_with_conjugation(dens_fft_, work_.carr());
-        // AtimesB.Stop();
+        mult_time_.stop();
 
         // Extract the anisotropic power spectrum
         // Load the Ylm's. Include the window correction and the SE15
         // normalization.
+        ylm_time_.start();
         make_ylm(ell, m, kx_, ky_, kz_, 4.0 * M_PI, wide_angle_exponent,
                  &inv_window_, &kylm_);
+        ylm_time_.stop();
         // Multiply these Ylm by the power result, and then add to total.
         work_.extract_submatrix_C2R(&kgrid_, &kylm_);
 
@@ -161,8 +178,10 @@ class Correlator {
         // Include the SE15 normalization and the factor of ncells to finish the
         // inverse FFT (FFTW doesn't include this factor automatically).
         uint64 ncells = dens_.data().size();
+        ylm_time_.start();
         make_ylm(ell, m, rx_, ry_, rz_, 4.0 * M_PI / ncells,
                  wide_angle_exponent, NULL, &rylm_);
+        ylm_time_.stop();
 
         // Multiply these Ylm by the correlation result, and then add to total.
         work_.extract_submatrix(&rgrid_, &rylm_);
@@ -170,19 +189,15 @@ class Correlator {
         fprintf(stdout, "Done!\n");
         fflush(NULL);
       }
-
-      // Extract.Start();
-      // Extract.Stop();
-      // HistogramList total by rnorm
-      // Hist.Start();
+      hist_time_.start();
       rhist_.accumulate(ell / 2, rnorm_, rgrid_);
       khist_.accumulate(ell / 2, knorm_, kgrid_);
-      // Hist.Stop();
+      hist_time_.stop();
       if (ell == 0) {
         zerolag_ = rgrid_.at(rzero_[0], rzero_[1], rzero_[2]);
       }
     }
-    // Correlate.Stop();
+    total_time_.stop();
   }
 
   // Output accessors.
@@ -202,9 +217,22 @@ class Correlator {
     return khist_.hist_values();
   }
 
+  // Timer accessors.
+  Float setup_time() const {
+    return setup_time_.elapsed_sec() + work_.setup_time();
+  }
+  Float fft_plan_time() const { return work_.plan_time(); }
+  Float fft_time() const { return work_.fft_time(); }
+  Float extract_time() const { return work_.extract_time(); }
+  Float multiply_time() const { return mult_time_.elapsed_sec(); }
+  Float ylm_time() const { return ylm_time_.elapsed_sec(); }
+  Float histogram_time() const { return hist_time_.elapsed_sec(); }
+  Float total_time() const { return total_time_.elapsed_sec(); }
+
  private:
   // Sets up a fresh call to correlate_{periodic,nonperiodic}.
   void setup(bool periodic) {
+    setup_time_.start();
     // TODO: consistency between dens.data() and work.arr()
     array_ops::copy_into_padded_array(dens_.data(), work_.arr());
     if (!periodic && !xcell_.data()) {
@@ -222,6 +250,7 @@ class Correlator {
     rhist_.reset();
     khist_.reset();
     zerolag_ = -1.0;
+    setup_time_.stop();
   }
 
   void setup_cell_coords() {
@@ -406,6 +435,13 @@ class Correlator {
   HistogramList rhist_;
   HistogramList khist_;
   Float zerolag_;
+
+  // Timers.
+  mutable Timer setup_time_;
+  mutable Timer mult_time_;
+  mutable Timer ylm_time_;
+  mutable Timer hist_time_;
+  mutable Timer total_time_;
 };
 
 #endif  // CORRELATE_H

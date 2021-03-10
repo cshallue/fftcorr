@@ -8,6 +8,7 @@
 #include "../array/row_major_array.h"
 #include "../grid/config_space_grid.h"
 #include "../multithreading.h"
+#include "../profiling/timer.h"
 #include "../types.h"
 #include "merge_sort_omp.h"
 #include "particle.h"
@@ -25,22 +26,25 @@ class MassAssignor {
     gal_.reserve(buffer_size_);
   }
 
-  int count() { return count_; }
-  Float totw() { return totw_; }
-  Float totwsq() { return totwsq_; }
+  int count() const { return count_; }
+  Float totw() const { return totw_; }
+  Float totwsq() const { return totwsq_; }
+  Float total_time() const { return total_time_.elapsed_sec(); }
+  Float sort_time() const { return sort_time_.elapsed_sec(); }
+  Float window_time() const { return window_time_.elapsed_sec(); }
 
   void add_particle(Float x, Float y, Float z, Float w) {
+    total_time_.start();
     grid_->change_survey_to_grid_coords(x, y, z);
     uint64 index = grid_->data().get_index(floor(x), floor(y), floor(z));
     gal_.push_back(Particle(x, y, z, w, index));
     if (gal_.size() >= buffer_size_) {
-      // IO.Stop();
       flush();
-      // IO.Start();
     }
     count_ += 1;
     totw_ += w;
     totwsq_ += w * w;
+    total_time_.stop();
   }
 
   void add_particles(const RowMajorArrayPtr<Float, 2> &particles) {
@@ -55,7 +59,6 @@ class MassAssignor {
 
   void flush() {
     // Given a set of Galaxies, add them to the grid and then reset the list
-    // CIC.Start();
     const int galsize = gal_.size();
 
     // If we're parallelizing this, then we need to keep the threads
@@ -66,8 +69,10 @@ class MassAssignor {
     // Need to supply an equal amount of temporary space to merge sort.
     // Do this by another vector.
     buf_.reserve(galsize);
+    sort_time_.start();
     mergesort_parallel_omp(gal_.data(), galsize, buf_.data(),
                            omp_get_max_threads());
+    sort_time_.stop();
     // This just falls back to std::sort if omp_get_max_threads==1
 
     // Now we need to find the starting point of each slab
@@ -88,6 +93,7 @@ class MassAssignor {
     // Adjacent slabs may not be on the same memory bank anyways.  Keep it
     // simple.
     int slabset = window_func_->width();
+    window_time_.start();
     for (int mod = 0; mod < slabset; mod++) {
 #pragma omp parallel for schedule(dynamic, 1)
       for (int x = mod; x < ngrid[0]; x += slabset) {
@@ -96,9 +102,9 @@ class MassAssignor {
           window_func_->add_particle_to_grid(gal_[j], &grid_->data());
       }
     }
+    window_time_.stop();
 
     gal_.clear();
-    // CIC.Stop();
   }
 
  private:
@@ -112,6 +118,10 @@ class MassAssignor {
   int count_;
   Float totw_;
   Float totwsq_;
+
+  mutable Timer total_time_;
+  mutable Timer sort_time_;
+  mutable Timer window_time_;
 };
 
 #endif  // MASS_ASSIGNMENT_H

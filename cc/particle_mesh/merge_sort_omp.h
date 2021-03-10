@@ -1,12 +1,9 @@
 #ifndef MERGE_SORT_OMP
 #define MERGE_SORT_OMP
 
-// TODO: use include paths in the makefile compiler command
-#include "../STimer.cc"
 #include "particle.h"
 
 typedef Particle Merge;
-STimer Sorting, Merging;
 
 void merge(Merge a[], Merge temp[], int size, int size2) {
   // Adapted from
@@ -34,13 +31,10 @@ void mergesort_parallel_omp(Merge a[], const int size, Merge temp[],
   int sect[threads + 1];
   for (int j = 0; j < threads; j++) sect[j] = j * size / threads;
   sect[threads] = size;
-  Sorting.Start();
 #pragma omp parallel for schedule(static, 1)
   for (int j = 0; j < threads; j++) std::sort(a + sect[j], a + sect[j + 1]);
-  Sorting.Stop();
   // Now we have the sorted sections; we need to merge them.
   // Eventually this might be parallelized too, but let's get something working
-  Merging.Start();
   Merge *arr1 = a, *arr2 = temp;
   for (int m = 2; m < threads * 2; m *= 2) {
     // Merge in blocks of m.
@@ -62,7 +56,6 @@ void mergesort_parallel_omp(Merge a[], const int size, Merge temp[],
   }
   // If we ended up with an odd number of passes, we have to flip back
   if (arr1 != a) memcpy(a, arr1, sizeof(Merge) * size);
-  Merging.Stop();
   return;
 }
 

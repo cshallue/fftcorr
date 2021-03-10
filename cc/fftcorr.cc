@@ -82,7 +82,6 @@ cloud-in-cell to keep up.
 #include <array>
 #include <vector>
 
-#include "STimer.cc"
 #include "array/array_ops.h"
 #include "array/row_major_array.h"
 #include "correlate/correlator.h"
@@ -91,40 +90,45 @@ cloud-in-cell to keep up.
 #include "multithreading.h"
 #include "particle_mesh/mass_assignor.h"
 #include "particle_mesh/window_functions.h"
+#include "profiling/timer.h"
 #include "read_catalog.h"
 #include "survey_box.h"
 #include "types.h"
 
-STimer IO, Setup, FFTW, Correlate, YlmTime, Total, CIC, Misc, FFTonly, Hist,
-    Extract, AtimesB, Init, FFTyz, FFTx;
-
-void ReportTimes(FILE *fp, uint64 nfft, uint64 ngrid3, int cnt) {
+void report_times(FILE *fp, const SurveyReader &sr, const MassAssignor &ma,
+                  const Correlator &corr, double total_time, uint64 nfft,
+                  uint64 ngrid3, int cnt) {
   fflush(NULL);
   fprintf(fp, "#\n# Timing Report: \n");
-  fprintf(fp, "# Setup time:       %8.4f s\n", Setup.Elapsed());
-  fprintf(
-      fp,
-      "# I/O time:         %8.4f s, %6.3f Mparticles/sec, %6.2f MB/sec Read\n",
-      IO.Elapsed(), cnt / IO.Elapsed() / 1e6, cnt / IO.Elapsed() * 32.0 / 1e6);
+  Float grid_time = ma.total_time();
+  Float io_time = sr.total_time() - grid_time;
   fprintf(fp,
-          "# CIC Grid time:    %8.4f s, %6.3f Mparticles/sec, %6.2f GB/sec\n",
-          CIC.Elapsed(), cnt / CIC.Elapsed() / 1e6,
-          1e-9 * cnt / CIC.Elapsed() * 27.0 * 2.0 * sizeof(Float));
-  fprintf(fp, "#        Sorting:   %8.4f s\n", Sorting.Elapsed());
-  fprintf(fp, "#        Merging:   %8.4f s\n", Merging.Elapsed());
-  fprintf(fp, "#            CIC:   %8.4f s\n",
-          CIC.Elapsed() - Merging.Elapsed() - Sorting.Elapsed());
-  fprintf(fp, "# FFTW Prep time:   %8.4f s\n", FFTW.Elapsed());
-  fprintf(fp, "# Array Init time:  %8.4f s, %6.3f GB/s\n", Init.Elapsed(),
-          1e-9 * ngrid3 * sizeof(Float) * 5 / Init.Elapsed());
-  fprintf(fp, "# Correlate time:   %8.4f s\n", Correlate.Elapsed());
+          "# IO time:         %8.4f s, %6.3f Mparticles/sec, %6.2f "
+          "MB/sec\n",
+          io_time, cnt / io_time / 1e6, cnt / io_time * 32.0 / 1e6);
+  fprintf(fp, "# Grid time:    %8.4f s, %6.3f Mparticles/sec, %6.2f GB/sec\n",
+          grid_time, cnt / grid_time / 1e6,
+          1e-9 * cnt / grid_time * 27.0 * 2.0 * sizeof(Float));  // Assumes CIC
+  fprintf(fp, "#            Sorting:   %8.4f s\n", ma.sort_time());
+  fprintf(fp, "#            Window:   %8.4f s\n", ma.window_time());
+  fprintf(fp, "# Correlate: Total time:   %8.4f s\n", corr.total_time());
+  fprintf(fp, "#            Setup time:   %8.4f s\n", corr.setup_time());
+  fprintf(fp, "#            FFTW plan time:   %8.4f s\n", corr.fft_plan_time());
+  fprintf(fp, "#            Extract time:   %8.4f s\n", corr.extract_time());
+  fprintf(fp, "#            Multiply time:   %8.4f s\n", corr.multiply_time());
+  // Approximating number of Ylm cells as FFT/2.
+  // Each stores one float, but nearly all load one float too.
+  fprintf(fp, "#            Ylm time:   %8.4f s, %6.3f GB/s\n", corr.ylm_time(),
+          (nfft - ngrid3) / 2.0 / 1e9 / corr.ylm_time() * sizeof(Float) * 2.0);
+  fprintf(fp, "#            Histogram time:   %8.4f s\n",
+          corr.histogram_time());
   // Expecting 6 Floats of load/store
   fprintf(fp,
           "#       FFT time:   %8.4f s, %6.3f Mcells/s, %6.3f GB/s, %6.3f "
           "GFLOPS/s\n",
-          FFTonly.Elapsed(), nfft / 1e6 / FFTonly.Elapsed(),
-          nfft / 1e9 / FFTonly.Elapsed() * 6.0 * sizeof(Float),
-          nfft / 1e6 / FFTonly.Elapsed() * 2.5 * log(ngrid3) / log(2) / 1e3);
+          corr.fft_time(), nfft / 1e6 / corr.fft_time(),
+          nfft / 1e9 / corr.fft_time() * 6.0 * sizeof(Float),
+          nfft / 1e6 / corr.fft_time() * 2.5 * log(ngrid3) / log(2) / 1e3);
 #ifdef FFTSLAB
   fprintf(fp,
           "#     FFTyz time:   %8.4f s, %6.3f Mcells/s, %6.3f GB/s, %6.3f "
@@ -140,25 +144,7 @@ void ReportTimes(FILE *fp, uint64 nfft, uint64 ngrid3, int cnt) {
           nfft / 1e9 / FFTx.Elapsed() * 6.0 * sizeof(Float) / 3.0,
           nfft / 1e6 / FFTx.Elapsed() * 2.5 * log(ngrid3) / log(2) / 1e3 / 3.0);
 #endif
-  // Approximating number of Ylm cells as FFT/2.
-  // Each stores one float, but nearly all load one float too.
-  fprintf(
-      fp, "#       Ylm time:   %8.4f s, %6.3f GB/s\n", YlmTime.Elapsed(),
-      (nfft - ngrid3) / 2.0 / 1e9 / YlmTime.Elapsed() * sizeof(Float) * 2.0);
-  fprintf(fp, "#      Hist time:   %8.4f s\n", Hist.Elapsed());
-  fprintf(fp, "#   Extract time:   %8.4f s\n", Extract.Elapsed());
-  // We're doing two FFTs per loop and then one extra, so like 2*N+1
-  // Hence N examples of A*Bt, each of which is 3 Floats of load/store
-  fprintf(fp, "#      A*Bt time:   %8.4f s, %6.3f M/s of A=A*Bt, %6.3f GB/s\n",
-          AtimesB.Elapsed(),
-          (nfft / 2.0 / ngrid3 - 0.5) * ngrid3 / 1e6 / AtimesB.Elapsed(),
-          (nfft / 2.0 / ngrid3 - 0.5) * ngrid3 / 1e9 / AtimesB.Elapsed() * 3.0 *
-              sizeof(Float));
-  fprintf(fp, "# Total time:       %8.4f s\n", Total.Elapsed());
-  if (Misc.Elapsed() > 0.0) {
-    fprintf(fp, "#\n# Misc time:          %8.4f s\n", Misc.Elapsed());
-  }
-  return;
+  fprintf(fp, "# Total time:       %8.4f s\n", total_time);
 }
 
 class ThreadCount {
@@ -244,8 +230,8 @@ void print_hist(const Array1D<Float> &bins, const RowMajorArray<int, 2> &counts,
  */
 
 int main(int argc, char *argv[]) {
-  // Need to get this information.
-  Total.Start();
+  Timer total_time;
+  total_time.start();
   // Here are some defaults
   Float sep = -123.0;
   Float dsep = 10.0;
@@ -439,12 +425,13 @@ int main(int argc, char *argv[]) {
           sum_ell0 / (cell_size * cell_size * cell_size * ngrid[0] * ngrid[1] *
                       ngrid[2]));
 
-  Total.Stop();
+  total_time.stop();
   uint64 nfft = 1;
   uint64 ngrid3 = dens.size();  // TODO: this should be the padded size
   for (int j = 0; j <= maxell; j += 2) nfft += 2 * (2 * j + 1);
   nfft *= ngrid3;
   fprintf(stdout, "#\n");
-  ReportTimes(stdout, nfft, ngrid3, mass_assignor.count());
+  report_times(stderr, reader, mass_assignor, corr, total_time.elapsed_sec(),
+               nfft, ngrid3, mass_assignor.count());
   return 0;
 }

@@ -42,8 +42,6 @@ void make_ylm(int ell, int m, const Array1D<Float> &xcell,
   assert(ylm->shape(2) >= n2);
   assert(exponent % 2 == 0);
 
-  // YlmTime.Start();
-
   if (ell == 0 && m == 0 && exponent == 0) {
     // This case is so easy that we'll do it directly and skip the setup.
     Float value = coeff / sqrt(4.0 * M_PI);
@@ -65,7 +63,6 @@ void make_ylm(int ell, int m, const Array1D<Float> &xcell,
         }
       }
     }
-    // YlmTime.Stop();
     return;
   }
 
@@ -178,7 +175,6 @@ void make_ylm(int ell, int m, const Array1D<Float> &xcell,
   }
   // Traps whether the user entered an illegal (ell,m)
   assert((*ylm)[0] != 123456.0);
-  // ylmTime.Stop();
 }
 
 #endif  // SPHERICAL_HARMONICS_H
