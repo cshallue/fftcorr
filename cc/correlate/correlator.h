@@ -67,7 +67,6 @@ class Correlator {
       // Also include the DFT scaling.
       Float coeff = sqrt((4.0 * M_PI) * (2 * ell + 1)) * k_rescale;
       // TODO: include &inv_window if appropriate in this case.
-      // TODO: does wide_angle_exponent apply?
       make_ylm(ell, 0, kx_, ky_, kz_, coeff, 0, NULL, &kylm_);
       work_.extract_submatrix_C2R(&kgrid_, &kylm_);
       khist_.accumulate(ell / 2, knorm_, kgrid_);
@@ -93,7 +92,6 @@ class Correlator {
       // multiply by (2 * ell + 1) to account for the normalization of P_l's.
       // Also include the IFT scaling.
       Float coeff = sqrt((4.0 * M_PI) * (2 * ell + 1)) * r_rescale;
-      // TODO: does wide_angle_exponent apply?
       make_ylm(ell, 0, rx_, ry_, rz_, coeff, 0, NULL, &rylm_);
       work_.extract_submatrix(&rgrid_, &rylm_);
       rhist_.accumulate(ell / 2, rnorm_, rgrid_);
@@ -106,7 +104,6 @@ class Correlator {
     // Correlate.Stop();
   }
 
-  // TODO: does wide_angle_exponent apply to the periodic isotropic case too?
   void correlate_nonperiodic(int wide_angle_exponent) {
     setup(false);
 
