@@ -30,37 +30,24 @@ class Correlator {
   Correlator(const ConfigSpaceGrid &dens, Float rmax, Float dr, Float kmax,
              Float dk, int maxell)
       : dens_(dens),
+        rmax_(rmax),
+        kmax_(kmax),
         maxell_(maxell),
         work_(dens_.ngrid()),
         rhist_(maxell / 2 + 1, 0.0, rmax, dr),
-        khist_(maxell / 2 + 1, 0.0, kmax, dk) {
-    setup_rgrid(rmax);
-    setup_kgrid(kmax);
-
-    // TODO: we could use the quick FFTW setup for the isotropic case, since we
-    // only FFT and inverse FFT once each.
-    // TODO: if we always use the same setup, this can go in the work
-    // constructor.
-    work_.setup_fft();
-    fprintf(stderr, "work size = [%d, %d, %d]\n", work_.dshape()[0],
-            work_.dshape()[1], work_.dshape()[2]);
-  }
+        khist_(maxell / 2 + 1, 0.0, kmax, dk) {}
 
   void correlate_periodic() {
-    rhist_.reset();
-    khist_.reset();
-
-    // Copy the density field into work_. We do this after setup_fft, because
-    // that can estroy the input. TODO: possible optimization of initializing
-    // work_ by copy and then hoping setup_fft doesn't destroy the input, but
-    // we'd also need to make to ensure that we touch the whole padded work
-    // array if we initialize by copy.
-    array_ops::copy_into_padded_array(dens_.data(), work_.arr());
+    setup(true);
 
     // Setup.Stop();
 
+    // Correlate .Start();  // Starting the main work
     fprintf(stdout, "# Computing the density FFT...");
+    fflush(NULL);
     work_.execute_fft();
+    fprintf(stdout, "# Done!\n");
+    fflush(NULL);
 
     fprintf(stdout, "# Multiply...");
     fflush(NULL);
@@ -121,25 +108,9 @@ class Correlator {
 
   // TODO: does wide_angle_exponent apply to the periodic isotropic case too?
   void correlate_nonperiodic(int wide_angle_exponent) {
-    rhist_.reset();
-    khist_.reset();
-    setup_cell_coords();
-
-    // Copy the density field into work_. We do this after setup_fft,
-    // because that can estroy the input. TODO: possible optimization of
-    // initializing work_ by copy and then hoping setup_fft doesn't destroy
-    // the input, but we'd also need to make to ensure that we touch the
-    // whole padded work array if we initialize by copy.
-    // TODO: consistency between dens.data() and work.arr()
-    array_ops::copy_into_padded_array(dens_.data(), work_.arr());
-
-    // Multiply total by 4*pi, to match SE15 normalization
-    // Include the FFTW normalization
-    uint64 ncells = dens_.data().size();
+    setup(false);
 
     // Correlate .Start();  // Starting the main work
-    // Now compute the FFT of the density field and conjugate it
-    // FFT(work) in place and conjugate it, storing in dens_fft
     fprintf(stdout, "# Computing the density FFT...");
     fflush(NULL);
     work_.execute_fft();
@@ -147,14 +118,8 @@ class Correlator {
     fflush(NULL);
 
     // Correlate.Stop();  // We're tracking initialization separately
-    // TODO: we could copy with conjugation in one fell swoop.
-    // TODO: are there cases where the dens_fft is not the entire Complex work
-    // grid?
-    // TODO: abstract all this away into a copy() op or something?
-    RowMajorArray<Complex, 3> dens_fft(work_.carr().shape());
-    // TODO: is it okay to do the copy initialization with complex rather than
-    // floats for the purpose of assigning to physical hardware?
-    array_ops::copy(work_.carr(), dens_fft);
+    // TODO: we could copy with conjugation.
+    array_ops::copy(work_.carr(), dens_fft_);
     // Correlate.Start();
 
     /* ------------ Loop over ell & m --------------- */
@@ -180,7 +145,7 @@ class Correlator {
         // Multiply by conj(dens_fft), as complex numbers
         // AtimesB.Start();
         // TODO: we could just store the conjugate form of dens_fft.
-        array_ops::multiply_with_conjugation(dens_fft, work_.carr());
+        array_ops::multiply_with_conjugation(dens_fft_, work_.carr());
         // AtimesB.Stop();
 
         // Extract the anisotropic power spectrum
@@ -198,6 +163,7 @@ class Correlator {
         // Create Ylm for the submatrix that we'll extract for histogramming
         // Include the SE15 normalization and the factor of ncells to finish the
         // inverse FFT (FFTW doesn't include this factor automatically).
+        uint64 ncells = dens_.data().size();
         make_ylm(ell, m, rx_, ry_, rz_, 4.0 * M_PI / ncells,
                  wide_angle_exponent, NULL, &rylm_);
 
@@ -240,6 +206,27 @@ class Correlator {
   }
 
  private:
+  // Sets up a fresh call to correlate_{periodic,nonperiodic}.
+  void setup(bool periodic) {
+    // TODO: consistency between dens.data() and work.arr()
+    array_ops::copy_into_padded_array(dens_.data(), work_.arr());
+    if (!periodic && !xcell_.data()) {
+      setup_cell_coords();
+    }
+    if (!rgrid_.data()) {
+      setup_rgrid();
+    }
+    if (!periodic && !dens_fft_.data()) {
+      dens_fft_.allocate(work_.carr().shape());
+    }
+    if (!kgrid_.data()) {
+      setup_kgrid();
+    }
+    rhist_.reset();
+    khist_.reset();
+    zerolag_ = -1.0;
+  }
+
   void setup_cell_coords() {
     // Location of the observer relative to posmin, in grid units.
     std::array<Float, 3> observer;
@@ -263,11 +250,11 @@ class Correlator {
     zcell_ = sequence(0.5 - observer[2], 1.0, dens_.ngrid(2));
   }
 
-  void setup_rgrid(Float rmax) {
+  void setup_rgrid() {
     // Create the separation-space subgrid.
     Float cell_size = dens_.cell_size();
-    int rmax_cells = ceil(rmax / cell_size);  // rmax in grid cell units.
-    fprintf(stderr, "rmax = %f, cell_size = %f, rmax_cells =%d\n", rmax,
+    int rmax_cells = ceil(rmax_ / cell_size);  // rmax in grid cell units.
+    fprintf(stderr, "rmax = %f, cell_size = %f, rmax_cells =%d\n", rmax_,
             cell_size, rmax_cells);
     // Number of cells in each dimension of the subgrid.
     int sizex = 2 * rmax_cells + 1;  // Include negative separation vectors.
@@ -298,7 +285,7 @@ class Correlator {
     rylm_.allocate(rshape);
   }
 
-  void setup_kgrid(Float kmax) {
+  void setup_kgrid() {
     // Create the Fourier-space subgrid.
     // Our box has cubic-sized cells, so k_Nyquist is the same in all
     // directions. The spacing of modes is therefore 2*k_Nyq/ngrid.
@@ -308,10 +295,10 @@ class Correlator {
     // Number of cells in the subgrid.
     std::array<int, 3> kshape;
     for (int i = 0; i < 3; ++i) {
-      kshape[i] = 2 * ceil(kmax / (2.0 * k_Nyq / ngrid[i])) + 1;
+      kshape[i] = 2 * ceil(kmax_ / (2.0 * k_Nyq / ngrid[i])) + 1;
     }
     fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq = %6.4f\n",
-            kmax, k_Nyq);
+            kmax_, k_Nyq);
     for (int i = 0; i < 3; ++i) {
       if (kshape[i] > ngrid[i]) {
         // TODO: in the corner case of kmax ~= k_Nyq, this can be greater than
@@ -387,7 +374,12 @@ class Correlator {
 
   // Inputs.
   const ConfigSpaceGrid &dens_;
+  Float rmax_;
+  Float kmax_;
   int maxell_;
+
+  // Workspace.
+  FftGrid work_;
 
   // Configuration-space arrays
   Array1D<Float> xcell_;
@@ -404,6 +396,7 @@ class Correlator {
   RowMajorArray<Float, 3> rylm_;
 
   // Fourier-space arrays.
+  RowMajorArray<Complex, 3> dens_fft_;
   RowMajorArray<Float, 3> kgrid_;  // TODO: ktotal_?
   Array1D<Float> kx_;
   Array1D<Float> ky_;
@@ -412,13 +405,10 @@ class Correlator {
   RowMajorArray<Float, 3> kylm_;
   RowMajorArray<Float, 3> inv_window_;
 
-  // Workspace.
-  FftGrid work_;
-
   // Outputs.
   HistogramList rhist_;
   HistogramList khist_;
-  Float zerolag_ = -1.0;
+  Float zerolag_;
 };
 
 #endif  // CORRELATE_H

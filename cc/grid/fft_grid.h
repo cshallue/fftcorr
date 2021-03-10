@@ -13,8 +13,6 @@ class FftGrid {
   FftGrid(std::array<int, 3> shape);
   ~FftGrid();
 
-  // TODO: allow the user to pass fft flags? I.e. FFT_MEASURE, etc.
-  void setup_fft();
   void execute_fft();
   void execute_ifft();
 
@@ -49,6 +47,9 @@ class FftGrid {
                              const RowMajorArrayPtr<Float, 3>* mult) const;
 
  private:
+  // TODO: allow the user to pass fft flags? I.e. FFT_MEASURE, etc.
+  void setup_fft();
+
   std::array<int, 3> rshape_;  // Shape as a real array.
   std::array<int, 3> cshape_;  // Shape as a complex array.
   uint64 rsize_;

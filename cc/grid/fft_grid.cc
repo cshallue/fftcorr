@@ -49,6 +49,8 @@ FftGrid::FftGrid(std::array<int, 3> shape) {
   ifftYZ_ = NULL;
   ifftX_ = NULL;
 #endif
+
+  setup_fft();
 }
 
 FftGrid::~FftGrid() {
