@@ -104,7 +104,6 @@ print(subm.flatten())
 
 print()
 print(fg.data[0])
-fg.setup_fft()
 print(fg.data[0])
 fg.execute_fft()
 print(fg.data[0])

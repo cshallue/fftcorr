@@ -13,7 +13,10 @@ import numpy as np
 ngrid = [2, 2, 2]
 posmin = [2, -5, 77]
 cell_size = 25
-g = fftcorr.grid.ConfigSpaceGrid(ngrid, posmin, cell_size, window_type=0)
+g = fftcorr.grid.ConfigSpaceGrid(ngrid,
+                                 posmin,
+                                 cell_size=cell_size,
+                                 window_type=0)
 print("created grid")
 d = g.data
 print(d.flatten())

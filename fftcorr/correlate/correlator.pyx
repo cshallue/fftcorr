@@ -49,11 +49,11 @@ cdef class Correlator:
             self._correlator_cc.power_spectrum_histogram().data(),
             self)
 
-    def correlate_iso(self):
-        self._correlator_cc.correlate_iso()
+    def correlate_periodic(self):
+        self._correlator_cc.correlate_periodic()
 
-    def correlate_aniso(self, int wide_angle_exponent = 0, bool periodic = 0):
-        self._correlator_cc.correlate_aniso(wide_angle_exponent, periodic)
+    def correlate_nonperiodic(self, int wide_angle_exponent = 0):
+        self._correlator_cc.correlate_nonperiodic(wide_angle_exponent)
 
     @property
     def correlation_r(self):

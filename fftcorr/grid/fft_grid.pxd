@@ -6,7 +6,6 @@ cimport numpy as cnp
 cdef extern from "fft_grid.h":
   cdef cppclass FftGrid_cc "FftGrid":
     FftGrid_cc(array[int, Three]) except +
-    void setup_fft()
     void execute_fft()
     void execute_ifft()
     RowMajorArrayPtr[Float, Three]& arr()

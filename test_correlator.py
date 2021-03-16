@@ -63,16 +63,11 @@ rmax = 250.0
 dr = 5
 kmax = 0.4
 dk = 0.002
-c = Correlator(dens, rmax, kmax)
-h = HistogramList(n=0, minval=0, maxval=rmax, binsize=dr)
-kh = HistogramList(n=0, minval=0, maxval=kmax, binsize=dk)
-zerolag = c.correlate_iso(h, kh)
-print("Done correlating! Zerolag = {:.6e}".format(zerolag))
-# print(h.bins)
-# print(h.counts()
-# print(h.hist_values)
-# print(kh.bins)
-# print(kh.counts()
-# print(kh.hist_values)
+maxell = 2
+c = Correlator(dens, rmax, dr, kmax, dk, maxell)
+c.correlate_periodic()
+print("Done correlating!")
+print(c.correlation_r)
+print(c.correlation_counts)
 
 print()

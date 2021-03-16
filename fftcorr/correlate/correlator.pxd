@@ -14,8 +14,8 @@ cdef extern from "correlator.h":
                   Float kmax,
                   Float dk,
                   int maxell) except +
-    void correlate_iso()
-    void correlate_aniso(int wide_angle_exponent, bool periodic)
+    void correlate_periodic()
+    void correlate_nonperiodic(int wide_angle_exponent)
     Float zerolag()
     const RowMajorArrayPtr[Float, One]& correlation_r()
     const RowMajorArrayPtr[int, Two]& correlation_counts()

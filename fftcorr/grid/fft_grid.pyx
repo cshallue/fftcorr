@@ -43,9 +43,6 @@ cdef class FftGrid:
     def data(self):
         return self._data_arr
 
-    def setup_fft(self):
-        self._cc_grid.setup_fft()
-
     def execute_fft(self):
         self._cc_grid.execute_fft()
 

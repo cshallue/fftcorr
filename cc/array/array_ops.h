@@ -2,6 +2,7 @@
 #define ARRAY_OPS_H
 
 #include "row_major_array.h"
+#include "types.h"
 
 // TODO: most/all of these ops are in too general a namespace. they're really
 // implemented specifically for 3D large grids.
