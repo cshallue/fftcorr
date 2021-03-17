@@ -19,6 +19,8 @@ cdef class ConfigSpaceGrid:
     cdef cnp.ndarray _posmin
     cdef cnp.ndarray _posmax
     cdef Float _cell_size
+    cdef Float _padding
+    cdef int _window_type
     cdef ConfigSpaceGrid_cc *_cc_grid
     cdef cnp.ndarray _data_arr
 

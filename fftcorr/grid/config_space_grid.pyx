@@ -12,9 +12,10 @@ cdef class ConfigSpaceGrid:
     def __cinit__(self,
                   shape,
                   posmin,
-                  posmax=None,
+                  posmax,
                   cell_size=None,
-                  padding=None,
+                  padding=0,  # padding already built in to posmin and posmax
+                  extra_pad=0,  # additional padding to add
                   window_type=0):
         # Convert input arrays to contiguous arrays of the correct data type.
         # Then check for errors, as python objects.
@@ -22,6 +23,7 @@ cdef class ConfigSpaceGrid:
         # TODO: np.double should be declared in the same place as Float.
         shape = np.ascontiguousarray(shape, dtype=np.intc)
         posmin = np.asarray(posmin, dtype=np.double).copy(order="C")
+        posmax = np.asarray(posmax, dtype=np.double).copy(order="C")
 
         if shape.shape != (3, ):
             raise ValueError(
@@ -37,17 +39,15 @@ cdef class ConfigSpaceGrid:
                 "Expected posmin to have shape (3,), got: {}".format(
                     posmin.shape))
 
-        if ((posmax is None) == (cell_size is None)):
-            raise ValueError("Exactly one of posmax and cell_size is required")
+        if posmax.shape != (3, ):
+            raise ValueError(
+                "Expected posmax to have shape (3,), got: {}".format(
+                    posmax.shape))
 
-        if padding is not None:
-            if padding < 0:
-                raise ValueError("Expected padding > 0, got {}".format(padding))
-
-            print("Padding boundaries by {:.6g}".format(padding))
-            posmin -= padding
-        else:
-            padding = 0
+        if np.any(posmax <= posmin):
+            raise ValueError(
+                "Expected posmin < posmax, got posmin={}, posmax={}".format(
+                    posmin, posmax))
 
         if cell_size is not None:
             if cell_size <= 0:
@@ -55,23 +55,26 @@ cdef class ConfigSpaceGrid:
                     "Expected cell_size to be positive, got: {}".format(
                         cell_size))
 
+        if padding < 0:
+            raise ValueError("Expected padding > 0, got {}".format(padding))
+
+        if extra_pad < 0:
+            raise ValueError("Expected extra_pad > 0, got {}".format(extra_pad))
+
+        if extra_pad:
+            print("Padding boundaries by {:.6g}".format(extra_pad))
+            posmin -= extra_pad
+            posmax += extra_pad
+
+        minimum_cell_size = np.amax((posmax - posmin) / shape)
+        if cell_size is not None:
             print("Requested cell size {:.6g}".format(cell_size))
+            if cell_size < minimum_cell_size:
+                raise ValueError(
+                    "Requested cell size too small to cover entire region. "
+                    "Need at least {:.6g}".format(minimum_cell_size))
         else:
-            # Posmax is not None.
-            posmax = np.asarray(posmax, dtype=np.double).copy(order="C")
-            posmax += padding
-
-            if posmax.shape != (3, ):
-                raise ValueError(
-                    "Expected posmax to have shape (3,), got: {}".format(
-                        posmax.shape))
-
-            if np.any(posmax <= posmin):
-                raise ValueError(
-                    "Expected posmin < posmax, got posmin={}, posmax={}".format(
-                        posmin, posmax))
-
-            cell_size = np.amax((posmax - posmin) / shape)
+            cell_size = minimum_cell_size
 
         posmax = posmin + shape * cell_size
         print("Adopting:")
@@ -85,6 +88,8 @@ cdef class ConfigSpaceGrid:
         for arr in [posmin, posmax]:
             arr.setflags(write=False)
         self._cell_size = cell_size
+        self._padding = padding + extra_pad
+        self._window_type = window_type
 
         # Create the wrapped C++ ConfigSpaceGrid.
         cdef cnp.ndarray[int, ndim=1, mode="c"] cshape = shape
@@ -128,8 +133,47 @@ cdef class ConfigSpaceGrid:
         return self._cell_size
 
     @property
+    def padding(self):
+        return self._padding
+
+    @property
+    def window_type(self):
+        return self._window_type
+
+    @property
     def data(self):
         return self._data_arr
+
+    def write(self, filename):
+        import asdf  # TODO: move to top level?
+        tree = {
+            "header": {
+                "shape": self.shape,
+                "posmin": self.posmin,
+                "posmax": self.posmax,
+                "cell_size": self.cell_size,
+                "padding": self.padding,
+                "window_type": self.window_type,
+            },
+            "data": self.data,
+        }
+        af = asdf.AsdfFile(tree)
+        af.write_to(filename)
+
+    @classmethod
+    def read(cls, filename):
+        import asdf  # TODO: move to top level?
+        af = asdf.open(filename)
+        header = af.tree["header"]
+        grid = cls(
+            shape=header["shape"],
+            posmin=header["posmin"],
+            posmax=header["posmax"],
+            padding=header["padding"],
+            window_type=header["window_type"])
+        assert np.allclose(grid.cell_size, header["cell_size"])
+        np.copyto(grid.data, af.tree["data"])  # TODO: better way to do this?
+        return grid
 
     # TODO: everything below here can go; it's for testing only
     # However, look into whether these should be cdef, cpdef, or def
