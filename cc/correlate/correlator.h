@@ -364,7 +364,7 @@ class Correlator {
 
     // Set up window correction.
     inv_window_.allocate(kshape);
-    Float window;
+    Float window = 1.0;
     for (int i = 0; i < kshape[0]; ++i) {
       for (int j = 0; j < kshape[1]; ++j) {
         for (int k = 0; k < kshape[2]; ++k) {
