@@ -1,6 +1,8 @@
 #ifndef ARRAY_ND_H
 #define ARRAY_ND_H
 
+#include <assert.h>
+
 #include <array>
 #include <utility>
 

@@ -1,5 +1,7 @@
 #include "array_ops.h"
 
+#include <assert.h>
+
 #include "row_major_array.h"
 
 namespace array_ops {
