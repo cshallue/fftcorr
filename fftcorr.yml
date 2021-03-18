@@ -14,6 +14,7 @@ dependencies:
   - jupyterlab
   - matplotlib
   - pandas
+  - pip
   - pip:
     - git+https://github.com/lgarrison/asdf.git
     - abacusutils
