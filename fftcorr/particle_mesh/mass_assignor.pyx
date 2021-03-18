@@ -54,3 +54,11 @@ cdef class MassAssignor:
     @property
     def totwsq(self) -> Float:
         return self._cc_ma.totwsq()
+
+    @property
+    def sort_time(self) -> Float:
+        return self._cc_ma.sort_time()
+
+    @property
+    def window_time(self) -> Float:
+        return self._cc_ma.window_time()

@@ -12,9 +12,11 @@ import numpy as np
 
 ngrid = [2, 2, 2]
 posmin = [2, -5, 77]
+posmax = [50, 45, 120]
 cell_size = 25
 g = fftcorr.grid.ConfigSpaceGrid(ngrid,
                                  posmin,
+                                 posmax,
                                  cell_size=cell_size,
                                  window_type=0)
 print("created grid")
@@ -30,6 +32,8 @@ print(dir(ma))
 print("count =", ma.count)
 print("totw =", ma.totw)
 print("totwsq =", ma.totwsq)
+print("sort time =", ma.sort_time)
+print("window time =", ma.window_time)
 print()
 
 print("adding particle")
@@ -40,6 +44,8 @@ print("totwsq =", ma.totwsq)
 print("we haven't flushed yet, so...")
 print("sum =", g.sum())
 print("sumsq =", g.sumsq())
+print("sort time =", ma.sort_time)
+print("window time =", ma.window_time)
 print(d.flatten())
 print()
 
@@ -50,5 +56,7 @@ print("totw =", ma.totw)
 print("totwsq =", ma.totwsq)
 print("sum =", g.sum())
 print("sumsq =", g.sumsq())
+print("sort time =", ma.sort_time)
+print("window time =", ma.window_time)
 print(d.flatten())
 print()

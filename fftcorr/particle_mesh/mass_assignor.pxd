@@ -12,6 +12,8 @@ cdef extern from "mass_assignor.h":
     int count()
     Float totw()
     Float totwsq()
+    Float sort_time()
+    Float window_time()
 
 cdef class MassAssignor:
     # Allocate the MassAssignor_cc on the heap; it would need to have a nullary

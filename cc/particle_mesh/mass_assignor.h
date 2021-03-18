@@ -29,12 +29,10 @@ class MassAssignor {
   int count() const { return count_; }
   Float totw() const { return totw_; }
   Float totwsq() const { return totwsq_; }
-  Float total_time() const { return total_time_.elapsed_sec(); }
   Float sort_time() const { return sort_time_.elapsed_sec(); }
   Float window_time() const { return window_time_.elapsed_sec(); }
 
   void add_particle(Float x, Float y, Float z, Float w) {
-    total_time_.start();
     grid_->change_survey_to_grid_coords(x, y, z);
     uint64 index = grid_->data().get_index(floor(x), floor(y), floor(z));
     gal_.push_back(Particle(x, y, z, w, index));
@@ -44,7 +42,6 @@ class MassAssignor {
     count_ += 1;
     totw_ += w;
     totwsq_ += w * w;
-    total_time_.stop();
   }
 
   void add_particles(const RowMajorArrayPtr<Float, 2> &particles) {
@@ -119,7 +116,6 @@ class MassAssignor {
   Float totw_;
   Float totwsq_;
 
-  mutable Timer total_time_;
   mutable Timer sort_time_;
   mutable Timer window_time_;
 };
