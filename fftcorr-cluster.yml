@@ -14,5 +14,9 @@ dependencies:
   - jupyterlab
   - matplotlib
   - pandas
-  - asdf
-prefix: /Users/shallue/miniconda3/envs/fftcorr
+  - pip
+  - pip:
+    - git+https://github.com/lgarrison/asdf.git
+    - abacusutils
+    - jupyter_http_over_ws  # For Google colab.
+prefix: /home/cshallue/miniconda3/envs/fftcorr
