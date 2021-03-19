@@ -1,6 +1,8 @@
 #ifndef MERGE_SORT_OMP
 #define MERGE_SORT_OMP
 
+#include <algorithm>
+
 #include "particle.h"
 
 typedef Particle Merge;
