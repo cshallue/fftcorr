@@ -86,6 +86,7 @@ cc_libs = CcLibraries([
                   "cc/array/row_major_array",
                   "cc/grid/config_space_grid",
                   "cc/particle_mesh/window_functions",
+                  "cc/profiling/timer",
               ]),
     CcLibrary("cc/grid/config_space_grid.h",
               deps=[
