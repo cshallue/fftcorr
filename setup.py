@@ -124,7 +124,8 @@ cc_libs = CcLibraries([
 cython_libs = CythonLibraries([
     # TODO: combine numpy_adaptor with another module?
     CythonLibrary("fftcorr.array.numpy_adaptor",
-                  pxd_file="fftcorr/array/numpy_adaptor.pxd"),
+                  pxd_file="fftcorr/array/numpy_adaptor.pxd",
+                  srcs=["fftcorr/array/numpy_adaptor.pyx"]),
     CythonLibrary("fftcorr.types", pxd_file="fftcorr/types.pxd"),
     CythonLibrary("fftcorr.array.row_major_array",
                   pxd_file="fftcorr/array/row_major_array.pxd",
