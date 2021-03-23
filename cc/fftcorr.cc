@@ -96,11 +96,10 @@ cloud-in-cell to keep up.
 #include "types.h"
 
 void report_times(FILE *fp, const SurveyReader &sr, const MassAssignor &ma,
-                  const Correlator &corr, double total_time, uint64 nfft,
-                  uint64 ngrid3, int cnt) {
+                  const Correlator &corr, double total_time, double grid_time,
+                  uint64 nfft, uint64 ngrid3, int cnt) {
   fflush(NULL);
   fprintf(fp, "#\n# Timing Report: \n");
-  Float grid_time = ma.total_time();
   Float io_time = sr.total_time() - grid_time;
   fprintf(fp,
           "# IO time:         %8.4f s, %6.3f Mparticles/sec, %6.2f "
@@ -334,6 +333,8 @@ int main(int argc, char *argv[]) {
   ConfigSpaceGrid grid(ngrid, box.posmin(), cell_size, window_type);
 
   int particle_batch_size = 1000000;
+  Timer grid_time;
+  grid_time.start();
   MassAssignor mass_assignor(&grid, particle_batch_size);
   SurveyReader reader(&mass_assignor);
   reader.read_galaxies(infile);
@@ -344,6 +345,7 @@ int main(int argc, char *argv[]) {
   // right now it causes different behavior! Figure this out: does the same
   // thing happen with NEAREST_CELL?
   mass_assignor.flush();
+  grid_time.stop();
 
   RowMajorArray<Float, 3> &dens = grid.data();
   fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n",
@@ -432,6 +434,6 @@ int main(int argc, char *argv[]) {
   nfft *= ngrid3;
   fprintf(stdout, "#\n");
   report_times(stderr, reader, mass_assignor, corr, total_time.elapsed_sec(),
-               nfft, ngrid3, mass_assignor.count());
+               grid_time.elapsed_sec(), nfft, ngrid3, mass_assignor.count());
   return 0;
 }
