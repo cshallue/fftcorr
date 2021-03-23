@@ -19,26 +19,26 @@ class WindowFunction {
  public:
   virtual ~WindowFunction() {}
   virtual int width() = 0;
-  virtual void add_particle_to_grid(const Particle& g,
+  virtual void add_particle_to_grid(const Particle& p,
                                     RowMajorArrayPtr<Float, 3>* dens) = 0;
 };
 
 class NearestCellWindow : public WindowFunction {
   int width() override { return 1; }
 
-  void add_particle_to_grid(const Particle& g,
+  void add_particle_to_grid(const Particle& p,
                             RowMajorArrayPtr<Float, 3>* dens) override {
-    int ix = floor(g.x);
-    int iy = floor(g.y);
-    int iz = floor(g.z);
-    dens->at(ix, iy, iz) += g.w;
+    int ix = floor(p.x);
+    int iy = floor(p.y);
+    int iz = floor(p.z);
+    dens->at(ix, iy, iz) += p.w;
   }
 };
 
 class CloudInCellWindow : public WindowFunction {
   int width() override { return 3; }
 
-  void add_particle_to_grid(const Particle& g,
+  void add_particle_to_grid(const Particle& p,
                             RowMajorArrayPtr<Float, 3>* dens) override {
     // This implementation can correctly handle a padded data layout, i.e. the
     // memory layout of dens is a row-major (C-contiguous) array with dimensions
@@ -54,17 +54,17 @@ class CloudInCellWindow : public WindowFunction {
     Float* d = dens->get_row(0, 0);
     // 27-point triangular cloud-in-cell.
     uint64 index;
-    int ix = floor(g.x);
-    int iy = floor(g.y);
-    int iz = floor(g.z);
+    int ix = floor(p.x);
+    int iy = floor(p.y);
+    int iz = floor(p.z);
 
-    Float rx = g.x - ix;
-    Float ry = g.y - iy;
-    Float rz = g.z - iz;
+    Float rx = p.x - ix;
+    Float ry = p.y - iy;
+    Float rz = p.z - iz;
     //
-    Float xm = 0.5 * (1 - rx) * (1 - rx) * g.w;
-    Float xp = 0.5 * rx * rx * g.w;
-    Float x0 = (0.5 + rx - rx * rx) * g.w;
+    Float xm = 0.5 * (1 - rx) * (1 - rx) * p.w;
+    Float xp = 0.5 * rx * rx * p.w;
+    Float x0 = (0.5 + rx - rx * rx) * p.w;
     Float ym = 0.5 * (1 - ry) * (1 - ry);
     Float yp = 0.5 * ry * ry;
     Float y0 = 0.5 + ry - ry * ry;
@@ -168,7 +168,7 @@ class CloudInCellWindow : public WindowFunction {
 class WaveletWindow : public WindowFunction {
   int width() override { return WCELLS; }
 
-  void add_particle_to_grid(const Particle& g,
+  void add_particle_to_grid(const Particle& p,
                             RowMajorArrayPtr<Float, 3>* dens) override {
     // This implementation can correctly handle a padded data layout, i.e. the
     // memory layout of dens is a row-major (C-contiguous) array with dimensions
@@ -183,12 +183,12 @@ class WaveletWindow : public WindowFunction {
     // cell and use a lookup table.  Table is set up so that each sub-cell
     // resolution has the values for the various integral cell offsets
     // contiguous in memory.
-    int ix = floor(g.x);
-    int iy = floor(g.y);
-    int iz = floor(g.z);
-    int sx = floor((g.x - ix) * WAVESAMPLE);
-    int sy = floor((g.y - iy) * WAVESAMPLE);
-    int sz = floor((g.z - iz) * WAVESAMPLE);
+    int ix = floor(p.x);
+    int iy = floor(p.y);
+    int iz = floor(p.z);
+    int sx = floor((p.x - ix) * WAVESAMPLE);
+    int sy = floor((p.y - iy) * WAVESAMPLE);
+    int sz = floor((p.z - iz) * WAVESAMPLE);
     const Float* xwave = wave + sx * WCELLS;
     const Float* ywave = wave + sy * WCELLS;
     const Float* zwave = wave + sz * WCELLS;
@@ -203,7 +203,7 @@ class WaveletWindow : public WindowFunction {
     Float* px = dens->get_row(ix, 0);
     for (int ox = 0; ox < WCELLS; ox++, px += ngrid2 * ng1) {
       if (ix + ox == ng0) px -= ng0 * ng1 * ngrid2;  // Periodic wrap in X
-      Float Dx = xwave[ox] * g.w;
+      Float Dx = xwave[ox] * p.w;
       Float* py = px + iy * ngrid2;
       for (int oy = 0; oy < WCELLS; oy++, py += ngrid2) {
         if (iy + oy == ng1) py -= ng1 * ngrid2;  // Periodic wrap in Y
