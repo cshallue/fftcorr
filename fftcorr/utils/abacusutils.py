@@ -63,27 +63,27 @@ def read_abacus_halos(file_pattern,
             with asdf.open(filename, lazy_load=True) as af:
                 pos = af.tree["data"]["x_com"]
                 weight = af.tree["data"]["N"]
+                n = pos.shape[0]
+                posw = buffer[:n]
                 with Timer() as io_timer:
                     # Force the arrays to load now so we can track IO time.
                     _ = pos[0][0]
-                    _ = weight[0][0]
+                    _ = weight[0]
                 io_time += io_timer.elapsed
-                if convert_units:
-                    with Timer() as unit_timer:
-                        pos *= box_size
-                    unit_time += unit_timer.elapsed
-                if wrap_boundaries:
-                    with Timer() as wrap_timer:
-                        pos += xmax
-                        np.mod(pos, xmax, out=pos)
-                        pos -= xmax
-                    wrap_time += wrap_timer.elapsed
-                n = pos.shape[0]
-                posw = buffer[:n]
                 with Timer() as copy_timer:
                     np.copyto(posw[:, :3], pos)
                     np.copyto(posw[:, 3], weight)
                 copy_time += copy_timer.elapsed
+                if convert_units:
+                    with Timer() as unit_timer:
+                        posw[:, :3] *= box_size
+                    unit_time += unit_timer.elapsed
+                if wrap_boundaries:
+                    with Timer() as wrap_timer:
+                        posw[:, :3] += xmax
+                        np.mod(posw[:, :3], xmax, out=posw[:, :3])
+                        posw[:, :3] -= xmax
+                    wrap_time += wrap_timer.elapsed
                 with Timer() as ma_timer:
                     ma.add_particles(posw)
                 ma_time += ma_timer.elapsed
