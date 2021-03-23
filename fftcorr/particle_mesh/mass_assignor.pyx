@@ -48,6 +48,10 @@ cdef class MassAssignor:
         return self._cc_ma.count()
 
     @property
+    def skipped(self) -> int:
+        return self._cc_ma.skipped()
+
+    @property
     def totw(self) -> Float:
         return self._cc_ma.totw()
 

@@ -77,8 +77,9 @@ def read_abacus_halos(file_pattern, ngrid, window_type):
                 total_weight += np.sum(weight)
 
     assert total_halos == halos_added
-    assert total_halos == ma.count
-    assert np.allclose(total_weight, ma.totw)
+    assert total_halos == ma.count + ma.skipped
+    if not ma.skipped:
+        assert np.allclose(total_weight, ma.totw)
 
     print()
     print("Setup time: {:2f} sec".format(setup_timer.elapsed))

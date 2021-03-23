@@ -21,12 +21,14 @@ class MassAssignor {
         window_func_(make_window_function(grid->window_type())),
         buffer_size_(buffer_size),
         count_(0),
+        skipped_(0),
         totw_(0),
         totwsq_(0) {
     gal_.reserve(buffer_size_);
   }
 
   int count() const { return count_; }
+  int skipped() const { return skipped_; }
   Float totw() const { return totw_; }
   Float totwsq() const { return totwsq_; }
   Float sort_time() const { return sort_time_.elapsed_sec(); }
@@ -39,6 +41,7 @@ class MassAssignor {
       // Expected on rare occasions where a particle is within numerical
       // precision of a right boundary.
       fprintf(stderr, "Skipping particle outside grid range\n");
+      skipped_ += 1;
       return;
     }
     gal_.push_back(Particle(x, y, z, w, index));
@@ -119,6 +122,7 @@ class MassAssignor {
   std::vector<Particle> buf_;  // Used for mergesort.
 
   int count_;
+  int skipped_;
   Float totw_;
   Float totwsq_;
 

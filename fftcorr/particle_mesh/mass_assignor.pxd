@@ -10,6 +10,7 @@ cdef extern from "mass_assignor.h":
     void add_particles(const RowMajorArrayPtr[Float, Two]&)
     void flush()
     int count()
+    int skipped()
     Float totw()
     Float totwsq()
     Float sort_time()
