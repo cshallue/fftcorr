@@ -34,7 +34,15 @@ class MassAssignor {
 
   void add_particle(Float x, Float y, Float z, Float w) {
     grid_->change_survey_to_grid_coords(x, y, z);
-    uint64 index = grid_->data().get_index(floor(x), floor(y), floor(z));
+    int ix = floor(x);
+    int iy = floor(y);
+    int iz = floor(z);
+    if (ix < 0 || ix >= grid_->ngrid(0) || iy < 0 || iy >= grid_->ngrid(1) ||
+        iz < 0 || iz >= grid_->ngrid(2)) {
+      fprintf(stderr, "Skipping particle outside grid range\n");
+      return;
+    }
+    uint64 index = grid_->data().get_index(ix, iy, iz);
     gal_.push_back(Particle(x, y, z, w, index));
     if (gal_.size() >= buffer_size_) {
       flush();
