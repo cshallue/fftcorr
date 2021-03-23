@@ -50,7 +50,6 @@ def read_abacus_halos(file_pattern, ngrid, window_type):
     with Timer() as work_timer:
         ma = MassAssignor(grid, buffer_size=10000)
         halos_added = 0
-        total_weight = 0
         io_time = 0.0
         ma_time = 0.0
         for filename in filenames:
@@ -74,12 +73,9 @@ def read_abacus_halos(file_pattern, ngrid, window_type):
                     ma.add_particles(posw)
                 ma_time += ma_timer.elapsed
                 halos_added += n
-                total_weight += np.sum(weight)
 
     assert total_halos == halos_added
     assert total_halos == ma.count + ma.skipped
-    if not ma.skipped:
-        assert np.allclose(total_weight, ma.totw)
 
     print()
     print("Setup time: {:2f} sec".format(setup_timer.elapsed))
