@@ -21,6 +21,7 @@ class ConfigSpaceGrid {
   // TODO: rename ngrid to shape.
   const std::array<int, 3>& ngrid() const { return ngrid_; }
   int ngrid(int i) const { return ngrid_[i]; }
+  uint64 size() const { return grid_.size(); }
   const std::array<Float, 3>& posmin() const { return posmin_; }
   Float posmin(int i) const { return posmin_[i]; }
   Float cell_size() const { return cell_size_; }
