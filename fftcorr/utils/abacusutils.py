@@ -69,11 +69,11 @@ def read_abacus_halos(file_pattern,
                     _ = weight[0][0]
                 io_time += io_timer.elapsed
                 if convert_units:
-                    with Timer() as unit_timer():
+                    with Timer() as unit_timer:
                         pos *= box_size
                     unit_time += unit_timer.elapsed
                 if wrap_boundaries:
-                    with Timer() as wrap_timer():
+                    with Timer() as wrap_timer:
                         pos += xmax
                         np.mod(pos, xmax, out=pos)
                         pos -= xmax
