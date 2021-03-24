@@ -29,16 +29,51 @@ cdef class MassAssignor:
     def __dealloc__(self):
         del self._cc_ma
 
+    cpdef clear(self):
+        self._cc_ma.clear()
+
     # TODO: make the below cdef?
 
-    def add_particle(self, Float x, Float y, Float z, Float w):
-        self._cc_ma.add_particle(x, y, z, w)
+    cpdef add_particles(self, Float[:, ::1] particles, weight=None):
+        particles = np.asarray(particles, order="C")
+        # TODO: wrap this?
+        cdef cnp.ndarray[cnp.npy_int] pshape = np.array(particles.shape, dtype=np.intc)
+        cdef RowMajorArrayPtr[Float, Two] pptr = RowMajorArrayPtr[Float, Two](
+            (<array[int, Two] *> &pshape[0])[0], &particles[0,0])
+        if particles.shape[1] == 4:
+            if weight is not None:
+                raise ValueError("Cannot pass weights twice")
+            return self._cc_ma.add_particles(pptr)
 
-    cpdef add_particles(self, Float[:, ::1] particles):
-        cdef cnp.ndarray[cnp.npy_int] shape = np.array(particles.shape, dtype=np.intc)
-        cdef RowMajorArrayPtr[Float, Two] arr = RowMajorArrayPtr[Float, Two](
-            (<array[int, Two] *> &shape[0])[0], &particles[0,0])
-        self._cc_ma.add_particles(arr)
+        if particles.shape[1] != 3:
+            raise ValueError(
+                "Expected particles to have shape (n, 3) or (n, 4). "
+                "Got: {}".format(particles.shape))
+
+        if weight is None:
+            weight = 1.0
+
+        weight = np.asarray(weight, order="C")
+        if not weight.shape:
+            # Weight is a scalar.
+            return self._cc_ma.add_particles(pptr, <Float> weight)
+
+        # Weight is an array.
+        if weight.shape != (particles.shape[0], ):
+            raise ValueError(
+                "Expected weight to be 1D with the same length as "
+                "particles. Got {} and {}".format(
+                    weight.shape, particles.shape))
+        cdef cnp.ndarray[cnp.npy_int] wshape = np.array(weight.shape, dtype=np.intc)
+        cdef Float[::1] weight_arr = weight
+        # TODO: wrap Array1D?
+        cdef RowMajorArrayPtr[Float, One] wptr = RowMajorArrayPtr[Float, One](
+            (<array[int, One] *> &wshape[0])[0], &weight_arr[0])
+        self._cc_ma.add_particles(pptr, wptr)
+
+
+    def add_particle_to_buffer(self, Float x, Float y, Float z, Float w):
+        self._cc_ma.add_particle_to_buffer(x, y, z, w)
 
     def flush(self):
         self._cc_ma.flush()

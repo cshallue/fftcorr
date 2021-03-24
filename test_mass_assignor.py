@@ -37,7 +37,7 @@ print("window time =", ma.window_time)
 print()
 
 print("adding particle")
-ma.add_particle(10, 10, 100, 12)
+ma.add_particle_to_buffer(10, 10, 100, 12)
 print("count =", ma.count)
 print("totw =", ma.totw)
 print("totwsq =", ma.totwsq)
@@ -59,4 +59,38 @@ print("sumsq =", g.sumsq())
 print("sort time =", ma.sort_time)
 print("window time =", ma.window_time)
 print(d.flatten())
+print()
+
+n = 10
+pos = np.random.uniform(posmin, posmax, size=(n, 3)).astype(np.float64)
+weight = np.arange(n, dtype=np.float64)
+
+# Add as a single posw array.
+g.clear()
+ma.clear()
+posw = np.empty(shape=(n, 4), dtype=np.float64)
+posw[:, :3] = pos
+posw[:, 3] = weight
+ma.add_particles(posw)
+print("count =", ma.count)
+print("totw =", ma.totw)
+print("sum =", g.sum())
+print()
+
+# Add as a position and weight array.
+g.clear()
+ma.clear()
+ma.add_particles(pos, weight)
+print("count =", ma.count)
+print("totw =", ma.totw)
+print("sum =", g.sum())
+print()
+
+# Add as a position and constant weight.
+g.clear()
+ma.clear()
+ma.add_particles(pos, 5.0)
+print("count =", ma.count)
+print("totw =", ma.totw)
+print("sum =", g.sum())
 print()

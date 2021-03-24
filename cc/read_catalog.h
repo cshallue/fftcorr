@@ -29,7 +29,7 @@ class SurveyReader {
     while ((nread = fread(&buffer_, sizeof(double), BUFFER_SIZE, fp)) > 0) {
       b = buffer_;
       for (int j = 0; j < nread; j += 4, b += 4) {
-        mass_assignor_->add_particle(b[0], b[1], b[2], b[3]);
+        mass_assignor_->add_particle_to_buffer(b[0], b[1], b[2], b[3]);
         ++count;
       }
       if (nread != BUFFER_SIZE) break;

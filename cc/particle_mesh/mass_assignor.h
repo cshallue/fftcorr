@@ -34,13 +34,59 @@ class MassAssignor {
   Float sort_time() const { return sort_time_.elapsed_sec(); }
   Float window_time() const { return window_time_.elapsed_sec(); }
 
-  void add_particle(Float x, Float y, Float z, Float w) {
+  void clear() {
+    gal_.clear();
+    count_ = 0;
+    skipped_ = 0;
+    totw_ = 0;
+    totwsq_ = 0;
+    sort_time_.clear();
+    window_time_.clear();
+  }
+
+  void add_particles(const RowMajorArrayPtr<Float, 2> &posw) {
+    assert(posw.shape(1) == 4);
+    const Float *row;
+    for (int i = 0; i < posw.shape(0); ++i) {
+      row = posw.get_row(i);
+      add_particle_to_buffer(row[0], row[1], row[2], row[3]);
+    }
+    flush();
+  }
+
+  void add_particles(const RowMajorArrayPtr<Float, 2> &pos,
+                     const ArrayPtr1D<Float> weights) {
+    assert(pos.shape(1) == 3);
+    assert(pos.shape(0) == weights.shape(0));
+    const Float *row;
+    const Float *w = weights.data();
+    for (int i = 0; i < pos.shape(0); ++i) {
+      row = pos.get_row(i);
+      add_particle_to_buffer(pos[0], pos[1], pos[2], w[i]);
+    }
+    flush();
+  }
+
+  void add_particles(const RowMajorArrayPtr<Float, 2> &pos, Float weight) {
+    assert(pos.shape(1) == 3);
+    const Float *row;
+    for (int i = 0; i < pos.shape(0); ++i) {
+      row = pos.get_row(i);
+      add_particle_to_buffer(pos[0], pos[1], pos[2], weight);
+    }
+    flush();
+  }
+
+  void add_particle_to_buffer(Float x, Float y, Float z, Float w) {
     grid_->change_survey_to_grid_coords(x, y, z);
     uint64 index = grid_->data().get_index(floor(x), floor(y), floor(z));
     if (index < 0 || index >= grid_->size()) {
       // Expected on rare occasions where a particle is within numerical
       // precision of a right boundary.
-      fprintf(stderr, "Skipping particle outside grid range\n");
+      fprintf(stderr,
+              "Skipping particle outside grid range: index = %llu, expected to "
+              "be in range [0, %llu)\n",
+              index, grid_->size());
       skipped_ += 1;
       return;
     }
@@ -51,16 +97,6 @@ class MassAssignor {
     count_ += 1;
     totw_ += w;
     totwsq_ += w * w;
-  }
-
-  void add_particles(const RowMajorArrayPtr<Float, 2> &particles) {
-    assert(particles.shape(1) == 4);
-    const Float *posw;
-    for (int i = 0; i < particles.shape(0); ++i) {
-      posw = particles.get_row(i);
-      add_particle(posw[0], posw[1], posw[2], posw[3]);
-    }
-    flush();
   }
 
   void flush() {
