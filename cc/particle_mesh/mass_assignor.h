@@ -27,8 +27,8 @@ class MassAssignor {
     gal_.reserve(buffer_size_);
   }
 
-  int count() const { return count_; }
-  int skipped() const { return skipped_; }
+  uint64 count() const { return count_; }
+  uint64 skipped() const { return skipped_; }
   Float totw() const { return totw_; }
   Float totwsq() const { return totwsq_; }
   Float sort_time() const { return sort_time_.elapsed_sec(); }
@@ -157,8 +157,8 @@ class MassAssignor {
   std::vector<Particle> gal_;
   std::vector<Particle> buf_;  // Used for mergesort.
 
-  int count_;
-  int skipped_;
+  uint64 count_;
+  uint64 skipped_;
   Float totw_;
   Float totwsq_;
 
