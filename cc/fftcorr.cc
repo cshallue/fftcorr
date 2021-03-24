@@ -348,7 +348,7 @@ int main(int argc, char *argv[]) {
   grid_time.stop();
 
   RowMajorArray<Float, 3> &dens = grid.data();
-  fprintf(stdout, "# Found %d particles. Total weight %10.4e.\n",
+  fprintf(stdout, "# Found %llu particles. Total weight %10.4e.\n",
           mass_assignor.count(), mass_assignor.totw());
   Float totw2 = array_ops::sum(dens);
   fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
