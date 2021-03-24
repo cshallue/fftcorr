@@ -80,9 +80,12 @@ def read_abacus_halos(file_pattern,
                     unit_time += unit_timer.elapsed
                 if wrap_boundaries:
                     with Timer() as wrap_timer:
-                        posw[:, :3] += xmax
-                        np.mod(posw[:, :3], xmax, out=posw[:, :3])
-                        posw[:, :3] -= xmax
+                        # Most files don't spill the boundary.
+                        if (posw[:, :3].min() < -xmax
+                                or posw[:, :3].max() >= xmax):
+                            posw[:, :3] += xmax
+                            np.mod(posw[:, :3], xmax, out=posw[:, :3])
+                            posw[:, :3] -= xmax
                     wrap_time += wrap_timer.elapsed
                 with Timer() as ma_timer:
                     ma.add_particles(posw)
