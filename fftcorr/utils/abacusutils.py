@@ -121,7 +121,6 @@ def read_abacus_halos(file_pattern,
 
 def read_abacus_particles(file_pattern,
                           grid,
-                          convert_units=True,
                           wrap_boundaries=False,
                           verbose=True,
                           buffer_size=10000):
@@ -135,6 +134,7 @@ def read_abacus_particles(file_pattern,
         io_time = 0.0
         wrap_time = 0.0
         ma_time = 0.0
+        box_size = None
         for filename in filenames:
             if verbose:
                 print("Reading", os.path.basename(filename))
