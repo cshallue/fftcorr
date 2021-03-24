@@ -88,7 +88,6 @@ def read_abacus_halos(file_pattern,
                     ma.add_particles(posw)
                 ma_time += ma_timer.elapsed
                 halos_added += n
-                total_weight += np.sum(weight)
 
     assert total_halos == halos_added
     assert total_halos == ma.count + ma.skipped
@@ -96,15 +95,15 @@ def read_abacus_halos(file_pattern,
         assert ma.skipped == 0
 
     print()
-    print("Setup time: {:2f} sec".format(setup_timer.elapsed))
-    print("Work time: {:2f} sec".format(work_timer.elapsed))
-    print("  IO time: {:2f} sec".format(io_time))
+    print("Setup time: {:.2f} sec".format(setup_timer.elapsed))
+    print("Work time: {:.2f} sec".format(work_timer.elapsed))
+    print("  IO time: {:.2f} sec".format(io_time))
     if convert_units:
-        print("  Convert units time: {:2f} sec".format(unit_time))
+        print("  Convert units time: {:.2f} sec".format(unit_time))
     if wrap_boundaries:
-        print("  Wrap time: {:2f} sec".format(wrap_time))
-    print("  Copy time: {:2f} sec".format(copy_time))
-    print("  Mass assignor time: {:2f} sec".format(ma_time))
-    print("    Sort time: {:2f} sec".format(ma.sort_time))
-    print("    Window time: {:2f} sec".format(ma.window_time))
+        print("  Wrap time: {:.2f} sec".format(wrap_time))
+    print("  Copy time: {:.2f} sec".format(copy_time))
+    print("  Mass assignor time: {:.2f} sec".format(ma_time))
+    print("    Sort time: {:.2f} sec".format(ma.sort_time))
+    print("    Window time: {:.2f} sec".format(ma.window_time))
     return grid
