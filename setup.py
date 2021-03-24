@@ -6,11 +6,12 @@ import os.path
 
 
 class CcLibrary(object):
-    def __init__(self, hdr, srcs=None, deps=None):
+    def __init__(self, hdr, srcs=None, deps=None, ext_libs=None):
         self.name = os.path.splitext(hdr)[0]
         self.hdr = hdr
         self.srcs = srcs if srcs else []
         self.deps = deps if deps else []
+        self.ext_libs = ext_libs if ext_libs else []
 
 
 class CcLibraries(object):
@@ -28,17 +29,19 @@ class CcLibraries(object):
     def find_deps(self, names):
         hdrs = []
         srcs = []
-        self._recursive_add_deps(names, hdrs, srcs)
-        return hdrs, srcs
+        ext_libs = []
+        self._recursive_add_deps(names, hdrs, srcs, ext_libs)
+        return hdrs, srcs, ext_libs
 
-    def _recursive_add_deps(self, names, hdrs, srcs):
+    def _recursive_add_deps(self, names, hdrs, srcs, ext_libs):
         for name in names:
             lib = self.libs[name]
             if lib.hdr in hdrs:
                 continue
             hdrs.append(lib.hdr)
             srcs.extend(lib.srcs)
-            self._recursive_add_deps(lib.deps, hdrs, srcs)
+            ext_libs.extend(lib.ext_libs)
+            self._recursive_add_deps(lib.deps, hdrs, srcs, ext_libs)
 
 
 class CythonLibrary(object):
@@ -102,7 +105,8 @@ cc_libs = CcLibraries([
                   "cc/array/array_ops",
                   "cc/array/row_major_array",
                   "cc/profiling/timer",
-              ]),
+              ],
+              ext_libs=["fftw3"]),
     CcLibrary("cc/histogram/histogram_list.h",
               deps=[
                   "cc/types",
@@ -188,17 +192,23 @@ for cython_lib in cython_libs.libs.values():
     name = cython_lib.name
     sources = cython_lib.srcs.copy()
     include_dirs = set([numpy.get_include()])
+    libraries = []
     cc_deps = set(cython_lib.cc_deps)
     for pyx_dep in cython_lib.pyx_deps:
         cc_deps.update(cython_libs.libs[pyx_dep].cc_deps)
     print("Finding dependencies for", name)
-    cc_hdrs, cc_src = cc_libs.find_deps(cc_deps)
+    cc_hdrs, cc_src, cc_ext_libs = cc_libs.find_deps(cc_deps)
     sources.extend(cc_src)
     include_dirs.update([os.path.dirname(hdr) for hdr in cc_hdrs])
+    libraries.extend(cc_ext_libs)
     print("sources:", sources)
     print("include_dirs:", include_dirs)
+    print("libraries:", libraries)
     print()
-    e = Extension(name, sources=sources, include_dirs=include_dirs)
+    e = Extension(name,
+                  sources=sources,
+                  include_dirs=include_dirs,
+                  libraries=libraries)
     e.language = "c++"
     e.cython_directives = {'language_level': "3"}  # Python 3
     e.extra_compile_args.append("-std=c++11")  # Use C++ 11
