@@ -14,7 +14,10 @@ def read_abacus_halos(file_pattern,
                       convert_units=True,
                       wrap_boundaries=False,
                       verbose=True):
-    filenames = glob.glob(file_pattern)
+    filenames = sorted(glob.glob(file_pattern))
+    if not filenames:
+        raise ValueError("Found no files matching {}".format(file_pattern))
+
     box_size = None
     total_halos = 0
     max_halos = 0
@@ -31,7 +34,7 @@ def read_abacus_halos(file_pattern,
                 total_halos += n
                 max_halos = max(max_halos, n)
         if verbose:
-            print("Found {} halos in {} files\n".format(
+            print("Found {:,} halos in {:,} files\n".format(
                 total_halos, len(filenames)))
 
         if not convert_units:
