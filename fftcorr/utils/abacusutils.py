@@ -1,6 +1,7 @@
 import os.path
 import glob
 
+from abacusnbody.data.read_abacus import read_asdf
 import asdf
 import numpy as np
 
@@ -13,7 +14,8 @@ def read_abacus_halos(file_pattern,
                       grid,
                       convert_units=True,
                       wrap_boundaries=False,
-                      verbose=True):
+                      verbose=True,
+                      buffer_size=10000):
     filenames = sorted(glob.glob(file_pattern))
     if not filenames:
         raise ValueError("Found no files matching {}".format(file_pattern))
@@ -45,7 +47,7 @@ def read_abacus_halos(file_pattern,
         if np.any(grid.posmin > xmin) or np.any(grid.posmax < xmax):
             raise ValueError(
                 "Grid does not cover halos: grid posmin = {}, halos posmin = {}"
-                ", grid posmax = {}, halos posmax ={}".format(
+                ", grid posmax = {}, halos posmax = {}".format(
                     grid.posmin, xmin, grid.posmax, xmax))
 
         # Space for the halos in each file.
@@ -54,7 +56,7 @@ def read_abacus_halos(file_pattern,
         buffer = np.empty((max_halos, 4), dtype=np.float64, order="C")
 
     with Timer() as work_timer:
-        ma = MassAssignor(grid, buffer_size=10000)
+        ma = MassAssignor(grid, buffer_size=buffer_size)
         halos_added = 0
         io_time = 0.0
         unit_time = 0.0
@@ -62,7 +64,8 @@ def read_abacus_halos(file_pattern,
         copy_time = 0.0
         ma_time = 0.0
         for filename in filenames:
-            print("Reading", os.path.basename(filename))
+            if verbose:
+                print("Reading", os.path.basename(filename))
             with asdf.open(filename, lazy_load=True) as af:
                 pos = af.tree["data"]["x_com"]
                 weight = af.tree["data"]["N"]
@@ -73,27 +76,27 @@ def read_abacus_halos(file_pattern,
                     _ = pos[0][0]
                     _ = weight[0]
                 io_time += io_timer.elapsed
-                with Timer() as copy_timer:
-                    np.copyto(posw[:, :3], pos)
-                    np.copyto(posw[:, 3], weight)
-                copy_time += copy_timer.elapsed
-                if convert_units:
-                    with Timer() as unit_timer:
-                        posw[:, :3] *= box_size
-                    unit_time += unit_timer.elapsed
-                if wrap_boundaries:
-                    with Timer() as wrap_timer:
-                        # Most files don't spill the boundary.
-                        if (posw[:, :3].min() < -xmax
-                                or posw[:, :3].max() >= xmax):
-                            posw[:, :3] += xmax
-                            np.mod(posw[:, :3], xmax, out=posw[:, :3])
-                            posw[:, :3] -= xmax
-                    wrap_time += wrap_timer.elapsed
-                with Timer() as ma_timer:
-                    ma.add_particles(posw)
-                ma_time += ma_timer.elapsed
-                halos_added += n
+            with Timer() as copy_timer:
+                np.copyto(posw[:, :3], pos)
+                np.copyto(posw[:, 3], weight)
+            copy_time += copy_timer.elapsed
+            if convert_units:
+                with Timer() as unit_timer:
+                    posw[:, :3] *= box_size
+                unit_time += unit_timer.elapsed
+            if wrap_boundaries:
+                with Timer() as wrap_timer:
+                    # Most files don't spill the boundary.
+                    if (posw[:, :3].min() < -xmax
+                            or posw[:, :3].max() >= xmax):
+                        posw[:, :3] += xmax
+                        np.mod(posw[:, :3], xmax, out=posw[:, :3])
+                        posw[:, :3] -= xmax
+                wrap_time += wrap_timer.elapsed
+            with Timer() as ma_timer:
+                ma.add_particles(posw)
+            ma_time += ma_timer.elapsed
+            halos_added += n
 
     assert total_halos == halos_added
     assert total_halos == ma.count + ma.skipped
@@ -113,4 +116,71 @@ def read_abacus_halos(file_pattern,
         print("    Sort time: {:.2f} sec".format(ma.sort_time))
         print("    Window time: {:.2f} sec".format(ma.window_time))
 
-    return total_halos
+    return ma.count
+
+
+def read_abacus_particles(file_pattern,
+                          grid,
+                          convert_units=True,
+                          wrap_boundaries=False,
+                          verbose=True,
+                          buffer_size=10000):
+    filenames = sorted(glob.glob(file_pattern))
+    if not filenames:
+        raise ValueError("Found no files matching {}".format(file_pattern))
+
+    with Timer() as work_timer:
+        ma = MassAssignor(grid, buffer_size=buffer_size)
+        particles_added = 0
+        io_time = 0.0
+        wrap_time = 0.0
+        ma_time = 0.0
+        for filename in filenames:
+            if verbose:
+                print("Reading", os.path.basename(filename))
+            with Timer() as io_timer:
+                table = read_asdf(filename,
+                                  load_pos=True,
+                                  load_vel=False,
+                                  dtype=np.float64)  # TODO: support float32
+            io_time += io_timer.elapsed
+
+            if box_size is None:
+                box_size = table.meta["BoxSize"]
+                xmax = box_size / 2
+                xmin = -xmax
+            assert box_size == table.meta["BoxSize"]
+
+            if np.any(grid.posmin > xmin) or np.any(grid.posmax < xmax):
+                raise ValueError(
+                    "Grid does not cover particles: grid posmin = {}, "
+                    "particles posmin = {}, grid posmax = {}, particles "
+                    "posmax = {}".format(grid.posmin, xmin, grid.posmax, xmax))
+
+            pos = table["pos"].data
+            if wrap_boundaries:
+                with Timer() as wrap_timer:
+                    # Most files don't spill the boundary.
+                    if (pos.min() < -xmax or pos.max() >= xmax):
+                        pos += xmax
+                        np.mod(pos, xmax, out=pos)
+                        pos -= xmax
+                wrap_time += wrap_timer.elapsed
+            with Timer() as ma_timer:
+                ma.add_particles(pos, weight=1.0)
+            ma_time += ma_timer.elapsed
+            particles_added += pos.shape[0]
+
+    if wrap_boundaries:
+        assert ma.skipped == 0
+
+    if verbose:
+        print("Work time: {:.2f} sec".format(work_timer.elapsed))
+        print("  IO time: {:.2f} sec".format(io_time))
+        if wrap_boundaries:
+            print("  Wrap time: {:.2f} sec".format(wrap_time))
+        print("  Mass assignor time: {:.2f} sec".format(ma_time))
+        print("    Sort time: {:.2f} sec".format(ma.sort_time))
+        print("    Window time: {:.2f} sec".format(ma.window_time))
+
+    return ma.count
