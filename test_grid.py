@@ -6,9 +6,11 @@ print(dir(fftcorr.grid))
 
 ngrid = [2, 2, 2]
 posmin = [2, -5, 77]
+posmax = [50, 45, 120]
 cell_size = 25
 g = fftcorr.grid.ConfigSpaceGrid(shape=ngrid,
                                  posmin=posmin,
+                                 posmax=posmax,
                                  cell_size=cell_size,
                                  window_type=0)
 print(g.cell_size)
@@ -24,6 +26,16 @@ print("sum =", g.sum())
 print("sumsq =", g.sumsq())
 print("Adding 3")
 g.add_scalar(3)
+print("sum =", g.sum())
+print("sumsq =", g.sumsq())
+print()
+
+print("clearing")
+g.clear()
+print("sum =", g.sum())
+print("sumsq =", g.sumsq())
+print("Adding 2")
+g.add_scalar(2)
 print("sum =", g.sum())
 print("sumsq =", g.sumsq())
 print()
@@ -61,6 +73,7 @@ print()
 try:
     fftcorr.grid.ConfigSpaceGrid(shape=[2, 2],
                                  posmin=posmin,
+                                 posmax=posmax,
                                  cell_size=cell_size,
                                  window_type=0)
 except ValueError as e:

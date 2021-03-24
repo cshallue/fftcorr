@@ -6,6 +6,7 @@ cdef extern from "config_space_grid.h":
   cdef cppclass ConfigSpaceGrid_cc "ConfigSpaceGrid":
     ConfigSpaceGrid_cc(array[int, Three], array[Float, Three], Float, int) except +
     Float cell_size()
+    void clear()
     void add_scalar(Float s)
     void multiply_by(Float s)
     Float sum()

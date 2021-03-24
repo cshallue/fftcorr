@@ -144,6 +144,9 @@ cdef class ConfigSpaceGrid:
     def data(self):
         return self._data_arr
 
+    def clear(self):
+        self._cc_grid.clear()
+
     def write(self, filename):
         import asdf  # TODO: move to top level?
         tree = {

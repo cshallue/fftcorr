@@ -16,7 +16,9 @@ class ConfigSpaceGrid {
         posmin_(posmin),
         cell_size_(cell_size),
         window_type_(window_type),
-        grid_(ngrid_) {}
+        grid_(ngrid_) {
+    clear();
+  }
 
   // TODO: rename ngrid to shape.
   const std::array<int, 3>& ngrid() const { return ngrid_; }
@@ -29,6 +31,8 @@ class ConfigSpaceGrid {
   // TODO: needed for MassAssignor and for fftcorr.cpp normalization.
   RowMajorArray<Float, 3>& data() { return grid_; }
   const RowMajorArray<Float, 3>& data() const { return grid_; }
+
+  void clear() { array_ops::set_all(0.0, grid_); }
 
   // TODO: just for testing wrapping; delete.
   void add_scalar(Float s) { array_ops::add_scalar(s, grid_); }
