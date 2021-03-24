@@ -10,10 +10,10 @@ from fftcorr.utils import Timer
 
 
 def read_abacus_halos(file_pattern,
-                      ngrid,
-                      window_type,
+                      grid,
                       convert_units=True,
-                      wrap_boundaries=False):
+                      wrap_boundaries=False,
+                      verbose=True):
     filenames = glob.glob(file_pattern)
     box_size = None
     total_halos = 0
@@ -30,20 +30,20 @@ def read_abacus_halos(file_pattern,
                 n = af.tree["data"]["N"].shape[0]  # Doesn't load data.
                 total_halos += n
                 max_halos = max(max_halos, n)
-        print("Found {} halos in {} files".format(total_halos, len(filenames)))
+        if verbose:
+            print("Found {} halos in {} files\n".format(
+                total_halos, len(filenames)))
 
         if not convert_units:
             box_size = 1.0
 
-        print("Box size:", box_size)
         xmax = box_size / 2
-        posmin = [-xmax] * 3
-        posmax = [xmax] * 3
-        grid = ConfigSpaceGrid(shape=ngrid,
-                               posmin=posmin,
-                               posmax=posmax,
-                               window_type=window_type)
-        print()
+        xmin = -xmax
+        if np.any(grid.posmin > xmin) or np.any(grid.posmax < xmax):
+            raise ValueError(
+                "Grid does not cover halos: grid posmin = {}, halos posmin = {}"
+                ", grid posmax = {}, halos posmax ={}".format(
+                    grid.posmin, xmin, grid.posmax, xmax))
 
         # Space for the halos in each file.
         # TODO: the halos are actually float32s, so we could make the mass
@@ -97,16 +97,17 @@ def read_abacus_halos(file_pattern,
     if wrap_boundaries:
         assert ma.skipped == 0
 
-    print()
-    print("Setup time: {:.2f} sec".format(setup_timer.elapsed))
-    print("Work time: {:.2f} sec".format(work_timer.elapsed))
-    print("  IO time: {:.2f} sec".format(io_time))
-    if convert_units:
-        print("  Convert units time: {:.2f} sec".format(unit_time))
-    if wrap_boundaries:
-        print("  Wrap time: {:.2f} sec".format(wrap_time))
-    print("  Copy time: {:.2f} sec".format(copy_time))
-    print("  Mass assignor time: {:.2f} sec".format(ma_time))
-    print("    Sort time: {:.2f} sec".format(ma.sort_time))
-    print("    Window time: {:.2f} sec".format(ma.window_time))
-    return grid
+    if verbose:
+        print("Setup time: {:.2f} sec".format(setup_timer.elapsed))
+        print("Work time: {:.2f} sec".format(work_timer.elapsed))
+        print("  IO time: {:.2f} sec".format(io_time))
+        if convert_units:
+            print("  Convert units time: {:.2f} sec".format(unit_time))
+        if wrap_boundaries:
+            print("  Wrap time: {:.2f} sec".format(wrap_time))
+        print("  Copy time: {:.2f} sec".format(copy_time))
+        print("  Mass assignor time: {:.2f} sec".format(ma_time))
+        print("    Sort time: {:.2f} sec".format(ma.sort_time))
+        print("    Window time: {:.2f} sec".format(ma.window_time))
+
+    return total_halos
