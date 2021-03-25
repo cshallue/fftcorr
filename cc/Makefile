@@ -9,6 +9,7 @@ CXXFLAGS = -std=c++0x -Wall
 
 use_omp = false
 ifeq ($(use_omp),true)
+  # http://www.fftw.org/fftw3_doc/Usage-of-Multi_002dthreaded-FFTW.html
   FFTW += -lfftw3_threads -lm
   CXX = g++ -march=native -fopenmp -lgomp # -fopt-info-vec-missed -fopt-info-vec-optimized
   CXXFLAGS += -O3 -DOPENMP # -DFFTSLAB -DSLAB

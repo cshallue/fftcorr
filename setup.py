@@ -4,6 +4,8 @@ from Cython.Distutils import build_ext
 
 import os.path
 
+OPENMP = False
+
 
 class CcLibrary(object):
     def __init__(self, hdr, srcs=None, deps=None, ext_libs=None):
@@ -98,15 +100,16 @@ cc_libs = CcLibraries([
                   "cc/array/array_ops",
                   "cc/particle_mesh/window_functions",
               ]),
-    CcLibrary("cc/grid/fft_grid.h",
-              srcs=["cc/grid/fft_grid.cc"],
-              deps=[
-                  "cc/types",
-                  "cc/array/array_ops",
-                  "cc/array/row_major_array",
-                  "cc/profiling/timer",
-              ],
-              ext_libs=["fftw3"]),
+    CcLibrary(
+        "cc/grid/fft_grid.h",
+        srcs=["cc/grid/fft_grid.cc"],
+        deps=[
+            "cc/types",
+            "cc/array/array_ops",
+            "cc/array/row_major_array",
+            "cc/profiling/timer",
+        ],
+        ext_libs=(["fftw3", "fftw3_threads", "m"] if OPENMP else ["fftw3"])),
     CcLibrary("cc/histogram/histogram_list.h",
               deps=[
                   "cc/types",
@@ -208,10 +211,20 @@ for cython_lib in cython_libs.libs.values():
     e = Extension(name,
                   sources=sources,
                   include_dirs=include_dirs,
-                  libraries=libraries)
-    e.language = "c++"
-    e.cython_directives = {'language_level': "3"}  # Python 3
-    e.extra_compile_args.append("-std=c++11")  # Use C++ 11
+                  libraries=libraries,
+                  language="c++",
+                  extra_compile_args=["-std=c++11"])
+    if OPENMP:
+        e.extra_compile_args.append("-march=native")
+        e.extra_compile_args.append("-fopenmp")
+        e.extra_compile_args.append("-lgomp")
+        e.extra_compile_args.append("-O3")
+        e.define_macros.append(("OPENMP", None))
+        # e.define_macros.append(("SLAB", None))
+        # e.define_macros.append(("FFTSLAB", None))
+    else:
+        e.extra_compile_args.append("-O2")
+        e.extra_compile_args.append("-Wno-unknown-pragmas")
     # https://github.com/cython/cython/issues/3474
     # TODO: remove this when the issue is fixed.
     e.extra_compile_args.append("-Wno-deprecated-declarations")
@@ -221,6 +234,7 @@ for cython_lib in cython_libs.libs.values():
     e.extra_compile_args.append("-Wno-unused-variable")
     # http://docs.cython.org/en/latest/src/userguide/source_files_and_compilation.html#configuring-the-c-build
     e.define_macros.append(('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'))
+    e.cython_directives = {'language_level': "3"}  # Python 3
     ext_modules.append(e)
 
 setup(
