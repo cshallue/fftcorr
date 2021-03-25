@@ -68,7 +68,7 @@ class MassAssignor {
     const Float *w = weights.data();
     for (int i = 0; i < pos.shape(0); ++i) {
       row = pos.get_row(i);
-      add_particle_to_buffer(pos[0], pos[1], pos[2], w[i]);
+      add_particle_to_buffer(row[0], row[1], row[2], w[i]);
     }
     flush();
   }
@@ -78,7 +78,7 @@ class MassAssignor {
     const Float *row;
     for (int i = 0; i < pos.shape(0); ++i) {
       row = pos.get_row(i);
-      add_particle_to_buffer(pos[0], pos[1], pos[2], weight);
+      add_particle_to_buffer(row[0], row[1], row[2], weight);
     }
     flush();
   }
