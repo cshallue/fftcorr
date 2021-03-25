@@ -217,11 +217,11 @@ for cython_lib in cython_libs.libs.values():
     if OPENMP:
         e.extra_compile_args.append("-march=native")
         e.extra_compile_args.append("-fopenmp")
-        e.extra_compile_args.append("-lgomp")
         e.extra_compile_args.append("-O3")
         e.define_macros.append(("OPENMP", None))
         # e.define_macros.append(("SLAB", None))
         # e.define_macros.append(("FFTSLAB", None))
+        e.libraries.append("gomp")
     else:
         e.extra_compile_args.append("-O2")
         e.extra_compile_args.append("-Wno-unknown-pragmas")
