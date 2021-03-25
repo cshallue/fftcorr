@@ -2,6 +2,7 @@
 
 #include <assert.h>
 
+#include "../multithreading.h"
 #include "row_major_array.h"
 
 namespace array_ops {
@@ -87,7 +88,7 @@ void copy_into_padded_array(const RowMajorArrayPtr<Float, 3> &in,
 void add_scalar(Float s, RowMajorArray<Float, 3> &arr) {
   Float *data = arr.data();
 #ifdef SLAB
-  int nx = shape_[0];
+  int nx = arr.shape(0);
   const uint64 nyz = arr.size() / nx;
 #pragma omp parallel for MY_SCHEDULE
   for (int x = 0; x < nx; ++x) {
@@ -108,7 +109,7 @@ void add_scalar(Float s, RowMajorArray<Float, 3> &arr) {
 void multiply_by(Float s, RowMajorArray<Float, 3> &arr) {
   Float *data = arr.data();
 #ifdef SLAB
-  int nx = shape_[0];
+  int nx = arr.shape(0);
   const uint64 nyz = arr.size() / nx;
 #pragma omp parallel for MY_SCHEDULE
   for (int x = 0; x < nx; ++x) {
@@ -129,11 +130,11 @@ Float sum(const RowMajorArray<Float, 3> &arr) {
   const Float *data = arr.data();
   Float tot = 0.0;
 #ifdef SLAB
-  int nx = shape_[0];
+  int nx = arr.shape(0);
   const uint64 nyz = arr.size() / nx;
 #pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
   for (int x = 0; x < nx; ++x) {
-    Float *slab = data + x * nyz;
+    const Float *slab = data + x * nyz;
     for (uint64 i = 0; i < nyz; ++i) {
       tot += slab[i];
     }
@@ -152,11 +153,11 @@ Float sumsq(const RowMajorArray<Float, 3> &arr) {
   const Float *data = arr.data();
   Float tot = 0.0;
 #ifdef SLAB
-  int nx = shape_[0];
+  int nx = arr.shape(0);
   const uint64 nyz = arr.size() / nx;
 #pragma omp parallel for MY_SCHEDULE reduction(+ : tot)
   for (int x = 0; x < nx; ++x) {
-    Float *slab = data + x * nyz;
+    const Float *slab = data + x * nyz;
     for (uint64 i = 0; i < nyz; ++i) {
       tot += slab[i];
     }

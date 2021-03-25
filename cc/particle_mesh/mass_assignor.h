@@ -24,6 +24,12 @@ class MassAssignor {
         skipped_(0),
         totw_(0),
         totwsq_(0) {
+    // TODO: for development, remove.
+#ifdef OPENMP
+    fprintf(stderr, "# Running with %d threads\n", omp_get_max_threads());
+#else
+    fprintf(stderr, "# Running single threaded.\n");
+#endif
     gal_.reserve(buffer_size_);
   }
 

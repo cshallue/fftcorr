@@ -6,6 +6,7 @@
 #include <array>
 
 #include "../array/row_major_array.h"
+#include "../multithreading.h"
 #include "../types.h"
 
 // Evaluates the spherical harmonic function Y_lm on a Cartesian grid.

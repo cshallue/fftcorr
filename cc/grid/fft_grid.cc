@@ -3,6 +3,7 @@
 #include <assert.h>
 
 #include "../array/array_ops.h"
+#include "../multithreading.h"
 
 FftGrid::FftGrid(std::array<int, 3> shape) {
   setup_time_.start();
