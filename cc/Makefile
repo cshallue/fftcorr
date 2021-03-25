@@ -1,6 +1,6 @@
 # For my MacBook
 FFTW_INCLUDE = -I ~/miniconda3/envs/fftcorr/include
-FFTW = -L ~/miniconda3/envs/fftcorr/lib -lfftw3
+FFTW = ${FFTW_INCLUDE} -L ~/miniconda3/envs/fftcorr/lib -lfftw3
 CXXFLAGS = -std=c++0x -Wall
 #CXXFLAGS = -g ${FFTW} 
 
