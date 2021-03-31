@@ -57,7 +57,6 @@ class MassAssignor {
       row = posw.get_row(i);
       add_particle_to_buffer(row[0], row[1], row[2], row[3]);
     }
-    flush();
   }
 
   void add_particles_to_buffer(const RowMajorArrayPtr<Float, 2> &pos,
@@ -70,7 +69,6 @@ class MassAssignor {
       row = pos.get_row(i);
       add_particle_to_buffer(row[0], row[1], row[2], w[i]);
     }
-    flush();
   }
 
   void add_particles_to_buffer(const RowMajorArrayPtr<Float, 2> &pos,
@@ -81,7 +79,6 @@ class MassAssignor {
       row = pos.get_row(i);
       add_particle_to_buffer(row[0], row[1], row[2], weight);
     }
-    flush();
   }
 
   void add_particle_to_buffer(Float x, Float y, Float z, Float w) {
