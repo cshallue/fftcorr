@@ -90,10 +90,9 @@ class MassAssignor {
     if (index < 0 || index >= grid_->size()) {
       // Expected on rare occasions where a particle is within numerical
       // precision of a right boundary.
-      fprintf(stderr,
-              "Skipping particle outside grid range: index = %llu, expected to "
-              "be in range [0, %llu)\n",
-              index, grid_->size());
+      // fprintf(stderr,
+      //         "Skipping particle outside grid range: index = %llu, expected
+      //         to be in range [0, %llu)\n", index, grid_->size());
       skipped_ += 1;
       return;
     }
