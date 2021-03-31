@@ -76,13 +76,13 @@ def read_abacus_halos(file_pattern,
                     _ = raw_pos[0][0]
                     _ = raw_weight[0]
                 io_time += io_timer.elapsed
-            # Copy into buffers.
-            pos = pos_buf[:n]
-            weight = weight_buf[:n]
-            with Timer() as copy_timer:
-                np.copyto(pos, raw_pos)
-                np.copyto(weight, raw_weight)
-            copy_time += copy_timer.elapsed
+                # Copy into buffers.
+                pos = pos_buf[:n]
+                weight = weight_buf[:n]
+                with Timer() as copy_timer:
+                    np.copyto(pos, raw_pos)
+                    np.copyto(weight, raw_weight)
+                copy_time += copy_timer.elapsed
             if convert_units:
                 with Timer() as unit_timer:
                     pos *= box_size
@@ -96,7 +96,9 @@ def read_abacus_halos(file_pattern,
                         pos -= xmax
                 wrap_time += wrap_timer.elapsed
             with Timer() as ma_timer:
-                ma.add_particles(pos, weight)
+                ma.add_particles_to_buffer(pos, weight)
+                if filename == filenames[-1]:
+                    ma.flush()  # Last file.
             ma_time += ma_timer.elapsed
             halos_added += n
 

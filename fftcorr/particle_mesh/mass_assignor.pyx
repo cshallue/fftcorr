@@ -32,9 +32,11 @@ cdef class MassAssignor:
     cpdef clear(self):
         self._cc_ma.clear()
 
-    # TODO: make the below cdef?
-
     cpdef add_particles(self, Float[:, ::1] particles, weight=None):
+        self.add_particles_to_buffer(particles, weight)
+        self.flush()
+
+    cpdef add_particles_to_buffer(self, Float[:, ::1] particles, weight=None):
         particles = np.asarray(particles, order="C")
         # TODO: wrap this?
         cdef cnp.ndarray[cnp.npy_int] pshape = np.array(particles.shape, dtype=np.intc)
@@ -43,7 +45,7 @@ cdef class MassAssignor:
         if particles.shape[1] == 4:
             if weight is not None:
                 raise ValueError("Cannot pass weights twice")
-            return self._cc_ma.add_particles(pptr)
+            return self._cc_ma.add_particles_to_buffer(pptr)
 
         if particles.shape[1] != 3:
             raise ValueError(
@@ -56,7 +58,7 @@ cdef class MassAssignor:
         weight = np.asarray(weight, order="C")
         if not weight.shape:
             # Weight is a scalar.
-            return self._cc_ma.add_particles(pptr, <Float> weight)
+            return self._cc_ma.add_particles_to_buffer(pptr, <Float> weight)
 
         # Weight is an array.
         if weight.shape != (particles.shape[0], ):
@@ -69,13 +71,13 @@ cdef class MassAssignor:
         # TODO: wrap Array1D?
         cdef RowMajorArrayPtr[Float, One] wptr = RowMajorArrayPtr[Float, One](
             (<array[int, One] *> &wshape[0])[0], &weight_arr[0])
-        self._cc_ma.add_particles(pptr, wptr)
+        return self._cc_ma.add_particles_to_buffer(pptr, wptr)
 
 
-    def add_particle_to_buffer(self, Float x, Float y, Float z, Float w):
+    cpdef add_particle_to_buffer(self, Float x, Float y, Float z, Float w):
         self._cc_ma.add_particle_to_buffer(x, y, z, w)
 
-    def flush(self):
+    cpdef flush(self):
         self._cc_ma.flush()
 
     @property

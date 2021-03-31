@@ -50,7 +50,7 @@ class MassAssignor {
     window_time_.clear();
   }
 
-  void add_particles(const RowMajorArrayPtr<Float, 2> &posw) {
+  void add_particles_to_buffer(const RowMajorArrayPtr<Float, 2> &posw) {
     assert(posw.shape(1) == 4);
     const Float *row;
     for (int i = 0; i < posw.shape(0); ++i) {
@@ -60,8 +60,8 @@ class MassAssignor {
     flush();
   }
 
-  void add_particles(const RowMajorArrayPtr<Float, 2> &pos,
-                     const ArrayPtr1D<Float> weights) {
+  void add_particles_to_buffer(const RowMajorArrayPtr<Float, 2> &pos,
+                               const ArrayPtr1D<Float> weights) {
     assert(pos.shape(1) == 3);
     assert(pos.shape(0) == weights.shape(0));
     const Float *row;
@@ -73,7 +73,8 @@ class MassAssignor {
     flush();
   }
 
-  void add_particles(const RowMajorArrayPtr<Float, 2> &pos, Float weight) {
+  void add_particles_to_buffer(const RowMajorArrayPtr<Float, 2> &pos,
+                               Float weight) {
     assert(pos.shape(1) == 3);
     const Float *row;
     for (int i = 0; i < pos.shape(0); ++i) {
