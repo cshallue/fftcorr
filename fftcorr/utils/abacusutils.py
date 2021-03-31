@@ -53,7 +53,8 @@ def read_abacus_halos(file_pattern,
         # Space for the halos in each file.
         # TODO: the halos are actually float32s, so we could make the mass
         # assignor accept that type as well.
-        buffer = np.empty((max_halos, 4), dtype=np.float64, order="C")
+        pos_buf = np.empty((max_halos, 3), dtype=np.float64, order="C")
+        weight_buf = np.empty((max_halos, ), dtype=np.float64, order="C")
 
     with Timer() as work_timer:
         ma = MassAssignor(grid, buffer_size=buffer_size)
@@ -67,34 +68,35 @@ def read_abacus_halos(file_pattern,
             if verbose:
                 print("Reading", os.path.basename(filename))
             with asdf.open(filename, lazy_load=True) as af:
-                pos = af.tree["data"]["x_com"]
-                weight = af.tree["data"]["N"]
-                n = pos.shape[0]
-                posw = buffer[:n]
+                raw_pos = af.tree["data"]["x_com"]
+                raw_weight = af.tree["data"]["N"]
+                n = raw_pos.shape[0]
                 with Timer() as io_timer:
                     # Force the arrays to load now so we can track IO time.
-                    _ = pos[0][0]
-                    _ = weight[0]
+                    _ = raw_pos[0][0]
+                    _ = raw_weight[0]
                 io_time += io_timer.elapsed
+            # Copy into buffers.
+            pos = pos_buf[:n]
+            weight = weight_buf[:n]
             with Timer() as copy_timer:
-                np.copyto(posw[:, :3], pos)
-                np.copyto(posw[:, 3], weight)
+                np.copyto(pos, raw_pos)
+                np.copyto(weight, raw_weight)
             copy_time += copy_timer.elapsed
             if convert_units:
                 with Timer() as unit_timer:
-                    posw[:, :3] *= box_size
+                    pos *= box_size
                 unit_time += unit_timer.elapsed
             if wrap_boundaries:
                 with Timer() as wrap_timer:
                     # Most files don't spill the boundary.
-                    if (posw[:, :3].min() < -xmax
-                            or posw[:, :3].max() >= xmax):
-                        posw[:, :3] += xmax
-                        np.mod(posw[:, :3], xmax, out=posw[:, :3])
-                        posw[:, :3] -= xmax
+                    if (pos.min() < -xmax or pos.max() >= xmax):
+                        pos += xmax
+                        np.mod(pos, xmax, out=pos)
+                        pos -= xmax
                 wrap_time += wrap_timer.elapsed
             with Timer() as ma_timer:
-                ma.add_particles(posw)
+                ma.add_particles(pos, weight)
             ma_time += ma_timer.elapsed
             halos_added += n
 
