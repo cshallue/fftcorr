@@ -43,11 +43,34 @@ cdef class FftGrid:
     def data(self):
         return self._data_arr
 
+    @property
+    def setup_time(self):
+        return self._cc_grid.setup_time()
+
+    @property
+    def plan_time(self):
+        return self._cc_grid.plan_time()
+
+    @property
+    def fft_time(self):
+        return self._cc_grid.fft_time()
+
+    @property
+    def extract_time(self):
+        return self._cc_grid.extract_time()
+
+    @property
+    def convolve_time(self):
+        return self._cc_grid.convolve_time()
+
     def execute_fft(self):
         self._cc_grid.execute_fft()
 
     def execute_ifft(self):
         self._cc_grid.execute_ifft()
+
+    cpdef convolve_with_gaussian(self, Float sigma):
+        self._cc_grid.convolve_with_gaussian(sigma)
 
     cpdef extract_submatrix(self, Float[:, :, ::1] out):
         # TODO: I'm creating a new (thin) wrapper class every time this is
