@@ -52,7 +52,7 @@ def read_abacus_halos(file_pattern,
 
         # Space for the halos in each file.
         # TODO: the halos are actually float32s, so we could make the mass
-        # assignor accept that type as well.
+        # assignor accept that type without needing to cast.
         pos_buf = np.empty((max_halos, 3), dtype=np.float64, order="C")
         weight_buf = np.empty((max_halos, ), dtype=np.float64, order="C")
 
@@ -90,10 +90,10 @@ def read_abacus_halos(file_pattern,
             if wrap_boundaries:
                 with Timer() as wrap_timer:
                     # Most files don't spill the boundary.
-                    if (pos.min() < -xmax or pos.max() >= xmax):
-                        pos += xmax
-                        np.mod(pos, xmax, out=pos)
-                        pos -= xmax
+                    if (pos.min() < xmin or pos.max() >= xmax):
+                        pos -= xmin
+                        np.mod(pos, box_size, out=pos)
+                        pos += xmin
                 wrap_time += wrap_timer.elapsed
             with Timer() as ma_timer:
                 ma.add_particles_to_buffer(pos, weight)
@@ -165,10 +165,10 @@ def read_abacus_particles(file_pattern,
             if wrap_boundaries:
                 with Timer() as wrap_timer:
                     # Most files don't spill the boundary.
-                    if (pos.min() < -xmax or pos.max() >= xmax):
-                        pos += xmax
-                        np.mod(pos, xmax, out=pos)
-                        pos -= xmax
+                    if (pos.min() < xmin or pos.max() >= xmax):
+                        pos -= xmin
+                        np.mod(pos, box_size, out=pos)
+                        pos += xmin
                 wrap_time += wrap_timer.elapsed
             with Timer() as ma_timer:
                 ma.add_particles(pos, weight=1.0)
