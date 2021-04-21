@@ -10,12 +10,7 @@ from fftcorr.particle_mesh import MassAssignor
 from fftcorr.utils import Timer
 
 
-def read_abacus_halos(file_pattern,
-                      grid,
-                      convert_units=True,
-                      wrap_boundaries=False,
-                      verbose=True,
-                      buffer_size=10000):
+def read_abacus_halos(file_pattern, grid, verbose=True, buffer_size=10000):
     filenames = sorted(glob.glob(file_pattern))
     if not filenames:
         raise ValueError("Found no files matching {}".format(file_pattern))
@@ -39,9 +34,7 @@ def read_abacus_halos(file_pattern,
             print("Found {:,} halos in {:,} files\n".format(
                 total_halos, len(filenames)))
 
-        if not convert_units:
-            box_size = 1.0
-
+        assert box_size > 0
         xmax = box_size / 2
         xmin = -xmax
         if np.any(grid.posmin > xmin) or np.any(grid.posmax < xmax):
@@ -58,10 +51,10 @@ def read_abacus_halos(file_pattern,
 
     with Timer() as work_timer:
         ma = MassAssignor(grid, buffer_size=buffer_size)
-        halos_added = 0
+        halos_seen = 0
+        halos_skipped = 0
         io_time = 0.0
         unit_time = 0.0
-        wrap_time = 0.0
         copy_time = 0.0
         ma_time = 0.0
         for filename in filenames:
@@ -83,38 +76,31 @@ def read_abacus_halos(file_pattern,
                     np.copyto(pos, raw_pos)
                     np.copyto(weight, raw_weight)
                 copy_time += copy_timer.elapsed
-            if convert_units:
-                with Timer() as unit_timer:
-                    pos *= box_size
-                unit_time += unit_timer.elapsed
-            if wrap_boundaries:
-                with Timer() as wrap_timer:
-                    # Most files don't spill the boundary.
-                    if (pos.min() < xmin or pos.max() >= xmax):
-                        pos -= xmin
-                        np.mod(pos, box_size, out=pos)
-                        pos += xmin
-                wrap_time += wrap_timer.elapsed
+            with Timer() as unit_timer:
+                pos *= box_size
+            unit_time += unit_timer.elapsed
+            if not grid.is_periodic and (pos.min() < xmin or pos.max() >= xmax):
+                num_skip = np.sum(np.logical_or(pos < xmin, pos >= xmax))
+                if verbose:
+                    print("{:,g} halos falling outside the grid will be "
+                          "skipped".format(num_skip))
+                halos_skipped += num_skip
             with Timer() as ma_timer:
                 ma.add_particles_to_buffer(pos, weight)
                 if filename == filenames[-1]:
                     ma.flush()  # Last file.
             ma_time += ma_timer.elapsed
-            halos_added += n
+            halos_seen += n
 
-    assert total_halos == halos_added
-    assert total_halos == ma.count + ma.skipped
-    if wrap_boundaries:
-        assert ma.skipped == 0
+    assert halos_seen == total_halos
+    assert ma.count + ma.skipped == halos_seen
+    assert ma.skipped = halos_skipped
 
     if verbose:
         print("Setup time: {:.2f} sec".format(setup_timer.elapsed))
         print("Work time: {:.2f} sec".format(work_timer.elapsed))
         print("  IO time: {:.2f} sec".format(io_time))
-        if convert_units:
-            print("  Convert units time: {:.2f} sec".format(unit_time))
-        if wrap_boundaries:
-            print("  Wrap time: {:.2f} sec".format(wrap_time))
+        print("  Convert units time: {:.2f} sec".format(unit_time))
         print("  Copy time: {:.2f} sec".format(copy_time))
         print("  Mass assignor time: {:.2f} sec".format(ma_time))
         print("    Sort time: {:.2f} sec".format(ma.sort_time))
@@ -125,7 +111,6 @@ def read_abacus_halos(file_pattern,
 
 def read_abacus_particles(file_pattern,
                           grid,
-                          wrap_boundaries=False,
                           verbose=True,
                           buffer_size=10000):
     filenames = sorted(glob.glob(file_pattern))
@@ -134,9 +119,9 @@ def read_abacus_particles(file_pattern,
 
     with Timer() as work_timer:
         ma = MassAssignor(grid, buffer_size=buffer_size)
-        particles_added = 0
+        particles_seen = 0
+        particles_skipped = 0
         io_time = 0.0
-        wrap_time = 0.0
         ma_time = 0.0
         box_size = None
         for filename in filenames:
@@ -151,6 +136,7 @@ def read_abacus_particles(file_pattern,
 
             if box_size is None:
                 box_size = table.meta["BoxSize"]
+                assert box_size > 0
                 xmax = box_size / 2
                 xmin = -xmax
             assert box_size == table.meta["BoxSize"]
@@ -162,27 +148,23 @@ def read_abacus_particles(file_pattern,
                     "posmax = {}".format(grid.posmin, xmin, grid.posmax, xmax))
 
             pos = table["pos"].data
-            if wrap_boundaries:
-                with Timer() as wrap_timer:
-                    # Most files don't spill the boundary.
-                    if (pos.min() < xmin or pos.max() >= xmax):
-                        pos -= xmin
-                        np.mod(pos, box_size, out=pos)
-                        pos += xmin
-                wrap_time += wrap_timer.elapsed
+            if not grid.is_periodic and (pos.min() < xmin or pos.max() >= xmax):
+                num_skip = np.sum(np.logical_or(pos < xmin, pos >= xmax))
+                if verbose:
+                    print("{:,g} particles falling outside the grid will be "
+                          "skipped".format(num_skip))
+                particles_skipped += num_skip
             with Timer() as ma_timer:
                 ma.add_particles(pos, weight=1.0)
             ma_time += ma_timer.elapsed
-            particles_added += pos.shape[0]
+            particles_seen += pos.shape[0]
 
-    if wrap_boundaries:
-        assert ma.skipped == 0
+    assert ma.count + ma.skipped == particles_seen
+    assert ma.skipped += particles_skipped
 
     if verbose:
         print("Work time: {:.2f} sec".format(work_timer.elapsed))
         print("  IO time: {:.2f} sec".format(io_time))
-        if wrap_boundaries:
-            print("  Wrap time: {:.2f} sec".format(wrap_time))
         print("  Mass assignor time: {:.2f} sec".format(ma_time))
         print("    Sort time: {:.2f} sec".format(ma.sort_time))
         print("    Window time: {:.2f} sec".format(ma.window_time))
