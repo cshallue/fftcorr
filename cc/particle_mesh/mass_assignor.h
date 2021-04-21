@@ -85,11 +85,9 @@ class MassAssignor {
     grid_->change_survey_to_grid_coords(x, y, z);
     uint64 index = grid_->data().get_index(floor(x), floor(y), floor(z));
     if (index < 0 || index >= grid_->size()) {
-      // Expected on rare occasions where a particle is within numerical
-      // precision of a right boundary.
-      // fprintf(stderr,
-      //         "Skipping particle outside grid range: index = %llu, expected
-      //         to be in range [0, %llu)\n", index, grid_->size());
+      // Particle is outside the grid boundary and the grid is not periodic.
+      // Note that even if the grid is not periodic, the mass assignor will do
+      // periodic wrapping when smearing a particle across a boundary.
       skipped_ += 1;
       return;
     }

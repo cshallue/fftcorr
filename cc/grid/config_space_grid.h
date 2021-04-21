@@ -11,10 +11,13 @@
 class ConfigSpaceGrid {
  public:
   ConfigSpaceGrid(std::array<int, 3> ngrid, std::array<Float, 3> posmin,
-                  Float cell_size, WindowType window_type)
+                  Float cell_size, bool is_periodic, WindowType window_type)
       : ngrid_(ngrid),
         posmin_(posmin),
+        posrange_{ngrid[0] * cell_size, ngrid[1] * cell_size,
+                  ngrid[2] * cell_size},
         cell_size_(cell_size),
+        is_periodic_(is_periodic),
         window_type_(window_type),
         grid_(ngrid_) {
     clear();
@@ -43,10 +46,22 @@ class ConfigSpaceGrid {
   // TODO: for wrapping.
   Float* raw_data() { return grid_.data(); }
 
-  inline void change_survey_to_grid_coords(Float& x, Float& y, Float& z) const {
-    x = (x - posmin_[0]) / cell_size_;
-    y = (y - posmin_[1]) / cell_size_;
-    z = (z - posmin_[2]) / cell_size_;
+  void change_survey_to_grid_coord(int i, Float& x) const {
+    x -= posmin_[i];
+    if (is_periodic_) {
+      if (x < 0) {
+        x = fmod(x, posrange_[i]) + posrange_[i];
+      } else if (x >= posrange_[i]) {
+        x = fmod(x, posrange_[i]);
+      }
+    }
+    x /= cell_size_;
+  }
+
+  void change_survey_to_grid_coords(Float& x, Float& y, Float& z) const {
+    change_survey_to_grid_coord(0, x);
+    change_survey_to_grid_coord(1, y);
+    change_survey_to_grid_coord(2, z);
   }
 
  private:
@@ -54,10 +69,15 @@ class ConfigSpaceGrid {
   const std::array<int, 3> ngrid_;
   // The origin of the grid coordinate system, expressed in survey coordinates.
   const std::array<Float, 3> posmin_;
+  // The grid span in each dimension, expressed in survey coordinates.
+  const std::array<Float, 3> posrange_;
   // Size of each grid cell, in survey coordinates.
   const Float cell_size_;
+  // Whether the grid should be treated as periodic for the purpose of
+  // converting survey coordinates to grid coordinates.
+  const bool is_periodic_;
   // Type of window used in mass assignment.
-  WindowType window_type_;
+  const WindowType window_type_;
 
   RowMajorArray<Float, 3> grid_;
 };

@@ -14,6 +14,7 @@ cdef class ConfigSpaceGrid:
                   posmin,
                   posmax,
                   cell_size=None,
+                  is_periodic=False,
                   padding=0,  # padding already built in to posmin and posmax
                   extra_pad=0,  # additional padding to add
                   window_type=0):
@@ -55,6 +56,10 @@ cdef class ConfigSpaceGrid:
                     "Expected cell_size to be positive, got: {}".format(
                         cell_size))
 
+        if is_periodic:
+            if padding or extra_pad:
+                raise ValueError("Periodic grid cannot have padding")
+
         if padding < 0:
             raise ValueError("Expected padding > 0, got {}".format(padding))
 
@@ -88,6 +93,7 @@ cdef class ConfigSpaceGrid:
         for arr in [posmin, posmax]:
             arr.setflags(write=False)
         self._cell_size = cell_size
+        self._is_periodic = is_periodic
         self._padding = padding + extra_pad
         self._window_type = window_type
 
@@ -99,6 +105,7 @@ cdef class ConfigSpaceGrid:
             (<array[int, Three] *> &cshape[0])[0],
             (<array[Float, Three] *> &cposmin[0])[0],
             cell_size,
+            is_periodic,
             wt)
         
         # Wrap the data array as a numpy array.
@@ -133,6 +140,10 @@ cdef class ConfigSpaceGrid:
         return self._cell_size
 
     @property
+    def is_periodic(self):
+        return self._is_periodic
+
+    @property
     def padding(self):
         return self._padding
 
@@ -155,6 +166,7 @@ cdef class ConfigSpaceGrid:
                 "posmin": self.posmin,
                 "posmax": self.posmax,
                 "cell_size": self.cell_size,
+                "is_periodic": self.is_periodic,
                 "padding": self.padding,
                 "window_type": self.window_type,
             },
@@ -172,6 +184,7 @@ cdef class ConfigSpaceGrid:
             shape=header["shape"],
             posmin=header["posmin"],
             posmax=header["posmax"],
+            is_periodic=header["is_periodic"],
             padding=header["padding"],
             window_type=header["window_type"])
         assert np.allclose(grid.cell_size, header["cell_size"])
