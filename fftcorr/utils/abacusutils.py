@@ -94,7 +94,7 @@ def read_abacus_halos(file_pattern, grid, verbose=True, buffer_size=10000):
 
     assert halos_seen == total_halos
     assert ma.count + ma.skipped == halos_seen
-    assert ma.skipped = halos_skipped
+    assert ma.skipped == halos_skipped
 
     if verbose:
         print("Setup time: {:.2f} sec".format(setup_timer.elapsed))
@@ -160,7 +160,7 @@ def read_abacus_particles(file_pattern,
             particles_seen += pos.shape[0]
 
     assert ma.count + ma.skipped == particles_seen
-    assert ma.skipped += particles_skipped
+    assert ma.skipped == particles_skipped
 
     if verbose:
         print("Work time: {:.2f} sec".format(work_timer.elapsed))
