@@ -154,4 +154,4 @@ def read_density_field(file_pattern,
         print("    Sort time: {:.2f} sec".format(ma.sort_time))
         print("    Window time: {:.2f} sec".format(ma.window_time))
 
-    return ma.count
+    return ma.num_added
