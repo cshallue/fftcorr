@@ -83,15 +83,13 @@ class MassAssignor {
   }
 
   void add_particle_to_buffer(Float x, Float y, Float z, Float w) {
-    change_survey_to_grid_coords(x, y, z);
-    uint64 index = grid_->data().get_index(floor(x), floor(y), floor(z));
-    if (index < 0 || index >= grid_->size()) {
-      // Particle is outside the grid boundary and the grid is not periodic.
-      // Note that even if the grid is not periodic, the mass assignor will do
-      // periodic wrapping when smearing a particle across a boundary.
+    bool in_bounds = change_survey_to_grid_coords(x, y, z);
+    if (!in_bounds) {
+      // Particle is outside the grid boundary and we're not periodic wrapping.
       skipped_ += 1;
       return;
     }
+    uint64 index = grid_->data().get_index(floor(x), floor(y), floor(z));
     gal_.push_back(Particle(x, y, z, w, index));
     if (gal_.size() >= buffer_size_) {
       flush();
@@ -152,23 +150,22 @@ class MassAssignor {
   }
 
  private:
-  void change_survey_to_grid_coord(int i, Float &x) const {
+  bool change_survey_to_grid_coord(int i, Float &x) const {
     x -= grid_->posmin(i);
-    Float posrange = grid_->posrange(i);
-    if (periodic_wrap_) {
-      if (x < 0) {
-        x = fmod(x, posrange) + posrange;
-      } else if (x >= posrange) {
-        x = fmod(x, posrange);
-      }
+    Float xmax = grid_->posrange(i);
+    if (x < 0 || x >= xmax) {
+      if (!periodic_wrap_) return false;
+      x = fmod(x, xmax);
+      if (x < 0) x += xmax;
     }
     x /= grid_->cell_size();
+    return true;
   }
 
-  void change_survey_to_grid_coords(Float &x, Float &y, Float &z) const {
-    change_survey_to_grid_coord(0, x);
-    change_survey_to_grid_coord(1, y);
-    change_survey_to_grid_coord(2, z);
+  bool change_survey_to_grid_coords(Float &x, Float &y, Float &z) const {
+    return change_survey_to_grid_coord(0, x) &&
+           change_survey_to_grid_coord(1, y) &&
+           change_survey_to_grid_coord(2, z);
   }
 
   ConfigSpaceGrid *grid_;
