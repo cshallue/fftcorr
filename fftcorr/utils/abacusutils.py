@@ -143,8 +143,8 @@ def read_density_field(file_pattern,
             items_seen += n
 
     assert items_seen == total_items
-    assert ma.count + ma.skipped == items_seen
-    assert ma.skipped == items_skipped
+    assert ma.num_added + ma.num_skipped == items_seen
+    assert ma.num_skipped == items_skipped
 
     if verbose:
         print("Setup time: {:.2f} sec".format(setup_timer.elapsed))
