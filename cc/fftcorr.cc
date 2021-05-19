@@ -349,7 +349,7 @@ int main(int argc, char *argv[]) {
 
   RowMajorArray<Float, 3> &dens = grid.data();
   fprintf(stdout, "# Found %llu particles. Total weight %10.4e.\n",
-          mass_assignor.count(), mass_assignor.totw());
+          mass_assignor.num_added(), mass_assignor.totw());
   Float totw2 = array_ops::sum(dens);
   fprintf(stdout, "# Sum of grid is %10.4e (delta = %10.4e)\n", totw2,
           totw2 - mass_assignor.totw());
@@ -434,6 +434,7 @@ int main(int argc, char *argv[]) {
   nfft *= ngrid3;
   fprintf(stdout, "#\n");
   report_times(stderr, reader, mass_assignor, corr, total_time.elapsed_sec(),
-               grid_time.elapsed_sec(), nfft, ngrid3, mass_assignor.count());
+               grid_time.elapsed_sec(), nfft, ngrid3,
+               mass_assignor.num_added());
   return 0;
 }

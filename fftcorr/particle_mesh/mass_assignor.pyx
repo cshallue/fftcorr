@@ -81,12 +81,12 @@ cdef class MassAssignor:
         self._cc_ma.flush()
 
     @property
-    def count(self) -> int:
-        return self._cc_ma.count()
+    def num_added(self) -> int:
+        return self._cc_ma.num_added()
 
     @property
     def skipped(self) -> int:
-        return self._cc_ma.skipped()
+        return self._cc_ma.num_skipped()
 
     @property
     def totw(self) -> Float:

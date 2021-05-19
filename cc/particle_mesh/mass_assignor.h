@@ -21,8 +21,8 @@ class MassAssignor {
         window_func_(make_window_function(grid->window_type())),
         periodic_wrap_(periodic_wrap),
         buffer_size_(buffer_size),
-        count_(0),
-        skipped_(0),
+        num_added_(0),
+        num_skipped_(0),
         totw_(0),
         totwsq_(0) {
     // TODO: for development, remove.
@@ -34,8 +34,8 @@ class MassAssignor {
     gal_.reserve(buffer_size_);
   }
 
-  uint64 count() const { return count_; }
-  uint64 skipped() const { return skipped_; }
+  uint64 num_added() const { return num_added_; }
+  uint64 num_skipped() const { return num_skipped_; }
   Float totw() const { return totw_; }
   Float totwsq() const { return totwsq_; }
   Float sort_time() const { return sort_time_.elapsed_sec(); }
@@ -43,8 +43,8 @@ class MassAssignor {
 
   void clear() {
     gal_.clear();
-    count_ = 0;
-    skipped_ = 0;
+    num_added_ = 0;
+    num_skipped_ = 0;
     totw_ = 0;
     totwsq_ = 0;
     sort_time_.clear();
@@ -86,7 +86,7 @@ class MassAssignor {
     bool in_bounds = change_survey_to_grid_coords(x, y, z);
     if (!in_bounds) {
       // Particle is outside the grid boundary and we're not periodic wrapping.
-      skipped_ += 1;
+      num_skipped_ += 1;
       return;
     }
     uint64 index = grid_->data().get_index(floor(x), floor(y), floor(z));
@@ -94,7 +94,7 @@ class MassAssignor {
     if (gal_.size() >= buffer_size_) {
       flush();
     }
-    count_ += 1;
+    num_added_ += 1;
     totw_ += w;
     totwsq_ += w * w;
   }
@@ -178,8 +178,8 @@ class MassAssignor {
   std::vector<Particle> gal_;
   std::vector<Particle> buf_;  // Used for mergesort.
 
-  uint64 count_;  // TODO: rename to something more descriptive
-  uint64 skipped_;
+  uint64 num_added_;  // TODO: rename to something more descriptive
+  uint64 num_skipped_;
   Float totw_;
   Float totwsq_;
 
