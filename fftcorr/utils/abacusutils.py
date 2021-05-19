@@ -1,4 +1,3 @@
-from multiprocessing import Value
 import os.path
 import glob
 
@@ -6,17 +5,16 @@ from abacusnbody.data.bitpacked import unpack_rvint
 import asdf
 import numpy as np
 
-from fftcorr.grid import ConfigSpaceGrid
 from fftcorr.particle_mesh import MassAssignor
 from fftcorr.utils import Timer
 
 
 def read_density_field(file_pattern,
                        grid,
+                       file_type=None,
                        transform_coords_fn=None,
                        periodic_wrap=False,
                        bounds_error="warn",
-                       file_type=None,
                        verbose=True,
                        buffer_size=10000):
     filenames = sorted(glob.glob(file_pattern))
