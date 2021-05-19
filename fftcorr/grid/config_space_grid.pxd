@@ -1,12 +1,11 @@
 from fftcorr.array cimport RowMajorArrayPtr
 from fftcorr.types cimport Float, array, Three
 
-from libcpp cimport bool
 cimport numpy as cnp
 
 cdef extern from "config_space_grid.h":
   cdef cppclass ConfigSpaceGrid_cc "ConfigSpaceGrid":
-    ConfigSpaceGrid_cc(array[int, Three], array[Float, Three], Float, bool, int) except +
+    ConfigSpaceGrid_cc(array[int, Three], array[Float, Three], Float, int) except +
     Float cell_size()
     void clear()
     void add_scalar(Float s)
@@ -23,7 +22,6 @@ cdef class ConfigSpaceGrid:
     cdef cnp.ndarray _posmax
     cdef Float _cell_size
     cdef Float _padding
-    cdef bool _is_periodic
     cdef int _window_type
     cdef ConfigSpaceGrid_cc *_cc_grid
     cdef cnp.ndarray _data_arr

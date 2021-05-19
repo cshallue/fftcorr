@@ -330,12 +330,12 @@ int main(int argc, char *argv[]) {
   fprintf(stdout, "# Adopted boxsize: %6.1f %6.1f %6.1f\n",
           cell_size * ngrid[0], cell_size * ngrid[1], cell_size * ngrid[2]);
 
-  ConfigSpaceGrid grid(ngrid, box.posmin(), cell_size, periodic, window_type);
+  ConfigSpaceGrid grid(ngrid, box.posmin(), cell_size, window_type);
 
   int particle_batch_size = 1000000;
   Timer grid_time;
   grid_time.start();
-  MassAssignor mass_assignor(&grid, particle_batch_size);
+  MassAssignor mass_assignor(&grid, periodic, particle_batch_size);
   SurveyReader reader(&mass_assignor);
   reader.read_galaxies(infile);
   if (infile2 != NULL) {

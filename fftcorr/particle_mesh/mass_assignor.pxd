@@ -3,9 +3,11 @@ from fftcorr.grid cimport ConfigSpaceGrid_cc
 from fftcorr.particle_mesh cimport WindowType
 from fftcorr.types cimport Float, One, Two
 
+from libcpp cimport bool
+
 cdef extern from "mass_assignor.h":
   cdef cppclass MassAssignor_cc "MassAssignor":
-    MassAssignor_cc(ConfigSpaceGrid_cc* grid, int buffer_size) except +
+    MassAssignor_cc(ConfigSpaceGrid_cc* grid, bool periodic_wrap, int buffer_size) except +
     void clear()
     void add_particles_to_buffer(const RowMajorArrayPtr[Float, Two]&)
     void add_particles_to_buffer(const RowMajorArrayPtr[Float, Two]&,

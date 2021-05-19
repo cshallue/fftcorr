@@ -10,11 +10,23 @@ from fftcorr.particle_mesh import MassAssignor
 from fftcorr.utils import Timer
 
 
-def read_abacus_halos(file_pattern, grid, verbose=True, buffer_size=10000):
+def read_abacus_halos(file_pattern,
+                      grid,
+                      transform_coords_fn=None,
+                      periodic_wrap=False,
+                      bounds_error="warn",
+                      verbose=True,
+                      buffer_size=10000):
     filenames = sorted(glob.glob(file_pattern))
     if not filenames:
         raise ValueError("Found no files matching {}".format(file_pattern))
 
+    if bounds_error not in ["raise", "warn", "none", None]:
+        raise ValueError(
+            "Unrecognized bounds_error: '{}'".format(bounds_error))
+
+    gridmin = grid.posmin
+    gridmax = grid.posmax
     box_size = None
     total_halos = 0
     max_halos = 0
@@ -35,27 +47,29 @@ def read_abacus_halos(file_pattern, grid, verbose=True, buffer_size=10000):
                 total_halos, len(filenames)))
 
         assert box_size > 0
-        xmax = box_size / 2
-        xmin = -xmax
-        if np.any(grid.posmin > xmin) or np.any(grid.posmax < xmax):
-            raise ValueError(
-                "Grid does not cover halos: grid posmin = {}, halos posmin = {}"
-                ", grid posmax = {}, halos posmax = {}".format(
-                    grid.posmin, xmin, grid.posmax, xmax))
+        if transform_coords_fn is None:
+            if np.any(gridmin > -box_size / 2) or np.any(
+                    gridmax < box_size / 2):
+                raise ValueError(
+                    "Grid does not cover halos: grid posmin = {}, halos posmin "
+                    "= {}, grid posmax = {}, halos posmax = {}".format(
+                        gridmin, -box_size / 2, gridmax, box_size / 2))
 
         # Space for the halos in each file.
         # TODO: the halos are actually float32s, so we could make the mass
-        # assignor accept that type without needing to cast.
+        # assignor accept that type without needing to cast. But we'd still need
+        # to copy because asdf arrays are read only.
         pos_buf = np.empty((max_halos, 3), dtype=np.float64, order="C")
         weight_buf = np.empty((max_halos, ), dtype=np.float64, order="C")
 
     with Timer() as work_timer:
-        ma = MassAssignor(grid, buffer_size=buffer_size)
+        ma = MassAssignor(grid, periodic_wrap, buffer_size)
         halos_seen = 0
         halos_skipped = 0
         io_time = 0.0
         unit_time = 0.0
         copy_time = 0.0
+        transform_time = 0.0
         ma_time = 0.0
         for filename in filenames:
             if verbose:
@@ -79,12 +93,24 @@ def read_abacus_halos(file_pattern, grid, verbose=True, buffer_size=10000):
             with Timer() as unit_timer:
                 pos *= box_size
             unit_time += unit_timer.elapsed
-            if not grid.is_periodic and (pos.min() < xmin or pos.max() >= xmax):
-                num_skip = np.sum(np.logical_or(pos < xmin, pos >= xmax))
-                if verbose:
-                    print("{:,g} halos falling outside the grid will be "
-                          "skipped".format(num_skip))
-                halos_skipped += num_skip
+            if transform_coords_fn is not None:
+                with Timer() as transform_timer:
+                    transform_coords_fn(pos)
+                transform_time += transform_timer.elapsed
+            # Check if particles fall outside the grid.
+            if (np.any(pos.min(axis=0) < gridmin)
+                    or np.any(pos.max(axis=0) >= gridmax)):
+                num_outside = np.sum(
+                    np.logical_or(np.any(pos < gridmin, axis=1),
+                                  np.any(pos >= gridmax, axis=1)))
+                msg = "{:,g} halos falling outside the grid".format(
+                    num_outside)
+                if bounds_error == "raise":
+                    raise ValueError(msg)
+                elif bounds_error == "warn":
+                    print(msg)
+                if not periodic_wrap:
+                    halos_skipped += num_outside
             with Timer() as ma_timer:
                 ma.add_particles_to_buffer(pos, weight)
                 if filename == filenames[-1]:
@@ -102,6 +128,8 @@ def read_abacus_halos(file_pattern, grid, verbose=True, buffer_size=10000):
         print("  IO time: {:.2f} sec".format(io_time))
         print("  Convert units time: {:.2f} sec".format(unit_time))
         print("  Copy time: {:.2f} sec".format(copy_time))
+        if transform_coords_fn is not None:
+            print("  Transform coords time: {:.2f} sec".format(transform_time))
         print("  Mass assignor time: {:.2f} sec".format(ma_time))
         print("    Sort time: {:.2f} sec".format(ma.sort_time))
         print("    Window time: {:.2f} sec".format(ma.window_time))
@@ -109,8 +137,10 @@ def read_abacus_halos(file_pattern, grid, verbose=True, buffer_size=10000):
     return ma.count
 
 
+# TODO: unify with read halos function.
 def read_abacus_particles(file_pattern,
                           grid,
+                          periodic_wrap=False,
                           verbose=True,
                           buffer_size=10000):
     filenames = sorted(glob.glob(file_pattern))
@@ -118,7 +148,7 @@ def read_abacus_particles(file_pattern,
         raise ValueError("Found no files matching {}".format(file_pattern))
 
     with Timer() as work_timer:
-        ma = MassAssignor(grid, buffer_size=buffer_size)
+        ma = MassAssignor(grid, periodic_wrap, buffer_size)
         particles_seen = 0
         particles_skipped = 0
         io_time = 0.0
@@ -148,7 +178,7 @@ def read_abacus_particles(file_pattern,
                     "posmax = {}".format(grid.posmin, xmin, grid.posmax, xmax))
 
             pos = table["pos"].data
-            if not grid.is_periodic and (pos.min() < xmin or pos.max() >= xmax):
+            if not periodic_wrap and (pos.min() < xmin or pos.max() >= xmax):
                 num_skip = np.sum(np.logical_or(pos < xmin, pos >= xmax))
                 if verbose:
                     print("{:,g} particles falling outside the grid will be "

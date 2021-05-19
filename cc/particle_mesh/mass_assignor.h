@@ -16,9 +16,10 @@
 
 class MassAssignor {
  public:
-  MassAssignor(ConfigSpaceGrid *grid, uint64 buffer_size)
+  MassAssignor(ConfigSpaceGrid *grid, bool periodic_wrap, uint64 buffer_size)
       : grid_(grid),
         window_func_(make_window_function(grid->window_type())),
+        periodic_wrap_(periodic_wrap),
         buffer_size_(buffer_size),
         count_(0),
         skipped_(0),
@@ -82,7 +83,7 @@ class MassAssignor {
   }
 
   void add_particle_to_buffer(Float x, Float y, Float z, Float w) {
-    grid_->change_survey_to_grid_coords(x, y, z);
+    change_survey_to_grid_coords(x, y, z);
     uint64 index = grid_->data().get_index(floor(x), floor(y), floor(z));
     if (index < 0 || index >= grid_->size()) {
       // Particle is outside the grid boundary and the grid is not periodic.
@@ -151,14 +152,36 @@ class MassAssignor {
   }
 
  private:
+  void change_survey_to_grid_coord(int i, Float &x) const {
+    x -= grid_->posmin(i);
+    Float posrange = grid_->posrange(i);
+    if (periodic_wrap_) {
+      if (x < 0) {
+        x = fmod(x, posrange) + posrange;
+      } else if (x >= posrange) {
+        x = fmod(x, posrange);
+      }
+    }
+    x /= grid_->cell_size();
+  }
+
+  void change_survey_to_grid_coords(Float &x, Float &y, Float &z) const {
+    change_survey_to_grid_coord(0, x);
+    change_survey_to_grid_coord(1, y);
+    change_survey_to_grid_coord(2, z);
+  }
+
   ConfigSpaceGrid *grid_;
   std::unique_ptr<WindowFunction> window_func_;
 
-  uint64 buffer_size_;
+  // Whether the grid should be treated as periodic.
+  const bool periodic_wrap_;
+
+  const uint64 buffer_size_;
   std::vector<Particle> gal_;
   std::vector<Particle> buf_;  // Used for mergesort.
 
-  uint64 count_;
+  uint64 count_;  // TODO: rename to something more descriptive
   uint64 skipped_;
   Float totw_;
   Float totwsq_;
