@@ -85,7 +85,7 @@ cdef class MassAssignor:
         return self._cc_ma.num_added()
 
     @property
-    def skipped(self) -> int:
+    def num_skipped(self) -> int:
         return self._cc_ma.num_skipped()
 
     @property
