@@ -12,8 +12,9 @@ from fftcorr.utils import Timer
 def read_density_field(file_pattern,
                        grid,
                        file_type=None,
+                       redshift_distortion=False,
                        transform_coords_fn=None,
-                       periodic_wrap=False,
+                       periodic_wrap=True,
                        bounds_error="warn",
                        verbose=True,
                        buffer_size=10000):
@@ -76,9 +77,12 @@ def read_density_field(file_pattern,
         # assignor accept that type without needing to cast. But we'd still need
         # to copy because asdf arrays are read only.
         pos_buf = np.empty((max_items, 3), dtype=np.float64, order="C")
-        weight_buf = np.empty((max_items, ), dtype=np.float64, order="C")
-        if file_type == "particles":
-            np.copyto(weight_buf, 1.0)
+        vel_buf = None
+        if redshift_distortion:
+            vel_buf = np.empty((max_items, 3), dtype=np.float64, order="C")
+        weight_buf = None
+        if file_type == "halos":
+            weight_buf = np.empty((max_items, ), dtype=np.float64, order="C")
 
     with Timer() as work_timer:
         ma = MassAssignor(grid, periodic_wrap, buffer_size)
@@ -96,20 +100,36 @@ def read_density_field(file_pattern,
                 key = "N" if file_type == "halos" else "rvint"
                 n = af.tree["data"][key].shape[0]
                 pos = pos_buf[:n]
-                weight = weight_buf[:n]
+                vel = vel_buf[:n] if redshift_distortion else False
+                scale_factor = af.tree["header"]["ScaleFactor"]
                 with Timer() as io_timer:
                     if file_type == "halos":
                         np.copyto(pos, af.tree["data"]["x_com"])
-                        np.copyto(weight, af.tree["data"]["N"])
                         pos *= box_size
+                        weight = weight_buf[:n]
+                        np.copyto(weight, af.tree["data"]["N"])
+                        if redshift_distortion:
+                            np.copyto(vel, af.tree["data"]["v_com"])
                     else:  # file_type == "particles"
                         npos, nvel = unpack_rvint(af.tree["data"]["rvint"],
                                                   box_size,
                                                   float_dtype=np.float64,
                                                   posout=pos,
-                                                  velout=False)
-                        assert npos, nvel == (n, 0)
+                                                  velout=vel)
+                        weight = 1.0
+                        assert npos == n
+                        assert nvel == (n if redshift_distortion else 0)
                 io_time += io_timer.elapsed
+
+            # Apply redshift distortions.
+            if redshift_distortion:
+                assert vel.shape == (n, 3)
+                # Apply redshift distortions in the z direction because that is
+                # the direction from which the polar angle is defined in the
+                # correlator. If desired in the future, we could accept any
+                # arbitrary direction vector and apply redshift distortion in
+                # that direction.
+                pos[:, 2] += vel[:, 2] / (100 * scale_factor)
 
             # Possibly transform coordinates.
             if transform_coords_fn is not None:
