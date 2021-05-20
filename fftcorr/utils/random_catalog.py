@@ -54,7 +54,7 @@ def add_random_particles(grid,
             pos = pos_buf[:nbatch]
 
             with Timer() as rng_timer:
-                rnd = np.random.uniform(gridmin, gridmmax, (nbatch, 3))
+                rnd = np.random.uniform(gridmin, gridmax, (nbatch, 3))
             rng_time += rng_timer.elapsed
 
             with Timer() as copy_timer:
