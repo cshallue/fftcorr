@@ -147,7 +147,7 @@ cdef class ConfigSpaceGrid:
     def clear(self):
         self._cc_grid.clear()
 
-    def write(self, filename):
+    def write(self, filename, dtype=np.float32):
         import asdf  # TODO: move to top level?
         tree = {
             "header": {
@@ -158,7 +158,7 @@ cdef class ConfigSpaceGrid:
                 "padding": self.padding,
                 "window_type": self.window_type,
             },
-            "data": self.data,
+            "data": self.data.astype(dtype),
         }
         af = asdf.AsdfFile(tree)
         af.write_to(filename)
