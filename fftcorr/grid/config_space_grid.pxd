@@ -8,10 +8,6 @@ cdef extern from "config_space_grid.h":
     ConfigSpaceGrid_cc(array[int, Three], array[Float, Three], Float, int) except +
     Float cell_size()
     void clear()
-    void add_scalar(Float s)
-    void multiply_by(Float s)
-    Float sum()
-    Float sumsq()
     RowMajorArrayPtr[Float, Three]& data()
 
 

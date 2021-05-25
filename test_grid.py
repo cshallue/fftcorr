@@ -22,23 +22,9 @@ print("{0:x}".format(id(g)))
 print(dir(g))
 print("posmin =", posmin)
 print("cell_size =", g.cell_size)
-print("sum =", g.sum())
-print("sumsq =", g.sumsq())
-print("Adding 3")
-g.add_scalar(3)
-print("sum =", g.sum())
-print("sumsq =", g.sumsq())
-print()
 
 print("clearing")
 g.clear()
-print("sum =", g.sum())
-print("sumsq =", g.sumsq())
-print("Adding 2")
-g.add_scalar(2)
-print("sum =", g.sum())
-print("sumsq =", g.sumsq())
-print()
 
 print(g.data.flags)
 print("data =", g.data.flatten())
@@ -52,7 +38,6 @@ print("data =", g.data.flatten())
 d[0][0][0] = 2
 d[1][1][1] = -5
 print("data =", g.data.flatten())
-print("sum =", g.sum())
 
 d2 = g.data
 print("{0:x}".format(id(d)))

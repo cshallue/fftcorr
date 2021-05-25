@@ -177,19 +177,3 @@ cdef class ConfigSpaceGrid:
         assert np.allclose(grid.cell_size, header["cell_size"])
         np.copyto(grid.data, af.tree["data"])  # TODO: better way to do this?
         return grid
-
-    # TODO: everything below here can go; it's for testing only
-    # However, look into whether these should be cdef, cpdef, or def
-
-    def add_scalar(self, Float s):
-        self._cc_grid.add_scalar(s)
-
-    def multiply_by(self, Float s):
-        self._cc_grid.multiply_by(s)
-
-    def sum(self) -> Float:
-        return self._cc_grid.sum()
-
-    def sumsq(self) -> Float:
-        return self._cc_grid.sumsq()
-

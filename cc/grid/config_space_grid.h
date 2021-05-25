@@ -37,12 +37,6 @@ class ConfigSpaceGrid {
 
   void clear() { array_ops::set_all(0.0, grid_); }
 
-  // TODO: just for testing wrapping; delete.
-  void add_scalar(Float s) { array_ops::add_scalar(s, grid_); }
-  void multiply_by(Float s) { array_ops::multiply_by(s, grid_); }
-  Float sum() const { return array_ops::sum(grid_); }
-  Float sumsq() const { return array_ops::sumsq(grid_); }
-
   // TODO: for wrapping.
   Float* raw_data() { return grid_.data(); }
 
