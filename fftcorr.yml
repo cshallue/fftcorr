@@ -15,4 +15,11 @@ dependencies:
   - matplotlib
   - pandas
   - asdf
+  - git
+  - pip
+  - pip:
+    - git+https://github.com/lgarrison/asdf.git
+    - abacusutils
+    - absl-py
+    - ml_collections
 prefix: /Users/shallue/miniconda3/envs/fftcorr
