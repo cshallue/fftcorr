@@ -19,4 +19,6 @@ dependencies:
     - git+https://github.com/lgarrison/asdf.git
     - abacusutils
     - jupyter_http_over_ws  # For Google colab.
+    - absl-py
+    - ml_collections
 prefix: /home/cshallue/miniconda3/envs/fftcorr
