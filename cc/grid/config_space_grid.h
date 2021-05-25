@@ -25,19 +25,14 @@ class ConfigSpaceGrid {
   const std::array<int, 3>& shape() const { return shape_; }
   int shape(int i) const { return shape_[i]; }
   uint64 size() const { return grid_.size(); }
-  const std::array<Float, 3>& posmin() const { return posmin_; }
   Float posmin(int i) const { return posmin_[i]; }
   Float posrange(int i) const { return posrange_[i]; }
   Float cell_size() const { return cell_size_; }
   WindowType window_type() const { return window_type_; }
-  // TODO: needed for MassAssignor and for fftcorr.cpp normalization.
   RowMajorArray<Float, 3>& data() { return grid_; }
   const RowMajorArray<Float, 3>& data() const { return grid_; }
 
   void clear() { array_ops::set_all(0.0, grid_); }
-
-  // TODO: for wrapping.
-  Float* raw_data() { return grid_.data(); }
 
  private:
   // Number of cells in each dimension.
