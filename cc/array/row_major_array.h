@@ -7,6 +7,8 @@
 #include "../types.h"
 #include "array_nd.h"
 
+// N-dimensional array pointer with row-major (C-contiguous) data layout.
+// Partial specializations of this class for small N are defined below.
 template <typename dtype, std::size_t N>
 class RowMajorArrayPtr : public ArrayNdPtrBase<dtype, N> {
  public:
@@ -15,26 +17,27 @@ class RowMajorArrayPtr : public ArrayNdPtrBase<dtype, N> {
       : ArrayNdPtrBase<dtype, N>(shape, data) {}
 };
 
+// 1D row-major array pointer.
 template <typename dtype>
 class RowMajorArrayPtr<dtype, 1> : public ArrayNdPtrBase<dtype, 1> {
  public:
   RowMajorArrayPtr() : ArrayNdPtrBase<dtype, 1>() {}
   RowMajorArrayPtr(std::array<int, 1> shape, dtype *data)
       : ArrayNdPtrBase<dtype, 1>(shape, data) {}
-  // In 1D, it's more natural to use integers than single-element tuples.
   RowMajorArrayPtr(int size, dtype *data)
       : ArrayNdPtrBase<dtype, 1>({size}, data) {}
+  dtype &operator[](uint64 idx) { return this->data_[idx]; }
+  const dtype &operator[](uint64 idx) const { return this->data_[idx]; }
   void set_data(int size, dtype *data) { this->set_data({size}, data); }
 };
 
+// 2D row-major array pointer.
 template <typename dtype>
 class RowMajorArrayPtr<dtype, 2> : public ArrayNdPtrBase<dtype, 2> {
  public:
   RowMajorArrayPtr() : ArrayNdPtrBase<dtype, 2>() {}
   RowMajorArrayPtr(std::array<int, 2> shape, dtype *data)
       : ArrayNdPtrBase<dtype, 2>(shape, data) {}
-
-  // Indexing.
   uint64 get_index(int ix, int iy) const {
     return (uint64)iy + ix * this->shape_[1];
   }
@@ -52,8 +55,6 @@ class RowMajorArrayPtr<dtype, 3> : public ArrayNdPtrBase<dtype, 3> {
   RowMajorArrayPtr() : ArrayNdPtrBase<dtype, 3>() {}
   RowMajorArrayPtr(std::array<int, 3> shape, dtype *data)
       : ArrayNdPtrBase<dtype, 3>(shape, data) {}
-
-  // Indexing.
   uint64 get_index(int ix, int iy, int iz) const {
     return (uint64)iz + this->shape_[2] * (iy + ix * this->shape_[1]);
   }
@@ -67,34 +68,23 @@ class RowMajorArrayPtr<dtype, 3> : public ArrayNdPtrBase<dtype, 3> {
   const dtype *get_row(int ix, int iy) const { return &this->at(ix, iy, 0); }
 };
 
+// Base class for an N-dimensional array with row-major data layout that
+// allocates and owns its own data.
 template <typename dtype, std::size_t N>
 class RowMajorArrayBase : public RowMajorArrayPtr<dtype, N> {
  public:
-  // Default constructor: empty array.
+  // Default constructor: empty array, no memory allocated. User must call
+  // allocate() explicitly.
   RowMajorArrayBase() : RowMajorArrayPtr<dtype, N>() {}
-
-  // Allocates memory.
+  // This constructor allocates memory.
   RowMajorArrayBase(const std::array<int, N> &shape) : RowMajorArrayBase() {
     allocate(shape);
   }
-
   ~RowMajorArrayBase() {
     if (this->data_ != NULL) free(this->data_);
   }
 
-  // Allocates memory.
-  void allocate(const std::array<int, N> &shape) {
-    assert(this->data_ == NULL);  // Make sure unitialized.
-    this->set_shape(shape);
-    // Page alignment is only important for our big 3D grids, but we just do it
-    // for all arrays.
-    int err = posix_memalign((void **)&this->data_, PAGE,
-                             sizeof(dtype) * this->size_ + PAGE);
-    assert(err == 0);
-    assert(this->data_ != NULL);
-  }
-
-  // Disable copy construction and copy assignment: users must copy explicitly.
+  // Disable copy construction and copy assignment: users must copy manually.
   RowMajorArrayBase(const RowMajorArrayBase<dtype, N> &) = delete;
   RowMajorArrayBase &operator=(const RowMajorArrayBase<dtype, N> &) = delete;
 
@@ -108,8 +98,21 @@ class RowMajorArrayBase : public RowMajorArrayPtr<dtype, N> {
   RowMajorArrayBase(RowMajorArrayBase<dtype, N> &&other) : RowMajorArrayBase() {
     *this = std::move(other);
   }
+
+  // Allocates memory to store array data.
+  void allocate(const std::array<int, N> &shape) {
+    assert(this->data_ == NULL);  // Make sure unitialized.
+    this->set_shape(shape);
+    // Page alignment is only important for our big 3D grids, but we just do it
+    // for all arrays.
+    int err = posix_memalign((void **)&this->data_, PAGE,
+                             sizeof(dtype) * this->size_ + PAGE);
+    assert(err == 0);
+    assert(this->data_ != NULL);
+  }
 };
 
+// N-dimensional array with row-major data layout.
 template <typename dtype, std::size_t N>
 class RowMajorArray : public RowMajorArrayBase<dtype, N> {
  public:
@@ -118,13 +121,13 @@ class RowMajorArray : public RowMajorArrayBase<dtype, N> {
       : RowMajorArrayBase<dtype, N>(shape) {}
 };
 
+// 1D row-major array special case.
 template <typename dtype>
 class RowMajorArray<dtype, 1> : public RowMajorArrayBase<dtype, 1> {
  public:
   RowMajorArray() : RowMajorArrayBase<dtype, 1>() {}
   RowMajorArray(const std::array<int, 1> &shape)
       : RowMajorArrayBase<dtype, 1>(shape) {}
-  // In 1D, it's more natural to use integers than single-element tuples.
   RowMajorArray(int size) : RowMajorArrayBase<dtype, 1>({size}) {}
   void allocate(int size) { this->allocate({size}); }
 };

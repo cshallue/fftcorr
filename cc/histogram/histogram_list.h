@@ -32,17 +32,23 @@ class HistogramList {
     assert(ih < counts_.shape(0));
     int *count = counts_.get_row(ih);
     Float *hist = hist_values_.get_row(ih);
+    const Float *xdata = x.data();
+    const Float *ydata = y.data();
     for (uint64 j = 0; j < x.size(); ++j) {
-      int bin = to_bin_index(x[j]);
+      int bin = to_bin_index(xdata[j]);
       if (bin >= nbins_ || bin < 0) continue;
       ++count[bin];
-      hist[bin] += y[j];
+      hist[bin] += ydata[j];
     }
   }
 
   void reset() {
-    for (int &c : counts_) c = 0;
-    for (Float &x : hist_values_) x = 0.0;
+    int *count = counts_.data();
+    Float *hist = hist_values_.data();
+    for (uint64 i = 0; i < counts_.size(); ++i) {
+      count[i] = 0.0;
+      hist[i] = 0.0;
+    }
   }
 
  private:

@@ -9,7 +9,7 @@
 #include "../types.h"
 #include "array.h"
 
-// Base interface for an n-dimensional array of numbers.
+// Base interface for an N-dimensional array of numbers.
 template <typename dtype, std::size_t N>
 class ArrayNdBase : public Array<dtype> {
  public:
@@ -18,14 +18,24 @@ class ArrayNdBase : public Array<dtype> {
   virtual int shape(int i) const = 0;
 };
 
-// Interface for an n-dimensional array of numbers.
+// Interface for an N-dimensional array of numbers.
+// Partial specializations of this class for small N are defined below.
 template <typename dtype, std::size_t N>
 class ArrayNd : public ArrayNdBase<dtype, N> {
  public:
   virtual ~ArrayNd() = default;
 };
 
-// Interface for 2d array.
+// Interface for 1D array.
+template <typename dtype>
+class ArrayNd<dtype, 1> : public ArrayNdBase<dtype, 1> {
+ public:
+  virtual ~ArrayNd() = default;
+  virtual dtype &operator[](uint64 idx) = 0;
+  virtual const dtype &operator[](uint64 idx) const = 0;
+};
+
+// Interface for 2D array.
 template <typename dtype>
 class ArrayNd<dtype, 2> : public ArrayNdBase<dtype, 2> {
  public:
@@ -36,7 +46,7 @@ class ArrayNd<dtype, 2> : public ArrayNdBase<dtype, 2> {
   virtual const dtype &at(int ix, int iy) const = 0;
 };
 
-// Interface for 3d array.
+// Interface for 3D array.
 template <typename dtype>
 class ArrayNd<dtype, 3> : public ArrayNdBase<dtype, 3> {
  public:
@@ -47,14 +57,13 @@ class ArrayNd<dtype, 3> : public ArrayNdBase<dtype, 3> {
   virtual const dtype &at(int ix, int iy, int iz) const = 0;
 };
 
-// Base class for an n-dimensional array pointer. Does not implement a data
+// Base class for an N-dimensional array pointer. Does not implement a data
 // layout.
 template <typename dtype, std::size_t N>
 class ArrayNdPtrBase : public ArrayNd<dtype, N> {
  public:
-  // A default-constructed array pointer is effectively a null pointer until
-  // set_data() is called. Operations should not be called before
-  // initialization.
+  // The default constructor yields what is effectively a null pointer until
+  // set_data() is called. Operations should not be called before set_data().
   ArrayNdPtrBase() : size_(0), data_(NULL) {}
 
   ArrayNdPtrBase(const std::array<int, N> &shape, dtype *data)
@@ -76,13 +85,6 @@ class ArrayNdPtrBase : public ArrayNd<dtype, N> {
   uint64 size() const { return size_; }
   dtype *data() { return data_; }
   const dtype *data() const { return data_; }
-
-  dtype &operator[](uint64 idx) { return data_[idx]; }
-  const dtype &operator[](uint64 idx) const { return data_[idx]; }
-
-  // Iterator through the flattened array.
-  dtype *begin() { return data_; }
-  dtype *end() { return &data_[size()]; }
 
  protected:
   void set_shape(const std::array<int, N> &shape) {

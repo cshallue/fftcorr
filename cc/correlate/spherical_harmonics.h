@@ -67,7 +67,7 @@ void make_ylm(int ell, int m, const Array1D<Float> &xcell,
     return;
   }
 
-  (*ylm)[0] = -123456.0;  // A sentinal value.
+  ylm->at(0, 0, 0) = -123456.0;  // A sentinal value.
 
   // Precompute some terms.
   Array1D<Float> z2(n2);
@@ -175,7 +175,7 @@ void make_ylm(int ell, int m, const Array1D<Float> &xcell,
     }
   }
   // Traps whether the user entered an illegal (ell,m)
-  assert((*ylm)[0] != 123456.0);
+  assert(ylm->at(0, 0, 0) != 123456.0);
 }
 
 #endif  // SPHERICAL_HARMONICS_H
