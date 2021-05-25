@@ -10,21 +10,20 @@
 
 class ConfigSpaceGrid {
  public:
-  ConfigSpaceGrid(std::array<int, 3> ngrid, std::array<Float, 3> posmin,
+  ConfigSpaceGrid(std::array<int, 3> shape, std::array<Float, 3> posmin,
                   Float cell_size, WindowType window_type)
-      : ngrid_(ngrid),
+      : shape_(shape),
         posmin_(posmin),
-        posrange_{ngrid[0] * cell_size, ngrid[1] * cell_size,
-                  ngrid[2] * cell_size},
+        posrange_{shape[0] * cell_size, shape[1] * cell_size,
+                  shape[2] * cell_size},
         cell_size_(cell_size),
         window_type_(window_type),
-        grid_(ngrid_) {
+        grid_(shape_) {
     clear();
   }
 
-  // TODO: rename ngrid to shape.
-  const std::array<int, 3>& ngrid() const { return ngrid_; }
-  int ngrid(int i) const { return ngrid_[i]; }
+  const std::array<int, 3>& shape() const { return shape_; }
+  int shape(int i) const { return shape_[i]; }
   uint64 size() const { return grid_.size(); }
   const std::array<Float, 3>& posmin() const { return posmin_; }
   Float posmin(int i) const { return posmin_[i]; }
@@ -42,7 +41,7 @@ class ConfigSpaceGrid {
 
  private:
   // Number of cells in each dimension.
-  const std::array<int, 3> ngrid_;
+  const std::array<int, 3> shape_;
   // The origin of the grid coordinate system, expressed in survey coordinates.
   const std::array<Float, 3> posmin_;
   // The grid span in each dimension, expressed in survey coordinates.

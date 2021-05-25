@@ -78,7 +78,7 @@ cdef class ConfigSpaceGrid:
 
         posmax = posmin + shape * cell_size
         print("Adopting:")
-        print("  ngrid = [" + ", ".join(["{}".format(x) for x in shape]) + "]")
+        print("  shape = [" + ", ".join(["{}".format(x) for x in shape]) + "]")
         print("  cell_size = {:.6g}".format(cell_size))
         print("  posmin = [" + ", ".join(["{:.6g}".format(x) for x in posmin]) + "]")
         print("  posmax = [" + ", ".join(["{:.6g}".format(x) for x in posmax]) + "]")
@@ -115,7 +115,6 @@ cdef class ConfigSpaceGrid:
     cdef ConfigSpaceGrid_cc* cc_grid(self):
         return self._cc_grid
 
-    # TODO: make consistent shape or ngrid in python and C++?
     @property
     def shape(self):
         return self.data.shape

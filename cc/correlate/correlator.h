@@ -34,7 +34,7 @@ class Correlator {
         rmax_(rmax),
         kmax_(kmax),
         maxell_(maxell),
-        work_(dens_.ngrid()),
+        work_(dens_.shape()),
         rhist_(maxell / 2 + 1, 0.0, rmax, dr),
         khist_(maxell / 2 + 1, 0.0, kmax, dk) {}
 
@@ -264,16 +264,16 @@ class Correlator {
     // grid, but displaced far away in the -x direction. This is an inefficient
     // way to compute the periodic case, but it's a good sanity check.
     // for (int i = 0; i < 3; ++i) {
-    //   observer[i] = dens_.ngrid(i) / 2.0;
+    //   observer[i] = dens_.shape(i) / 2.0;
     // }
-    // observer[0] -= dens_.ngrid(0) * 1e6;  // Observer far away!
+    // observer[0] -= dens_.shape(0) * 1e6;  // Observer far away!
 
     // Coordinates of the cell centers in each dimension, relative to the
     // observer. We're using grid units (scale doesn't matter when computing
     // Ylms).
-    xcell_ = sequence(0.5 - observer[0], 1.0, dens_.ngrid(0));
-    ycell_ = sequence(0.5 - observer[1], 1.0, dens_.ngrid(1));
-    zcell_ = sequence(0.5 - observer[2], 1.0, dens_.ngrid(2));
+    xcell_ = sequence(0.5 - observer[0], 1.0, dens_.shape(0));
+    ycell_ = sequence(0.5 - observer[1], 1.0, dens_.shape(1));
+    zcell_ = sequence(0.5 - observer[2], 1.0, dens_.shape(2));
   }
 
   void setup_rgrid() {
@@ -315,7 +315,7 @@ class Correlator {
     // Create the Fourier-space subgrid.
     // Our box has cubic-sized cells, so k_Nyquist is the same in all
     // directions. The spacing of modes is therefore 2*k_Nyq/ngrid.
-    const std::array<int, 3> &ngrid = dens_.ngrid();
+    const std::array<int, 3> &ngrid = dens_.shape();
     Float cell_size = dens_.cell_size();
     Float k_Nyq = M_PI / cell_size;  // The Nyquist frequency for our grid.
     // Number of cells in the subgrid.

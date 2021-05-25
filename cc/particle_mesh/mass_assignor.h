@@ -121,7 +121,7 @@ class MassAssignor {
     // Galaxies between N and N+1 should be in indices [first[N], first[N+1]).
     // That means that first[N] should be the index of the first particle to
     // exceed N.
-    const std::array<int, 3> &ngrid = grid_->ngrid();
+    const std::array<int, 3> &ngrid = grid_->shape();
     int first[ngrid[0] + 1];
     int ptr = 0;
     for (int j = 0; j < galsize; j++) {

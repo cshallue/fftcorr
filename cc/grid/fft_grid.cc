@@ -117,7 +117,7 @@ void FftGrid::plan_fft() {
   nfft[1] = nfftc[1] = rshape_[1];
   // Since dsize_z is always even, this will trick
   // FFTW to assume dsize_z/2 Complex numbers in the result, while
-  // fulfilling that nfft[2]>=ngrid[2].
+  // fulfilling that nfft[2]>=shape[2].
   nfft[2] = arr_.shape(2);
   nfftc[2] = nfft[2] / 2;
   int howmany = 1;  // Only one forward and inverse FFT.
@@ -146,9 +146,9 @@ void FftGrid::plan_fft() {
                                    1, 0, FFTW_MEASURE);
 
   // After we've done the 2D r2c FFT, we have to do the 1D c2c transform.
-  // We'll plan to parallelize over Y, so that we're doing (ngrid[2]/2+1)
+  // We'll plan to parallelize over Y, so that we're doing (shape[2]/2+1)
   // 1D FFTs at a time.
-  // Elements in the X direction are separated by ngrid[1]*dsize_z/2 complex
+  // Elements in the X direction are separated by shape[1]*dsize_z/2 complex
   // numbers.
   int nX = rshape_[0];
   fftx_ = fftw_plan_many_dft(1, &nX, (rshape_[2] / 2 + 1), cdata, NULL,
@@ -280,12 +280,12 @@ void FftGrid::extract_submatrix_C2R(
     RowMajorArrayPtr<Float, 3> *out,
     const RowMajorArrayPtr<Float, 3> *mult) const {
   extract_time_.start();
-  // Given a large matrix work[ngrid^3/2],
+  // Given a large matrix work[shape^3/2],
   // extract out a submatrix of size csize^3, centered on work[0,0,0].
   // The input matrix is Complex * with the half-domain Fourier convention.
   // We are only summing the real part; the imaginary part always sums to zero.
   // Need to reflect the -z part around the origin, which also means reflecting
-  // x & y. ngrid[2] and ngrid2 are given as their Float values, not yet divided
+  // x & y. shape[2] and shape2 are given as their Float values, not yet divided
   // by two. Multiply the result by corr[csize^3] and add it onto total[csize^3]
   // Again, zero lag is mapping to corr(csize/2, csize/2, csize/2),
   // but it is at (0,0,0) in the FFT grid.
