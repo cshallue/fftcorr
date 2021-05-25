@@ -128,21 +128,22 @@ void report_times(FILE *fp, const SurveyReader &sr, const MassAssignor &ma,
           corr.fft_time(), nfft / 1e6 / corr.fft_time(),
           nfft / 1e9 / corr.fft_time() * 6.0 * sizeof(Float),
           nfft / 1e6 / corr.fft_time() * 2.5 * log(ngrid3) / log(2) / 1e3);
-#ifdef FFTSLAB
-  fprintf(fp,
-          "#     FFTyz time:   %8.4f s, %6.3f Mcells/s, %6.3f GB/s, %6.3f "
-          "GFLOPS/s\n",
-          FFTyz.Elapsed(), nfft / 1e6 / FFTyz.Elapsed() * 2.0 / 3.0,
-          nfft / 1e9 / FFTyz.Elapsed() * 6.0 * sizeof(Float) * 2.0 / 3.0,
-          nfft / 1e6 / FFTyz.Elapsed() * 2.5 * log(ngrid3) / log(2) / 1e3 *
-              2.0 / 3.0);
-  fprintf(fp,
-          "#      FFTx time:   %8.4f s, %6.3f Mcells/s, %6.3f GB/s, %6.3f "
-          "GFLOPS/s\n",
-          FFTx.Elapsed(), nfft / 1e6 / FFTx.Elapsed() / 3.0,
-          nfft / 1e9 / FFTx.Elapsed() * 6.0 * sizeof(Float) / 3.0,
-          nfft / 1e6 / FFTx.Elapsed() * 2.5 * log(ngrid3) / log(2) / 1e3 / 3.0);
-#endif
+  // #ifdef FFTSLAB
+  //   fprintf(fp,
+  //           "#     FFTyz time:   %8.4f s, %6.3f Mcells/s, %6.3f GB/s, %6.3f "
+  //           "GFLOPS/s\n",
+  //           FFTyz.Elapsed(), nfft / 1e6 / FFTyz.Elapsed() * 2.0 / 3.0,
+  //           nfft / 1e9 / FFTyz.Elapsed() * 6.0 * sizeof(Float) * 2.0 / 3.0,
+  //           nfft / 1e6 / FFTyz.Elapsed() * 2.5 * log(ngrid3) / log(2) / 1e3 *
+  //               2.0 / 3.0);
+  //   fprintf(fp,
+  //           "#      FFTx time:   %8.4f s, %6.3f Mcells/s, %6.3f GB/s, %6.3f "
+  //           "GFLOPS/s\n",
+  //           FFTx.Elapsed(), nfft / 1e6 / FFTx.Elapsed() / 3.0,
+  //           nfft / 1e9 / FFTx.Elapsed() * 6.0 * sizeof(Float) / 3.0,
+  //           nfft / 1e6 / FFTx.Elapsed() * 2.5 * log(ngrid3) / log(2) / 1e3
+  //           / 3.0);
+  // #endif
   fprintf(fp, "# Total time:       %8.4f s\n", total_time);
 }
 

@@ -66,7 +66,7 @@ FftGrid::~FftGrid() {
   if (fftx_ != NULL) fftw_destroy_plan(fftx_);
   if (fftyz_ != NULL) fftw_destroy_plan(fftyz_);
   if (ifftx_ != NULL) fftw_destroy_plan(ifftx_);
-  if (ifftyz_ != NULL) fftw_destroy_plan(ifftTZ_);
+  if (ifftyz_ != NULL) fftw_destroy_plan(ifftyz_);
 #endif
 #ifdef OPENMP
 #ifndef FFTSLAB
@@ -180,15 +180,15 @@ void FftGrid::execute_fft() {
   int dsize_z = arr_.shape(2);
 #pragma omp parallel for MY_SCHEDULE
   for (int x = 0; x < rshape_[0]; x++) {
-    fftw_execute_dft_r2c(fftyz_, data + x * rshape_[1] * dsize_z,
-                         (fftw_complex *)data + x * rshape_[1] * dsize_z / 2);
+    fftw_execute_dft_r2c(fftyz_, data_ + x * rshape_[1] * dsize_z,
+                         (fftw_complex *)data_ + x * rshape_[1] * dsize_z / 2);
   }
   fftyz_time_.stop();
   fftx_time_.start();
 #pragma omp parallel for schedule(dynamic, 1)
   for (int y = 0; y < rshape_[1]; y++) {
-    fftw_execute_dft(fftx_, (fftw_complex *)data + y * dsize_z / 2,
-                     (fftw_complex *)data + y * dsize_z / 2);
+    fftw_execute_dft(fftx_, (fftw_complex *)data_ + y * dsize_z / 2,
+                     (fftw_complex *)data_ + y * dsize_z / 2);
   }
   fftx_time_.stop();
 #endif
@@ -205,16 +205,16 @@ void FftGrid::execute_ifft() {
   int dsize_z = arr_.shape(2);
 #pragma omp parallel for schedule(dynamic, 1)
   for (int y = 0; y < rshape_[1]; y++) {
-    fftw_execute_dft(ifftx_, (fftw_complex *)data + y * dsize_z / 2,
-                     (fftw_complex *)data + y * dsize_z / 2);
+    fftw_execute_dft(ifftx_, (fftw_complex *)data_ + y * dsize_z / 2,
+                     (fftw_complex *)data_ + y * dsize_z / 2);
   }
   fftx_time_.stop();
   fftyz_time_.start();
 #pragma omp parallel for MY_SCHEDULE
   for (int x = 0; x < rshape_[0]; x++) {
     fftw_execute_dft_c2r(ifftyz_,
-                         (fftw_complex *)data + x * rshape_[1] * dsize_z / 2,
-                         data + x * rshape_[1] * dsize_z);
+                         (fftw_complex *)data_ + x * rshape_[1] * dsize_z / 2,
+                         data_ + x * rshape_[1] * dsize_z);
   }
   fftyz_time_.stop();
 #endif
