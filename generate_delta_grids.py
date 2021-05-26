@@ -235,7 +235,7 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
 
     # Compute initial correlations.
     ic_file = os.path.join(DATA_BASE_DIR, "ic", sim_name,
-                           f"id_dens_N{config.ngrid}.asdf")
+                           f"ic_dens_N{config.ngrid}.asdf")
     with asdf.open(ic_file) as af:
         np.copyto(grid.data, af.tree["data"]["density"])
     print("\nComputing initial density field correlations")
@@ -251,16 +251,15 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
     for i in range(nrows):
         ell = 2 * i
         for j in range(ncols):
-            if j == 0:
-                imin = 9
-                imax = len(r)
-            else:
-                imin = 14
-                imax = 36
-
             ax = axes[i][j]
-            for label, r, xi in zip(correlations):
-                ax.plot(r[imin:imax], xi[imin:imax], "o-", label=label)
+            for label, r, xi in correlations:
+                if j == 0:
+                    imin = 9
+                    imax = len(r)
+                else:
+                    imin = 14
+                    imax = 36
+                ax.plot(r[imin:imax], xi[i, imin:imax], "o-", label=label)
                 ax.set_title("$\ell =$ {}".format(ell))
                 ax.set_xlabel("r [Mpc/h]")
                 ax.set_ylabel("$\\xi(r)$")
