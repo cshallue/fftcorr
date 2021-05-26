@@ -154,7 +154,7 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
     K_COORDS = np.stack((KX, KY, KZ), axis=-1)
 
     # Convolve with Gaussian in Fourier space.
-    print("Convolving with Gaussian with sigma =", config.gaussian_sigma)
+    print("Convolving with Gaussian, sigma =", config.gaussian_sigma)
     sigmax, sigmay, sigmaz = [config.gaussian_sigma] * 3
     kgaussian = np.exp(-2 * np.pi**2 * ((KX * sigmax)**2 + (KY * sigmay)**2 +
                                         (KZ * sigmaz)**2))
@@ -172,7 +172,7 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
     # Compute displacement field.
     print("Solving for displacement field")
     ksq = KX**2 + KY**2 + KZ**2
-    with np.errstate(invalid='ignore'):
+    with np.errstate(divide='ignore', invalid='ignore'):
         iksq = (1J / (2 * np.pi)) / ksq  # Divide by zero at zero
     # It's the mean of the displacement field, which we'll assume to be zero.
     iksq[0][0][0] = 0
@@ -221,10 +221,11 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
     print(
         "Added {:,} randoms. Total weight: {:.4g} ({:.4g}) ({:.4g})\n".format(
             config.nrandom, totw, np.sum(grid.data), random_weight))
-    grid.data /= dens_mean
+    d = grid.data
+    d /= dens_mean
     recon_dens_filename = os.path.join(
         output_dir, f"delta-z{redshift}-reconstructed.asdf")
-    grid.writerecon_dens_filename
+    grid.write(recon_dens_filename)
     print(f"Wrote reconstructed density field to {recon_dens_filename}\n")
     print("Computing reconstructed density field correlations")
     c.correlate_periodic()
