@@ -101,15 +101,18 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
                            posmax=posmax,
                            window_type=config.window_type)
     # Create density field.
+    print("\nReading density field")
     nparticles = read_density_field(
         file_pattern,
         grid,
         redshift_distortion=config.redshift_distortion,
         periodic_wrap=True)
-    print("Added {:,} particles.".format(nparticles))
+    print(f"Added {nparticles:,} particles to density field\n")
     dens_mean = np.mean(grid.data)
     _normalize(grid.data, dens_mean)
-    grid.write(os.path.join(output_dir, f"delta-z{redshift}.asdf"))
+    dens_filename = os.path.join(output_dir, f"delta-z{redshift}.asdf")
+    grid.write(dens_filename)
+    print(f"Wrote density field to {dens_filename}\n")
 
     # Compute correlations for validation.
     correlations = []
@@ -119,11 +122,13 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
     dk = 0.002
     maxell = 2
     c = Correlator(grid, rmax, dr, kmax, dk, maxell)
+    print("Computing density field correlations")
     c.correlate_periodic()
-    correlations.append = (f"Density field at z = {redshift}", c.correlation_r,
-                           c.correlation_histogram / c.correlation_counts)
+    correlations.append((f"Density field at z = {redshift}", c.correlation_r,
+                         c.correlation_histogram / c.correlation_counts))
 
     # Now start reconstruction.
+    print("\nStarting reconstruction")
 
     # Cartesian coordinates of the box.
     xmin, ymin, zmin = posmin
@@ -148,6 +153,7 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
     K_COORDS = np.stack((KX, KY, KZ), axis=-1)
 
     # Convolve with Gaussian in Fourier space.
+    print("Convolving with Gaussian with sigma =", config.gaussian_sigma)
     sigmax, sigmay, sigmaz = [config.gaussian_sigma] * 3
     kgaussian = np.exp(-2 * np.pi**2 * ((KX * sigmax)**2 + (KY * sigmay)**2 +
                                         (KZ * sigmaz)**2))
@@ -163,6 +169,7 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
     kconv_masked[:, :, imid] = 0
 
     # Compute displacement field.
+    print("Solving for displacement field")
     ksq = KX**2 + KY**2 + KZ**2
     with np.errstate(invalid='ignore'):
         iksq = (1J / (2 * np.pi)) / ksq  # Divide by zero at zero
@@ -177,7 +184,7 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
         dslice = disp.real[:, :, :, i]
         print("{} displacement: min: {:.2f}, max: {:.2f}, RMS: {:.2f}".format(
             name, dslice.min(), dslice.max(), np.sqrt(np.mean(dslice**2))))
-    print("Mean displacement magnitude: {:.2f}".format(
+    print("Mean displacement magnitude: {:.2f}\n".format(
         np.mean(np.sqrt(np.sum(disp.real**2, axis=-1)))))
 
     # Nearest neighbor interpolation.
@@ -192,6 +199,7 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
         pos -= compute_disp(pos)
 
     # Now generate the reconstructed delta grid.
+    print("Reading shifted density field")
     grid.clear()
     nparticles = read_density_field(
         file_pattern,
@@ -200,19 +208,24 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
         transform_coords_fn=transform_coords_fn,
         periodic_wrap=True,
         buffer_size=10000)
-    print("Added {:,} particles.".format(nparticles))
+    print(f"Added {nparticles:,} particles\n")
 
+    print("Adding shifted random particles")
     random_weight = -dens_mean * np.prod(shape)
     totw = add_random_particles(grid,
                                 config.nrandom,
                                 total_weight=random_weight,
                                 transform_coords_fn=transform_coords_fn,
                                 periodic_wrap=True)
-    print("Added {:,} randoms. Total weight: {:.4g} ({:.4g}) ({:.4g})".format(
-        config.nrandom, totw, np.sum(grid.data), random_weight))
+    print(
+        "Added {:,} randoms. Total weight: {:.4g} ({:.4g}) ({:.4g})\n".format(
+            config.nrandom, totw, np.sum(grid.data), random_weight))
     grid.data /= dens_mean
-    grid.write(
-        os.path.join(output_dir, f"delta-z{redshift}-reconstructed.asdf"))
+    recon_dens_filename = os.path.join(
+        output_dir, f"delta-z{redshift}-reconstructed.asdf")
+    grid.writerecon_dens_filename
+    print(f"Wrote reconstructed density field to {recon_dens_filename}\n")
+    print("Computing reconstructed density field correlations")
     c.correlate_periodic()
     correlations.append = (f"Reconstructed density field at z = {redshift}",
                            c.correlation_r,
@@ -223,11 +236,13 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
                            f"id_dens_N{config.ngrid}.asdf")
     with asdf.open(ic_file) as af:
         np.copyto(grid.data, af.tree["data"]["density"])
+    print("\nComputing initial density field correlations")
     c.correlate_periodic()
     correlations.append = (f"Initial density field", c.correlation_r,
                            c.correlation_histogram / c.correlation_counts)
 
     # Save correlation plots.
+    print("\nGenerating correlation plots")
     nrows = int(maxell / 2) + 1
     ncols = 2
     fig, axes = plt.subplots(nrows, ncols, figsize=(8 * ncols, 6 * nrows))

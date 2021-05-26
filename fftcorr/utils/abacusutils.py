@@ -59,7 +59,7 @@ def read_density_field(file_pattern,
                 total_items += n
                 max_items = max(max_items, n)
         if verbose:
-            print("Found {:,} items in {:,} files\n".format(
+            print("Found {:,} items in {:,} files".format(
                 total_items, len(filenames)))
 
         assert box_size > 0
