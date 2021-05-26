@@ -20,11 +20,6 @@ print()
 
 print("{0:x}".format(id(g)))
 print(dir(g))
-print("posmin =", posmin)
-print("cell_size =", g.cell_size)
-
-print("clearing")
-g.clear()
 
 print(g.data.flags)
 print("data =", g.data.flatten())
@@ -33,17 +28,44 @@ print("g ref count =", sys.getrefcount(g))
 d = g.data
 print("type(d) =", type(d))
 print("g ref count =", sys.getrefcount(g))
+
+d2 = g.data
+print("{0:x}".format(id(d)))
+print("{0:x}".format(id(d2)))
+print()
+
+# Interact with g through the numpy array
+print("data =", g.data.flatten())
 d += 7
 print("data =", g.data.flatten())
 d[0][0][0] = 2
 d[1][1][1] = -5
 print("data =", g.data.flatten())
+print()
 
-d2 = g.data
-print("{0:x}".format(id(d)))
-print("{0:x}".format(id(d2)))
+print("clearing")
+g.clear()
+print("data =", g.data.flatten())
 
-print(d.flatten())
+# Interact with g through its exposed inplace methods
+d += -2
+print("data =", g.data.flatten())
+d *= -3
+print("data =", g.data.flatten())
+d /= 6
+print("data =", g.data.flatten())
+d -= 2
+print("data =", g.data.flatten())
+
+print("sum of g:", np.sum(g))
+print("mean of g:", np.mean(g))
+
+try:
+    # This shouldn't work: we only implemented inplace add.
+    x = g + 1
+except TypeError as e:
+    print(e)
+
 print()
 
 g2 = fftcorr.grid.ConfigSpaceGrid(shape=ngrid,

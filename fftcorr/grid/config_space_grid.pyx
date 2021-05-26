@@ -159,13 +159,13 @@ cdef class ConfigSpaceGrid:
             },
             "data": self.data.astype(dtype),
         }
-        af = asdf.AsdfFile(tree)
+        af = asdf.AsdfFile(tree)  # TODO: close it?
         af.write_to(filename)
 
     @classmethod
     def read(cls, filename):
         import asdf  # TODO: move to top level?
-        af = asdf.open(filename)
+        af = asdf.open(filename)  # TODO: close it?
         header = af.tree["header"]
         grid = cls(
             shape=header["shape"],
@@ -176,3 +176,22 @@ cdef class ConfigSpaceGrid:
         assert np.allclose(grid.cell_size, header["cell_size"])
         np.copyto(grid.data, af.tree["data"])  # TODO: better way to do this?
         return grid
+
+    def __iadd__(self, other):
+        np.add(self.data, other, out=self.data)
+        return self
+
+    def __isub__(self, other):
+        np.subtract(self.data, other, out=self.data)
+        return self
+
+    def __imul__(self, other):
+        np.multiply(self.data, other, out=self.data)
+        return self
+
+    def __itruediv__(self, other):
+        np.divide(self.data, other, out=self.data)
+        return self
+
+    def __array__(self):
+        return self.data
