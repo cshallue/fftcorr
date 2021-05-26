@@ -229,9 +229,9 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
     print(f"Wrote reconstructed density field to {recon_dens_filename}\n")
     print("Computing reconstructed density field correlations")
     c.correlate_periodic()
-    correlations.append = (f"Reconstructed density field at z = {redshift}",
-                           c.correlation_r,
-                           c.correlation_histogram / c.correlation_counts)
+    correlations.append(
+        (f"Reconstructed density field at z = {redshift}", c.correlation_r,
+         c.correlation_histogram / c.correlation_counts))
 
     # Compute initial correlations.
     ic_file = os.path.join(DATA_BASE_DIR, "ic", sim_name,
@@ -240,8 +240,8 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
         np.copyto(grid.data, af.tree["data"]["density"])
     print("\nComputing initial density field correlations")
     c.correlate_periodic()
-    correlations.append = (f"Initial density field", c.correlation_r,
-                           c.correlation_histogram / c.correlation_counts)
+    correlations.append((f"Initial density field", c.correlation_r,
+                         c.correlation_histogram / c.correlation_counts))
 
     # Save correlation plots.
     print("\nGenerating correlation plots")
