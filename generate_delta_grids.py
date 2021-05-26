@@ -1,10 +1,11 @@
 import glob
+import json
 import os
 
 from absl import app
 from absl import flags
 
-import matplotlib as mpl
+import asdf
 import matplotlib.pyplot as plt
 import numpy as np
 import scipy.interpolate
@@ -20,20 +21,45 @@ from fftcorr.correlate import Correlator
 DATA_BASE_DIR = "/mnt/marvin2/bigsims/AbacusSummit/"
 
 BASE_CONFIG = ConfigDict(
-    dict(
-        data_dir="",  # Relative to DATA_BASE_DIR
-        data_type="field_rv_A",  # field_rv_{A,B} or halos
-        ngrid=576,
-        xmin=-1000,
-        xmax=1000,
-        window_type=1,
-        redshift_distortion=False,
-        dens_mean=0.0,
-        gaussian_sigma=10,
-        nrandom=1e9))
+    dict(ngrid=576,
+         xmin=-1000,
+         xmax=1000,
+         window_type=1,
+         redshift_distortion=False,
+         gaussian_sigma=10,
+         nrandom=1e9))
+BASE_CONFIG.lock()  # Prevent new fields from being accidentally added.
 
-flags.DEFINE_string("data_dir", None, "Directory containing the input files")
-flags.DEFINE_string("output_dir", None, "Directory to write the output")
+flags.DEFINE_string(
+    "sim_name",
+    None,
+    f"Subdirectory of {DATA_BASE_DIR} containing the input files",
+    required=True)
+ALLOWED_DATA_TYPES = ["field_A", "field_B", "field_AB", "halos"]
+flags.DEFINE_enum("data_type",
+                  None,
+                  ALLOWED_DATA_TYPES,
+                  "Type of data to process",
+                  required=True)
+flags.DEFINE_string("output_dir",
+                    None,
+                    "Base directory for the output",
+                    required=True)
+ALLOWED_REDSHIFTS = [
+    "0.100", "0.200", "0.300", "0.500", "0.800", "1.100", "1.400", "1.700",
+    "2.000", "2.500", "3.000"
+]
+flags.DEFINE_multi_enum("z",
+                        None,
+                        ALLOWED_REDSHIFTS,
+                        "Redshifts to process",
+                        required=True)
+flags.DEFINE_bool(
+    "overwrite", False,
+    "Whether to overwrite the existing output directory, if it exists")
+flags.DEFINE_bool(
+    "use_existing_config", False,
+    "Whether to use the existing config in the output directory, if it exists")
 config_flags.DEFINE_config_dict("config", BASE_CONFIG)
 
 FLAGS = flags.FLAGS
@@ -44,48 +70,58 @@ def _normalize(grid, mean):
     grid /= mean
 
 
-def run(config, output_base_dir):
-    data_dir = os.path.join(DATA_BASE_DIR, config.data_dir)
-    if config.data_type.startswith("field_rv_"):
-        input_file_pattern = os.path.join(data_dir, config.data_type,
-                                          config.data_type + "*.asdf")
-    else:  # config.data_type == "halos"
-        input_file_pattern = os.path.join(data_dir,
-                                          "halo_info/halo_info*.asdf")
-    if not glob.glob(input_file_pattern):
-        print("Found no files matching:", input_file_pattern)
-        return 1
+def _ensure_dir_exists(path):
+    if not os.path.isdir(path):
+        raise ValueError(f"Directory does not exist: {path}")
 
-    output_dir = os.path.join(output_base_dir, config.data_dir)
-    if os.path.exists(output_dir):
-        print("Output directory alraedy exists:", output_dir)
-        return 1
-    os.makedirs(output_dir)
+
+def process_redshift(config, sim_name, data_type, redshift, output_dir):
+    # Get input file pattern.
+    data_dir = os.path.join(DATA_BASE_DIR, sim_name, f"halos/z{redshift}/")
+    if data_type == "field_A":
+        _ensure_dir_exists(os.path.join(data_dir, "field_rv_A"))
+        file_pattern = os.path.join(data_dir, "field_rv_A/field_rv_A_*.asdf")
+    elif FLAGS.data_type == "field_B":
+        _ensure_dir_exists(os.path.join(data_dir, "field_rv_B"))
+        file_pattern = os.path.join(data_dir, "field_rv_B/field_rv_B_*.asdf")
+    elif FLAGS.data_type == "field_AB":
+        _ensure_dir_exists(os.path.join(data_dir, "field_rv_A"))
+        _ensure_dir_exists(os.path.join(data_dir, "field_rv_B"))
+        file_pattern = os.path.join(data_dir,
+                                    "field_rv_[AB]/field_rv_[AB]_*.asdf")
+    if FLAGS.data_type == "halos":
+        _ensure_dir_exists(os.path.join(data_dir, "halo_info"))
+        file_pattern = os.path.join(data_dir, "halo_info/halo_info_*.asdf")
 
     shape = [config.ngrid] * 3
     posmin = [config.xmin] * 3
     posmax = [config.xmax] * 3
-
-    deltagrid = ConfigSpaceGrid(shape,
-                                posmin=posmin,
-                                posmax=posmax,
-                                window_type=config.window_type)
-
-    # Create grid in redshift space.
+    grid = ConfigSpaceGrid(shape,
+                           posmin=posmin,
+                           posmax=posmax,
+                           window_type=config.window_type)
+    # Create density field.
     nparticles = read_density_field(
-        input_file_pattern,
-        deltagrid,
+        file_pattern,
+        grid,
         redshift_distortion=config.redshift_distortion,
         periodic_wrap=True)
     print("Added {:,} particles.".format(nparticles))
-    if config.dens_mean != 0.0:
-        print("dens_mean is set automatically")
-        return 1
-    config.dens_mean = np.mean(deltagrid.data)
-    _normalize(deltagrid.data, config.dens_mean)
-    deltagrid.write(os.path.join(output_dir, "delta.asdf"))
-    with open(os.path.join(output_dir, "config.json"), "w") as f:
-        f.write(config.to_json())
+    dens_mean = np.mean(grid.data)
+    _normalize(grid.data, dens_mean)
+    grid.write(os.path.join(output_dir, f"delta-z{redshift}.asdf"))
+
+    # Compute correlations for validation.
+    correlations = []
+    rmax = 150.0
+    dr = 5
+    kmax = 0.4
+    dk = 0.002
+    maxell = 2
+    c = Correlator(grid, rmax, dr, kmax, dk, maxell)
+    c.correlate_periodic()
+    correlations.append = (f"Density field at z = {redshift}", c.correlation_r,
+                           c.correlation_histogram / c.correlation_counts)
 
     # Now start reconstruction.
 
@@ -115,7 +151,7 @@ def run(config, output_base_dir):
     sigmax, sigmay, sigmaz = [config.gaussian_sigma] * 3
     kgaussian = np.exp(-2 * np.pi**2 * ((KX * sigmax)**2 + (KY * sigmay)**2 +
                                         (KZ * sigmaz)**2))
-    kdelta = np.fft.fftn(deltagrid.data)
+    kdelta = np.fft.fftn(grid.data)
     kconv = kdelta * kgaussian
 
     # Set all frequencies on the boundary to zero.
@@ -155,47 +191,43 @@ def run(config, output_base_dir):
     def transform_coords_fn(pos):
         pos -= compute_disp(pos)
 
-    # Reconstructed delta grid.
-    rdeltagrid = ConfigSpaceGrid(shape,
-                                 posmin=posmin,
-                                 posmax=posmax,
-                                 window_type=config.window_type)
+    # Now generate the reconstructed delta grid.
+    grid.clear()
     nparticles = read_density_field(
-        input_file_pattern,
-        rdeltagrid,
+        file_pattern,
+        grid,
         redshift_distortion=config.redshift_distortion,
         transform_coords_fn=transform_coords_fn,
         periodic_wrap=True,
         buffer_size=10000)
     print("Added {:,} particles.".format(nparticles))
 
-    random_weight = -config.dens_mean * np.prod(shape)
-    totw = add_random_particles(rdeltagrid,
+    random_weight = -dens_mean * np.prod(shape)
+    totw = add_random_particles(grid,
                                 config.nrandom,
                                 total_weight=random_weight,
                                 transform_coords_fn=transform_coords_fn,
                                 periodic_wrap=True)
     print("Added {:,} randoms. Total weight: {:.4g} ({:.4g}) ({:.4g})".format(
-        config.nrandom, totw, np.sum(rdeltagrid.data), random_weight))
-    rdeltagrid.data /= config.dens_mean
-    rdeltagrid.write(os.path.join(output_dir, "delta-reconstructed.asdf"))
+        config.nrandom, totw, np.sum(grid.data), random_weight))
+    grid.data /= dens_mean
+    grid.write(
+        os.path.join(output_dir, f"delta-z{redshift}-reconstructed.asdf"))
+    c.correlate_periodic()
+    correlations.append = (f"Reconstructed density field at z = {redshift}",
+                           c.correlation_r,
+                           c.correlation_histogram / c.correlation_counts)
 
-    # Make some plots for validation.
-    rmax = 150.0
-    dr = 5
-    kmax = 0.4
-    dk = 0.002
-    maxell = 2
-    correlations = []
-    for label, grid in [("Density field", deltagrid),
-                        ("Reconstructed density field", rdeltagrid)]:
-        print("Correlating:", label)
-        c = Correlator(grid, rmax, dr, kmax, dk, maxell)
-        c.correlate_periodic()
-        print("Done correlating!\n")
-        correlations.append = (label, c.correlation_r,
-                               c.correlation_histogram / c.correlation_counts)
+    # Compute initial correlations.
+    ic_file = os.path.join(DATA_BASE_DIR, "ic", sim_name,
+                           f"id_dens_N{config.ngrid}.asdf")
+    with asdf.open(ic_file) as af:
+        np.copyto(grid.data, af.tree["data"]["density"])
+    c.correlate_periodic()
+    correlations.append = (f"Initial density field", c.correlation_r,
+                           c.correlation_histogram / c.correlation_counts)
 
+    # Save correlation plots.
     nrows = int(maxell / 2) + 1
     ncols = 2
     fig, axes = plt.subplots(nrows, ncols, figsize=(8 * ncols, 6 * nrows))
@@ -223,11 +255,48 @@ def run(config, output_base_dir):
 
 def main(unused_argv):
     config = FLAGS.config
-    config.data_dir = FLAGS.data_dir
-    return run(config, FLAGS.output_dir)
+
+    # Ensure the output directory exists.
+    output_dir = os.path.join(FLAGS.output_dir, FLAGS.sim_name,
+                              FLAGS.data_type)
+    print(output_dir)
+    if os.path.exists(output_dir):
+        print("Output directory already exists:", output_dir)
+        if FLAGS.overwrite:
+            print("Contents will be overwritten")
+            os.remove(output_dir)
+            os.makedirs(output_dir)
+        elif FLAGS.use_existing_config:
+            print("Using the existing config file")
+            existing_config = ConfigDict(
+                json.load(os.path.join(output_dir, "config.json")))
+            existing_config.lock()
+            config.update(existing_config)
+            # This makes sure that the keys are identical.
+            existing_config.update(config)
+        else:
+            print(
+                "One of --overwrite and --use_existing_config must be set when "
+                "the output directory exists")
+            return 1
+    else:
+        print("making output dir")
+        os.makedirs(output_dir)
+
+    # Save the config.
+    config_json = config.to_json(indent=2)
+    print("Adopting config:")
+    print(config_json)
+    with open(os.path.join(output_dir, "config.json"), "w") as f:
+        f.write(config_json)
+
+    for redshift in FLAGS.z:
+        try:
+            process_redshift(config, FLAGS.sim_name, FLAGS.data_type, redshift,
+                             output_dir)
+        except ValueError as e:
+            print(f"Failed to process redshift {redshift}:\n", e)
 
 
 if __name__ == '__main__':
-    flags.mark_flag_as_required('data_dir')
-    flags.mark_flag_as_required('output_dir')
     app.run(main)
