@@ -111,6 +111,7 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
     print(f"Added {nparticles:,} particles to density field\n")
     dens_mean = np.mean(grid.data)
     _normalize(grid.data, dens_mean)
+    delta_std = np.std(grid.data)
     dens_filename = os.path.join(output_dir, f"delta-z{redshift}.asdf")
     grid.write(dens_filename)
     print(f"Wrote density field to {dens_filename}\n")
@@ -238,6 +239,9 @@ def process_redshift(config, sim_name, data_type, redshift, output_dir):
                            f"ic_dens_N{config.ngrid}.asdf")
     with asdf.open(ic_file) as af:
         np.copyto(grid.data, af.tree["data"]["density"])
+    # Normalize initial density field to match delta field scale.
+    d = grid.data
+    d *= (delta_std / np.std(d))
     print("\nComputing initial density field correlations")
     c.correlate_periodic()
     correlations.append((f"Initial density field", c.correlation_r,
