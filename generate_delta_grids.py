@@ -1,6 +1,7 @@
 import glob
 import json
 import os
+import shutil
 
 from absl import app
 from absl import flags
@@ -55,7 +56,7 @@ flags.DEFINE_multi_enum("z",
                         "Redshifts to process",
                         required=True)
 flags.DEFINE_bool(
-    "overwrite", False,
+    "overwrite_all", False,
     "Whether to overwrite the existing output directory, if it exists")
 flags.DEFINE_bool(
     "use_existing_config", False,
@@ -277,9 +278,9 @@ def main(unused_argv):
     print(output_dir)
     if os.path.exists(output_dir):
         print("Output directory already exists:", output_dir)
-        if FLAGS.overwrite:
+        if FLAGS.overwrite_all:
             print("Contents will be overwritten")
-            os.remove(output_dir)
+            shutil.rmtree(output_dir)
             os.makedirs(output_dir)
         elif FLAGS.use_existing_config:
             print("Using the existing config file")
@@ -291,8 +292,8 @@ def main(unused_argv):
             existing_config.update(config)
         else:
             print(
-                "One of --overwrite and --use_existing_config must be set when "
-                "the output directory exists")
+                "One of --overwrite_all and --use_existing_config must be set "
+                "when the output directory already exists")
             return 1
     else:
         print("making output dir")
