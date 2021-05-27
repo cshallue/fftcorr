@@ -38,34 +38,54 @@ class RowMajorArrayPtr<dtype, 2> : public ArrayNdPtrBase<dtype, 2> {
   RowMajorArrayPtr() : ArrayNdPtrBase<dtype, 2>() {}
   RowMajorArrayPtr(std::array<int, 2> shape, dtype *data)
       : ArrayNdPtrBase<dtype, 2>(shape, data) {}
-  uint64 get_index(int ix, int iy) const {
-    return (uint64)iy + ix * this->shape_[1];
+  uint64 get_index(int i, int j) const {
+    return j + (uint64)i * this->shape_[1];
   }
-  dtype &at(int ix, int iy) { return this->data_[get_index(ix, iy)]; }
-  const dtype &at(int ix, int iy) const {
-    return this->data_[get_index(ix, iy)];
-  }
-  dtype *get_row(int ix) { return &this->at(ix, 0); }
-  const dtype *get_row(int ix) const { return &this->at(ix, 0); }
+  dtype &at(int i, int j) { return this->data_[get_index(i, j)]; }
+  const dtype &at(int i, int j) const { return this->data_[get_index(i, j)]; }
+  dtype *get_row(int i) { return &this->at(i, 0); }
+  const dtype *get_row(int i) const { return &this->at(i, 0); }
 };
 
+// 3D row-major array pointer.
 template <typename dtype>
 class RowMajorArrayPtr<dtype, 3> : public ArrayNdPtrBase<dtype, 3> {
  public:
   RowMajorArrayPtr() : ArrayNdPtrBase<dtype, 3>() {}
   RowMajorArrayPtr(std::array<int, 3> shape, dtype *data)
       : ArrayNdPtrBase<dtype, 3>(shape, data) {}
-  uint64 get_index(int ix, int iy, int iz) const {
-    return (uint64)iz + this->shape_[2] * (iy + ix * this->shape_[1]);
+  uint64 get_index(int i, int j, int k) const {
+    return k + (j + (uint64)i * this->shape_[1]) * this->shape_[2];
   }
-  dtype &at(int ix, int iy, int iz) {
-    return this->data_[get_index(ix, iy, iz)];
+  dtype &at(int i, int j, int k) { return this->data_[get_index(i, j, k)]; }
+  const dtype &at(int i, int j, int k) const {
+    return this->data_[get_index(i, j, k)];
   }
-  const dtype &at(int ix, int iy, int iz) const {
-    return this->data_[get_index(ix, iy, iz)];
+  dtype *get_row(int i, int j) { return &this->at(i, j, 0); }
+  const dtype *get_row(int i, int j) const { return &this->at(i, j, 0); }
+};
+
+// 4D row-major array pointer.
+template <typename dtype>
+class RowMajorArrayPtr<dtype, 4> : public ArrayNdPtrBase<dtype, 4> {
+ public:
+  RowMajorArrayPtr() : ArrayNdPtrBase<dtype, 4>() {}
+  RowMajorArrayPtr(std::array<int, 4> shape, dtype *data)
+      : ArrayNdPtrBase<dtype, 4>(shape, data) {}
+  uint64 get_index(int i, int j, int k, int l) const {
+    return l + (k + (j + (uint64)i * this->shape_[1]) * this->shape_[2]) *
+                   this->shape_[3];
   }
-  dtype *get_row(int ix, int iy) { return &this->at(ix, iy, 0); }
-  const dtype *get_row(int ix, int iy) const { return &this->at(ix, iy, 0); }
+  dtype &at(int i, int j, int k, int l) {
+    return this->data_[get_index(i, j, k, l)];
+  }
+  const dtype &at(int i, int j, int k, int l) const {
+    return this->data_[get_index(i, j, k, l)];
+  }
+  dtype *get_row(int i, int j, int k) { return &this->at(i, j, k, 0); }
+  const dtype *get_row(int i, int j, int k) const {
+    return &this->at(i, j, k, 0);
+  }
 };
 
 // Base class for an N-dimensional array with row-major data layout that

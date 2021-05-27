@@ -41,9 +41,9 @@ class ArrayNd<dtype, 2> : public ArrayNdBase<dtype, 2> {
  public:
   virtual ~ArrayNd() = default;
   // Indexing.
-  virtual uint64 get_index(int ix, int iy) const = 0;
-  virtual dtype &at(int ix, int iy) = 0;
-  virtual const dtype &at(int ix, int iy) const = 0;
+  virtual uint64 get_index(int i, int j) const = 0;
+  virtual dtype &at(int i, int j) = 0;
+  virtual const dtype &at(int i, int j) const = 0;
 };
 
 // Interface for 3D array.
@@ -52,9 +52,20 @@ class ArrayNd<dtype, 3> : public ArrayNdBase<dtype, 3> {
  public:
   virtual ~ArrayNd() = default;
   // Indexing.
-  virtual uint64 get_index(int ix, int iy, int iz) const = 0;
-  virtual dtype &at(int ix, int iy, int iz) = 0;
-  virtual const dtype &at(int ix, int iy, int iz) const = 0;
+  virtual uint64 get_index(int i, int j, int k) const = 0;
+  virtual dtype &at(int i, int j, int k) = 0;
+  virtual const dtype &at(int i, int j, int k) const = 0;
+};
+
+// Interface for 4D array.
+template <typename dtype>
+class ArrayNd<dtype, 4> : public ArrayNdBase<dtype, 4> {
+ public:
+  virtual ~ArrayNd() = default;
+  // Indexing.
+  virtual uint64 get_index(int i, int j, int k, int l) const = 0;
+  virtual dtype &at(int i, int j, int k, int l) = 0;
+  virtual const dtype &at(int i, int j, int k, int l) const = 0;
 };
 
 // Base class for an N-dimensional array pointer. Does not implement a data

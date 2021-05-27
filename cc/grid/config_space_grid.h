@@ -14,8 +14,6 @@ class ConfigSpaceGrid {
                   Float cell_size, WindowType window_type)
       : shape_(shape),
         posmin_(posmin),
-        posrange_{shape[0] * cell_size, shape[1] * cell_size,
-                  shape[2] * cell_size},
         cell_size_(cell_size),
         window_type_(window_type),
         grid_(shape_) {
@@ -26,7 +24,6 @@ class ConfigSpaceGrid {
   int shape(int i) const { return shape_[i]; }
   uint64 size() const { return grid_.size(); }
   Float posmin(int i) const { return posmin_[i]; }
-  Float posrange(int i) const { return posrange_[i]; }
   Float cell_size() const { return cell_size_; }
   WindowType window_type() const { return window_type_; }
   RowMajorArray<Float, 3>& data() { return grid_; }
@@ -39,8 +36,6 @@ class ConfigSpaceGrid {
   const std::array<int, 3> shape_;
   // The origin of the grid coordinate system, expressed in survey coordinates.
   const std::array<Float, 3> posmin_;
-  // The grid span in each dimension, expressed in survey coordinates.
-  const std::array<Float, 3> posrange_;
   // Size of each grid cell, in survey coordinates.
   const Float cell_size_;
   // Type of window used in mass assignment.

@@ -16,11 +16,13 @@
 
 class MassAssignor {
  public:
-  MassAssignor(ConfigSpaceGrid *grid, bool periodic_wrap, uint64 buffer_size)
+  MassAssignor(ConfigSpaceGrid *grid, bool periodic_wrap, uint64 buffer_size,
+               const RowMajorArray<Float, 4> *disp = NULL)
       : grid_(grid),
         window_func_(make_window_function(grid->window_type())),
         periodic_wrap_(periodic_wrap),
         buffer_size_(buffer_size),
+        disp_(disp),
         num_added_(0),
         num_skipped_(0),
         totw_(0),
@@ -31,6 +33,14 @@ class MassAssignor {
 #else
     fprintf(stderr, "# Running single threaded.\n");
 #endif
+
+    if (disp_) {
+      assert(disp_->shape(0) == grid_->shape(0));
+      assert(disp_->shape(1) == grid_->shape(1));
+      assert(disp_->shape(2) == grid_->shape(2));
+      assert(disp_->shape(3) == 3);
+    }
+
     gal_.reserve(buffer_size_);
   }
 
@@ -83,8 +93,8 @@ class MassAssignor {
   }
 
   void add_particle_to_buffer(Float x, Float y, Float z, Float w) {
-    bool in_bounds = change_survey_to_grid_coords(x, y, z);
-    if (!in_bounds) {
+    if (!(change_survey_to_grid_coords(x, y, z) &&
+          apply_displacement_to_grid_coords(x, y, z))) {
       // Particle is outside the grid boundary and we're not periodic wrapping.
       num_skipped_ += 1;
       return;
@@ -150,22 +160,40 @@ class MassAssignor {
   }
 
  private:
-  bool change_survey_to_grid_coord(int i, Float &x) const {
-    x -= grid_->posmin(i);
-    Float xmax = grid_->posrange(i);
+  bool maybe_wrap_coord(int i, Float &x) const {
+    Float xmax = grid_->shape(i);
     if (x < 0 || x >= xmax) {
       if (!periodic_wrap_) return false;
       x = fmod(x, xmax);
       if (x < 0) x += xmax;
     }
-    x /= grid_->cell_size();
     return true;
+  }
+
+  bool change_survey_to_grid_coord(int i, Float &x) const {
+    x -= grid_->posmin(i);
+    x /= grid_->cell_size();
+    return maybe_wrap_coord(i, x);
   }
 
   bool change_survey_to_grid_coords(Float &x, Float &y, Float &z) const {
     return change_survey_to_grid_coord(0, x) &&
            change_survey_to_grid_coord(1, y) &&
            change_survey_to_grid_coord(2, z);
+  }
+
+  bool apply_displacement_to_grid_coord(int i, Float &x,
+                                        const Float *dxyz) const {
+    x += dxyz[i] / grid_->cell_size();
+    return maybe_wrap_coord(i, x);
+  }
+
+  bool apply_displacement_to_grid_coords(Float &x, Float &y, Float &z) const {
+    if (!disp_) return true;  // Not applying any displacement.
+    const Float *dxyz = disp_->get_row(floor(x), floor(y), floor(z));
+    return apply_displacement_to_grid_coord(0, x, dxyz) &&
+           apply_displacement_to_grid_coord(1, y, dxyz) &&
+           apply_displacement_to_grid_coord(2, z, dxyz);
   }
 
   ConfigSpaceGrid *grid_;
@@ -177,6 +205,10 @@ class MassAssignor {
   const uint64 buffer_size_;
   std::vector<Particle> gal_;
   std::vector<Particle> buf_;  // Used for mergesort.
+
+  // Optional displacement vector field used to shift the original positions by.
+  // Must have shape [ngrid0, ngrid1, ngrid2, 3].
+  const RowMajorArray<Float, 4> *disp_;
 
   uint64 num_added_;  // TODO: rename to something more descriptive
   uint64 num_skipped_;
