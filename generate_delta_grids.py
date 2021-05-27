@@ -63,11 +63,6 @@ config_flags.DEFINE_config_dict("config", BASE_CONFIG)
 FLAGS = flags.FLAGS
 
 
-def _normalize(grid, mean):
-    grid -= mean
-    grid /= mean
-
-
 def ensure_dir_exists(path):
     if not os.path.isdir(path):
         raise ValueError(f"Directory does not exist: {path}")
@@ -124,9 +119,9 @@ def process(config, input_file_pattern, output_dir, overwrite):
         redshift_distortion=config.redshift_distortion,
         periodic_wrap=True)
     print(f"Added {nparticles:,} particles to density field\n")
-    dens_mean = np.mean(grid.data)
-    _normalize(grid.data, dens_mean)
-    delta_std = np.std(grid.data)
+    dens_mean = np.mean(grid)
+    grid -= dens_mean
+    grid /= dens_mean
     dens_filename = os.path.join(output_dir, "delta.asdf")
     grid.write(dens_filename)
     print(f"Wrote density field to {dens_filename}\n")
@@ -221,11 +216,9 @@ def process(config, input_file_pattern, output_dir, overwrite):
                                 total_weight=random_weight,
                                 transform_coords_fn=transform_coords_fn,
                                 periodic_wrap=True)
-    print(
-        "Added {:,} randoms. Total weight: {:.4g} ({:.4g}) ({:.4g})\n".format(
-            config.nrandom, totw, np.sum(grid.data), random_weight))
-    d = grid.data
-    d /= dens_mean
+    print("Added {:,} randoms. Total weight: {:.4g} ({:.4g})\n".format(
+        config.nrandom, totw, random_weight))
+    grid /= dens_mean
     recon_dens_filename = os.path.join(output_dir, f"delta-reconstructed.asdf")
     grid.write(recon_dens_filename)
     print(f"Wrote reconstructed density field to {recon_dens_filename}\n")
