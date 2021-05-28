@@ -16,9 +16,10 @@ import ml_collections
 from ml_collections import ConfigDict
 from ml_collections.config_flags import config_flags
 
+from fftcorr.catalog import read_density_field, add_random_particles
 from fftcorr.grid import ConfigSpaceGrid
 from fftcorr.particle_mesh import MassAssignor
-from fftcorr.utils import Timer, read_density_field, add_random_particles
+from fftcorr.utils import Timer
 
 DATA_BASE_DIR = "/mnt/marvin2/bigsims/AbacusSummit/"
 
