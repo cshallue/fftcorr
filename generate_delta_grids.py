@@ -155,7 +155,7 @@ def process(config, input_file_pattern, output_dir, overwrite):
 
     # Save the config.
     config_json = config.to_json(indent=2)
-    print("Cconfig:")
+    print("Config:")
     print(config_json)
     with open(os.path.join(output_dir, "config.json"), "w") as f:
         f.write(config_json)
@@ -167,14 +167,13 @@ def process(config, input_file_pattern, output_dir, overwrite):
                            posmin=posmin,
                            posmax=posmax,
                            window_type=config.window_type)
-    mass_assignor = MassAssignor(grid, periodic_wrap=True)
+    ma = MassAssignor(grid, periodic_wrap=True)
     # Create density field.
     print("\nReading density field")
-    nparticles = read_density_field(
-        input_file_pattern,
-        mass_assignor,
-        redshift_distortion=config.redshift_distortion)
-    print(f"Added {nparticles:,} particles to density field\n")
+    read_density_field(input_file_pattern,
+                       ma,
+                       redshift_distortion=config.redshift_distortion)
+    print(f"Added {ma.num_added:,} halos ({ma.num_skipped:,} skipped).")
     dens_mean = np.mean(grid)
     grid -= dens_mean
     grid /= dens_mean
@@ -191,20 +190,18 @@ def process(config, input_file_pattern, output_dir, overwrite):
     # Generate the reconstructed delta grid.
     print("Reading shifted density field")
     grid.clear()
-    mass_assignor = MassAssignor(grid, periodic_wrap=True, disp=-disp)
-    nparticles = read_density_field(
-        input_file_pattern,
-        mass_assignor,
-        redshift_distortion=config.redshift_distortion)
-    print(f"Added {nparticles:,} particles\n")
+    ma = MassAssignor(grid, periodic_wrap=True, disp=-disp)
+    read_density_field(input_file_pattern,
+                       ma,
+                       redshift_distortion=config.redshift_distortion)
+    print(f"Added {ma.num_added:,} halos ({ma.num_skipped:,} skipped).")
 
     print("Adding shifted random particles")
     random_weight = -dens_mean * np.prod(shape)
-    add_random_particles(config.nrandom,
-                         mass_assignor,
-                         total_weight=random_weight)
-    print("Added {:,} randoms. Total weight: {:.4g} ({:.4g})\n".format(
-        config.nrandom, mass_assignor.totw, random_weight))
+    add_random_particles(config.nrandom, ma, total_weight=random_weight)
+    print(
+        f"Added {ma.num_added:,} randoms ({ma.num_skipped:,} skipped). Total "
+        "weight: {ma.totw:.4g} ({random_weight:.4g})\n")
     grid /= dens_mean
     recon_dens_filename = os.path.join(output_dir, f"delta-reconstructed.asdf")
     grid.write(recon_dens_filename)
