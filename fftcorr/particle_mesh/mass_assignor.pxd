@@ -30,8 +30,10 @@ cdef class MassAssignor:
     # Allocate the MassAssignor_cc on the heap; it would need to have a nullary
     # constructor to allocate it on the stack. TODO: consider this.
     cdef MassAssignor_cc *_cc_ma
-    # TODO: remove this and make MassAssignor make a copy of disp / cell_size
-    # for both efficiency and to avoid lifetime issues? 
+    # TODO: it would be possible to have a RowMajorArray here.
+    cdef Float[:, :, :, ::1] _disp_data
+    # TODO: _cc_disp? _disp_rma? Consider naming conventions for arrays and
+    # their shapes.
     cdef RowMajorArrayPtr[Float, Four] _disp
     cpdef add_particles(self, Float[:, ::1] particles, weight=*)
     cpdef add_particles_to_buffer(self, Float[:, ::1] particles, weight=*)

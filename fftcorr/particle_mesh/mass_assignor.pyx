@@ -17,11 +17,25 @@ cdef class MassAssignor:
         cdef cnp.ndarray[cnp.npy_int] disp_shape
         cdef const RowMajorArrayPtr[Float, Four]* disp_ptr = NULL
         if disp is not None:
+            # Validate dimensions.
+            # TODO: is the intc thing necessary?
+            expected_shape = np.concatenate((grid.shape, (3,))).astype(np.intc)
+            # TODO: unify this with disp_shape?
+            actual_shape = np.array(disp.shape, dtype=np.intc)[:4]
+            if (np.any(expected_shape != actual_shape)):
+                raise ValueError(
+                    f"Expected disp to have shape: {expected_shape}. Got: {actual_shape}")
+
+            # Make a contiguous copy.
+            self._disp_data = disp.copy()
+
             # TODO: wrap this, it's used in multiple places
-            disp_shape =  np.array(disp.shape, dtype=np.intc)
+            disp_shape =  np.array(self._disp_data.shape, dtype=np.intc)
             self._disp = RowMajorArrayPtr[Float, Four](
-                (<array[int, Four] *> &disp_shape[0])[0], &disp[0,0,0,0])
+                (<array[int, Four] *> &disp_shape[0])[0], &self._disp_data[0,0,0,0])
             disp_ptr = &self._disp
+
+        print("disp_data", self._disp_data)
         self._cc_ma = new MassAssignor_cc(grid.cc_grid(), periodic_wrap, buffer_size, disp_ptr)
         
 
