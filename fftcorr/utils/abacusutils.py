@@ -11,13 +11,10 @@ from fftcorr.utils import Timer
 
 def read_density_field(file_pattern,
                        grid,
+                       ma,
                        file_type=None,
                        redshift_distortion=False,
-                       displacement_field=None,
-                       periodic_wrap=True,
-                       bounds_error="warn",
-                       verbose=True,
-                       buffer_size=10000):
+                       verbose=True):
     filenames = sorted(glob.glob(file_pattern))
     if not filenames:
         raise ValueError("Found no files matching {}".format(file_pattern))
@@ -35,10 +32,6 @@ def read_density_field(file_pattern,
             file_type = ft
         elif file_type != ft:
             raise ValueError("Inconsistent file types")
-
-    if bounds_error not in ["raise", "warn", "none", None]:
-        raise ValueError(
-            "Unrecognized bounds_error: '{}'".format(bounds_error))
 
     gridmin = grid.posmin
     gridmax = grid.posmax
@@ -82,9 +75,8 @@ def read_density_field(file_pattern,
             weight_buf = np.empty((max_items, ), dtype=np.float64, order="C")
 
     with Timer() as work_timer:
-        ma = MassAssignor(grid, periodic_wrap, buffer_size, displacement_field)
+        ma.clear()
         items_seen = 0
-        items_skipped = 0
         io_time = 0.0
         ma_time = 0.0
         for filename in filenames:
@@ -127,21 +119,6 @@ def read_density_field(file_pattern,
                 # that direction.
                 pos[:, 2] += vel[:, 2] / (100 * scale_factor)
 
-            # Check if any items fall outside the grid.
-            if (np.any(pos.min(axis=0) < gridmin)
-                    or np.any(pos.max(axis=0) >= gridmax)):
-                num_outside = np.sum(
-                    np.logical_or(np.any(pos < gridmin, axis=1),
-                                  np.any(pos >= gridmax, axis=1)))
-                msg = "{:,g} {} falling outside the grid".format(
-                    num_outside, file_type)
-                if bounds_error == "raise":
-                    raise ValueError(msg)
-                elif bounds_error == "warn":
-                    print(msg)
-                if not periodic_wrap:
-                    items_skipped += num_outside
-
             # Add items to the density field.
             with Timer() as ma_timer:
                 ma.add_particles_to_buffer(pos, weight)
@@ -152,8 +129,6 @@ def read_density_field(file_pattern,
 
     assert items_seen == total_items
     assert ma.num_added + ma.num_skipped == items_seen
-    if displacement_field is None:
-        assert ma.num_skipped == items_skipped
 
     if verbose:
         print("Setup time: {:.2f} sec".format(setup_timer.elapsed))
@@ -162,5 +137,3 @@ def read_density_field(file_pattern,
         print("  Mass assignor time: {:.2f} sec".format(ma_time))
         print("    Sort time: {:.2f} sec".format(ma.sort_time))
         print("    Window time: {:.2f} sec".format(ma.window_time))
-
-    return ma.num_added, ma.num_skipped
