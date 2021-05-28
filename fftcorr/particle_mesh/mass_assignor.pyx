@@ -13,7 +13,7 @@ import numpy as np
 # deallocate the buffer?
 # TODO: formatting. 2 space indentation instead of 4?
 cdef class MassAssignor:
-    def __cinit__(self, ConfigSpaceGrid grid, bool periodic_wrap=False, int buffer_size=10000, Float[:, :, :, ::1] disp=None):
+    def __cinit__(self, ConfigSpaceGrid grid, bool periodic_wrap=False, int buffer_size=10000, Float[:, :, :, :] disp=None):
         cdef cnp.ndarray[cnp.npy_int] disp_shape
         cdef const RowMajorArrayPtr[Float, Four]* disp_ptr = NULL
         if disp is not None:
