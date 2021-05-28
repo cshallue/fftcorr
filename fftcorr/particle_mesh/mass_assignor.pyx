@@ -14,6 +14,9 @@ import numpy as np
 # TODO: formatting. 2 space indentation instead of 4?
 cdef class MassAssignor:
     def __cinit__(self, ConfigSpaceGrid grid, bool periodic_wrap=False, int buffer_size=10000, Float[:, :, :, :] disp=None):
+        self._posmin = grid.posmin
+        self._posmax = grid.posmax
+        
         cdef cnp.ndarray[cnp.npy_int] disp_shape
         cdef const RowMajorArrayPtr[Float, Four]* disp_ptr = NULL
         if disp is not None:
@@ -101,6 +104,15 @@ cdef class MassAssignor:
 
     cpdef flush(self):
         self._cc_ma.flush()
+
+    # TODO: annotate return type
+    @property
+    def posmin(self):
+        return self._posmin
+
+    @property
+    def posmax(self):
+        return self._posmax
 
     @property
     def num_added(self) -> int:

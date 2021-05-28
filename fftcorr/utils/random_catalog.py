@@ -5,7 +5,6 @@ from fftcorr.utils import Timer
 
 
 def add_random_particles(n,
-                         grid,
                          ma,
                          particle_weight=None,
                          total_weight=None,
@@ -24,8 +23,8 @@ def add_random_particles(n,
     if verbose:
         print("Particle weight: {:.6g}".format(particle_weight))
 
-    gridmin = grid.posmin
-    gridmax = grid.posmax
+    gridmin = ma.posmin
+    gridmax = ma.posmax
 
     with Timer() as setup_timer:
         pos_buf = np.empty((batch_size, 3), dtype=np.float64, order="C")

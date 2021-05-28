@@ -10,7 +10,6 @@ from fftcorr.utils import Timer
 
 
 def read_density_field(file_pattern,
-                       grid,
                        ma,
                        file_type=None,
                        redshift_distortion=False,
@@ -33,8 +32,8 @@ def read_density_field(file_pattern,
         elif file_type != ft:
             raise ValueError("Inconsistent file types")
 
-    gridmin = grid.posmin
-    gridmax = grid.posmax
+    gridmin = ma.posmin
+    gridmax = ma.posmax
     box_size = None
     total_items = 0
     max_items = 0

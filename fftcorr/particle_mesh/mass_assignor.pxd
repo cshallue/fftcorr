@@ -4,6 +4,7 @@ from fftcorr.particle_mesh cimport WindowType
 from fftcorr.types cimport Float, One, Two, Four
 
 from libcpp cimport bool
+cimport numpy as cnp
 
 cdef extern from "mass_assignor.h":
   cdef cppclass MassAssignor_cc "MassAssignor":
@@ -35,6 +36,13 @@ cdef class MassAssignor:
     # TODO: _cc_disp? _disp_rma? Consider naming conventions for arrays and
     # their shapes.
     cdef RowMajorArrayPtr[Float, Four] _disp
+
+    # Keep track of these because they're useful for validation in functions 
+    # that take a mass assignor but not the grid. Is this how we want to
+    # structure thingss?
+    cdef cnp.ndarray _posmin
+    cdef cnp.ndarray _posmax
+
     cpdef add_particles(self, Float[:, ::1] particles, weight=*)
     cpdef add_particles_to_buffer(self, Float[:, ::1] particles, weight=*)
     cpdef add_particle_to_buffer(self, Float, Float, Float, Float)
