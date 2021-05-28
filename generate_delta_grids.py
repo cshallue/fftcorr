@@ -29,7 +29,7 @@ BASE_CONFIG = ConfigDict(
          window_type=1,
          redshift_distortion=False,
          gaussian_sigma=10,
-         nrandom=1e9))
+         nrandom=int(1e9)))
 BASE_CONFIG.lock()  # Prevent new fields from being accidentally added.
 
 flags.DEFINE_string(
