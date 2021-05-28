@@ -174,8 +174,7 @@ def process(config, input_file_pattern, output_dir, overwrite):
         input_file_pattern,
         grid,
         mass_assignor,
-        redshift_distortion=config.redshift_distortion,
-        periodic_wrap=True)
+        redshift_distortion=config.redshift_distortion)
     print(f"Added {nparticles:,} particles to density field\n")
     dens_mean = np.mean(grid)
     grid -= dens_mean
