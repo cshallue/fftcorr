@@ -6,6 +6,8 @@ cnp.import_array()
 
 import numpy as np
 
+from fftcorr.utils import Timer
+
 # TODO: consider making MassAssignor a context manager, or wrapping it
 # in a function that is a context manager
 # https://book.pythontips.com/en/latest/context_managers.html
@@ -30,7 +32,10 @@ cdef class MassAssignor:
                     f"Expected disp to have shape: {expected_shape}. Got: {actual_shape}")
 
             # Make a contiguous copy.
-            self._disp_data = disp.copy()
+            print("Copying the displacement vector field")
+            with Timer() as copy_timer:
+                self._disp_data = disp.copy()
+            print("Copy time: {:.2g} sec".format(copy_timer.elapsed))
 
             # TODO: wrap this, it's used in multiple places
             disp_shape =  np.array(self._disp_data.shape, dtype=np.intc)
