@@ -8,8 +8,8 @@ def add_random_particles(grid,
                          n,
                          particle_weight=None,
                          total_weight=None,
-                         transform_coords_fn=None,
-                         periodic_wrap=False,
+                         displacement_field=None,
+                         periodic_wrap=True,
                          bounds_error="warn",
                          verbose=True,
                          batch_size=10000000,
@@ -39,7 +39,7 @@ def add_random_particles(grid,
         pos_buf = np.empty((batch_size, 3), dtype=np.float64, order="C")
 
     with Timer() as work_timer:
-        ma = MassAssignor(grid, periodic_wrap, buffer_size)
+        ma = MassAssignor(grid, periodic_wrap, buffer_size, displacement_field)
         particles_added = 0
         rng_time = 0.0
         copy_time = 0.0
@@ -60,11 +60,6 @@ def add_random_particles(grid,
             with Timer() as copy_timer:
                 np.copyto(pos, rnd)
             copy_time += copy_timer.elapsed
-
-            if transform_coords_fn is not None:
-                with Timer() as transform_timer:
-                    transform_coords_fn(pos)
-                transform_time += transform_timer.elapsed
 
             if (np.any(pos.min(axis=0) < gridmin)
                     or np.any(pos.max(axis=0) >= gridmax)):
@@ -88,17 +83,16 @@ def add_random_particles(grid,
             ma_time += ma_timer.elapsed
 
     assert ma.num_added + ma.num_skipped == n
-    assert ma.num_skipped == particles_skipped
+    if displacement_field is None:
+        assert ma.num_skipped == particles_skipped
 
     if verbose:
         print("Setup time: {:.2f} sec".format(setup_timer.elapsed))
         print("Work time: {:.2f} sec".format(work_timer.elapsed))
         print("  RNG time: {:.2f} sec".format(rng_time))
         print("  Copy time: {:.2f} sec".format(copy_time))
-        if transform_coords_fn is not None:
-            print("  Transform coords time: {:.2f} sec".format(transform_time))
         print("  Mass assignor time: {:.2f} sec".format(ma_time))
         print("    Sort time: {:.2f} sec".format(ma.sort_time))
         print("    Window time: {:.2f} sec".format(ma.window_time))
 
-    return ma.totw
+    return ma.num_added, ma.num_skipped

@@ -13,7 +13,7 @@ def read_density_field(file_pattern,
                        grid,
                        file_type=None,
                        redshift_distortion=False,
-                       transform_coords_fn=None,
+                       displacement_field=None,
                        periodic_wrap=True,
                        bounds_error="warn",
                        verbose=True,
@@ -22,7 +22,7 @@ def read_density_field(file_pattern,
     if not filenames:
         raise ValueError("Found no files matching {}".format(file_pattern))
 
-    # Check the file type: halos or particles.
+    # Infer and/or validate the file type: halos or particles.
     for filename in filenames:
         basename = os.path.basename(filename)
         if basename.startswith("halo_info"):
@@ -33,7 +33,7 @@ def read_density_field(file_pattern,
             raise ValueError("Unrecognized file type: '{}'".format(basename))
         if file_type is None:
             file_type = ft
-        if file_type != ft:
+        elif file_type != ft:
             raise ValueError("Inconsistent file types")
 
     if bounds_error not in ["raise", "warn", "none", None]:
@@ -63,14 +63,11 @@ def read_density_field(file_pattern,
                 total_items, len(filenames)))
 
         assert box_size > 0
-        if transform_coords_fn is None:
-            if np.any(gridmin > -box_size / 2) or np.any(
-                    gridmax < box_size / 2):
-                raise ValueError(
-                    "Grid does not cover {}: grid posmin = {}, file posmin "
-                    "= {}, grid posmax = {}, file posmax = {}".format(
-                        file_type, gridmin, -box_size / 2, gridmax,
-                        box_size / 2))
+        if np.any(gridmin > -box_size / 2) or np.any(gridmax < box_size / 2):
+            raise ValueError(
+                "Grid does not cover {}: grid posmin = {}, file posmin = {},"
+                "grid posmax = {}, file posmax = {}".format(
+                    file_type, gridmin, -box_size / 2, gridmax, box_size / 2))
 
         # Space for the items in each file.
         # TODO: the items are actually float32s, so we could make the mass
@@ -85,11 +82,10 @@ def read_density_field(file_pattern,
             weight_buf = np.empty((max_items, ), dtype=np.float64, order="C")
 
     with Timer() as work_timer:
-        ma = MassAssignor(grid, periodic_wrap, buffer_size)
+        ma = MassAssignor(grid, periodic_wrap, buffer_size, displacement_field)
         items_seen = 0
         items_skipped = 0
         io_time = 0.0
-        transform_time = 0.0
         ma_time = 0.0
         for filename in filenames:
             if verbose:
@@ -131,12 +127,6 @@ def read_density_field(file_pattern,
                 # that direction.
                 pos[:, 2] += vel[:, 2] / (100 * scale_factor)
 
-            # Possibly transform coordinates.
-            if transform_coords_fn is not None:
-                with Timer() as transform_timer:
-                    transform_coords_fn(pos)
-                transform_time += transform_timer.elapsed
-
             # Check if any items fall outside the grid.
             if (np.any(pos.min(axis=0) < gridmin)
                     or np.any(pos.max(axis=0) >= gridmax)):
@@ -162,16 +152,15 @@ def read_density_field(file_pattern,
 
     assert items_seen == total_items
     assert ma.num_added + ma.num_skipped == items_seen
-    assert ma.num_skipped == items_skipped
+    if displacement_field is None:
+        assert ma.num_skipped == items_skipped
 
     if verbose:
         print("Setup time: {:.2f} sec".format(setup_timer.elapsed))
         print("Work time: {:.2f} sec".format(work_timer.elapsed))
         print("  IO time: {:.2f} sec".format(io_time))
-        if transform_coords_fn is not None:
-            print("  Transform coords time: {:.2f} sec".format(transform_time))
         print("  Mass assignor time: {:.2f} sec".format(ma_time))
         print("    Sort time: {:.2f} sec".format(ma.sort_time))
         print("    Window time: {:.2f} sec".format(ma.window_time))
 
-    return ma.num_added
+    return ma.num_added, ma.num_skipped
