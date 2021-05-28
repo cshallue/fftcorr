@@ -172,7 +172,6 @@ def process(config, input_file_pattern, output_dir, overwrite):
     print("\nReading density field")
     nparticles = read_density_field(
         input_file_pattern,
-        grid,
         mass_assignor,
         redshift_distortion=config.redshift_distortion)
     print(f"Added {nparticles:,} particles to density field\n")
@@ -195,7 +194,6 @@ def process(config, input_file_pattern, output_dir, overwrite):
     mass_assignor = MassAssignor(grid, periodic_wrap=True, disp=-disp)
     nparticles = read_density_field(
         input_file_pattern,
-        grid,
         mass_assignor,
         redshift_distortion=config.redshift_distortion)
     print(f"Added {nparticles:,} particles\n")
@@ -203,7 +201,6 @@ def process(config, input_file_pattern, output_dir, overwrite):
     print("Adding shifted random particles")
     random_weight = -dens_mean * np.prod(shape)
     add_random_particles(config.nrandom,
-                         grid,
                          mass_assignor,
                          total_weight=random_weight)
     print("Added {:,} randoms. Total weight: {:.4g} ({:.4g})\n".format(
