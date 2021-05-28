@@ -35,7 +35,6 @@ cdef class MassAssignor:
                 (<array[int, Four] *> &disp_shape[0])[0], &self._disp_data[0,0,0,0])
             disp_ptr = &self._disp
 
-        print("disp_data", self._disp_data)
         self._cc_ma = new MassAssignor_cc(grid.cc_grid(), periodic_wrap, buffer_size, disp_ptr)
         
 
