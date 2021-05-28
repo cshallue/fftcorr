@@ -17,7 +17,7 @@
 class MassAssignor {
  public:
   MassAssignor(ConfigSpaceGrid *grid, bool periodic_wrap, uint64 buffer_size,
-               const RowMajorArray<Float, 4> *disp = NULL)
+               const RowMajorArrayPtr<Float, 4> *disp = NULL)
       : grid_(grid),
         window_func_(make_window_function(grid->window_type())),
         periodic_wrap_(periodic_wrap),
@@ -208,7 +208,7 @@ class MassAssignor {
 
   // Optional displacement vector field used to shift the original positions by.
   // Must have shape [ngrid0, ngrid1, ngrid2, 3].
-  const RowMajorArray<Float, 4> *disp_;
+  const RowMajorArrayPtr<Float, 4> *disp_;
 
   uint64 num_added_;  // TODO: rename to something more descriptive
   uint64 num_skipped_;

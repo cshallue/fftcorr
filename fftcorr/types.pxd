@@ -30,6 +30,9 @@ cdef extern from "<array>" namespace "std" nogil:
     cdef cppclass Three "3":
         pass
 
+    cdef cppclass Four "4":
+        pass
+
     cdef cppclass array[T, N]:
       array()
       T& operator[](int)
