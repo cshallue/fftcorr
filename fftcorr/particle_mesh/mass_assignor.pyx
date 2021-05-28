@@ -15,14 +15,14 @@ import numpy as np
 cdef class MassAssignor:
     def __cinit__(self, ConfigSpaceGrid grid, bool periodic_wrap=False, int buffer_size=10000, Float[:, :, :, ::1] disp=None):
         cdef cnp.ndarray[cnp.npy_int] disp_shape
-        cdef const RowMajorArrayPtr[Float, Four]* disp_ptr = NULL
+        cdef RowMajorArrayPtr[Float, Four] disp_rma
         if disp is not None:
             # TODO: wrap this, it's used in multiple places
             disp_shape =  np.array(disp.shape, dtype=np.intc)
-            self._disp = RowMajorArrayPtr[Float, Four](
+            disp_rma.set_data(
                 (<array[int, Four] *> &disp_shape[0])[0], &disp[0,0,0,0])
-            disp_ptr = &self._disp
-        self._cc_ma = new MassAssignor_cc(grid.cc_grid(), periodic_wrap, buffer_size, disp_ptr)
+        self._cc_ma = new MassAssignor_cc(
+            grid.cc_grid(), periodic_wrap, buffer_size, &disp_rma)
         
 
     # @staticmethod

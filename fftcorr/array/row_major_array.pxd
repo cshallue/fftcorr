@@ -7,6 +7,7 @@ cdef extern from "row_major_array.h":
     RowMajorArrayPtr(array[int, N], dtype *data) except +
     dtype* data()
     const array[int, N]& shape()
+    void set_data(array[int, N], dtype *data)
 
 
 # TODO: since RowMajorArrayPtr has a nullary constructor, we should be able to

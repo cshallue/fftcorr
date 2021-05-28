@@ -16,13 +16,15 @@
 
 class MassAssignor {
  public:
+  // disp is an optional displacement vector field used to shift the original
+  // positions by. Must have shape [ngrid0, ngrid1, ngrid2, 3].
   MassAssignor(ConfigSpaceGrid *grid, bool periodic_wrap, uint64 buffer_size,
                const RowMajorArrayPtr<Float, 4> *disp = NULL)
       : grid_(grid),
         window_func_(make_window_function(grid->window_type())),
         periodic_wrap_(periodic_wrap),
         buffer_size_(buffer_size),
-        disp_(disp),
+        apply_displacement_(false),
         num_added_(0),
         num_skipped_(0),
         totw_(0),
@@ -34,11 +36,20 @@ class MassAssignor {
     fprintf(stderr, "# Running single threaded.\n");
 #endif
 
-    if (disp_) {
-      assert(disp_->shape(0) == grid_->shape(0));
-      assert(disp_->shape(1) == grid_->shape(1));
-      assert(disp_->shape(2) == grid_->shape(2));
-      assert(disp_->shape(3) == 3);
+    if (disp && disp->data()) {
+      assert(disp->shape(0) == grid_->shape(0));
+      assert(disp->shape(1) == grid_->shape(1));
+      assert(disp->shape(2) == grid_->shape(2));
+      assert(disp->shape(3) == 3);
+      disp_.allocate(disp->shape());
+      // TODO: consider parallelizing this.
+      const Float *x = disp->data();
+      Float *y = disp_.data();
+      for (uint64 i = 0; i < disp->size(); ++i) {
+        // Convert to grid coordinates.
+        y[i] = x[i] / grid_->cell_size();
+      }
+      apply_displacement_ = true;
     }
 
     gal_.reserve(buffer_size_);
@@ -184,13 +195,13 @@ class MassAssignor {
 
   bool apply_displacement_to_grid_coord(int i, Float &x,
                                         const Float *dxyz) const {
-    x += dxyz[i] / grid_->cell_size();
+    x += dxyz[i];
     return maybe_wrap_coord(i, x);
   }
 
   bool apply_displacement_to_grid_coords(Float &x, Float &y, Float &z) const {
-    if (!disp_) return true;  // Not applying any displacement.
-    const Float *dxyz = disp_->get_row(floor(x), floor(y), floor(z));
+    if (!apply_displacement_) return true;  // Not applying any displacement.
+    const Float *dxyz = disp_.get_row(floor(x), floor(y), floor(z));
     return apply_displacement_to_grid_coord(0, x, dxyz) &&
            apply_displacement_to_grid_coord(1, y, dxyz) &&
            apply_displacement_to_grid_coord(2, z, dxyz);
@@ -206,9 +217,8 @@ class MassAssignor {
   std::vector<Particle> gal_;
   std::vector<Particle> buf_;  // Used for mergesort.
 
-  // Optional displacement vector field used to shift the original positions by.
-  // Must have shape [ngrid0, ngrid1, ngrid2, 3].
-  const RowMajorArrayPtr<Float, 4> *disp_;
+  bool apply_displacement_;
+  RowMajorArray<Float, 4> disp_;
 
   uint64 num_added_;  // TODO: rename to something more descriptive
   uint64 num_skipped_;
