@@ -9,7 +9,7 @@ def add_random_particles(n,
                          particle_weight=None,
                          total_weight=None,
                          verbose=True,
-                         batch_size=1e8):
+                         batch_size=int(1e8)):
     if total_weight is not None:
         if particle_weight is not None:
             raise ValueError(
