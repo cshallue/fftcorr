@@ -135,7 +135,7 @@ def compute_displacement_field(deltagrid, gaussian_sigma):
         dslice = disp[:, :, :, i]
         print("{} displacement: min: {:.2f}, max: {:.2f}, RMS: {:.2f}".format(
             name, dslice.min(), dslice.max(), np.sqrt(np.mean(dslice**2))))
-    print("Mean displacement magnitude: {:.2f}\n".format(
+    print("Mean displacement magnitude: {:.2f}".format(
         np.mean(np.sqrt(np.sum(disp**2, axis=-1)))))
 
     return disp
@@ -179,7 +179,7 @@ def process(config, input_file_pattern, output_dir, overwrite):
     grid /= dens_mean
     dens_filename = os.path.join(output_dir, "delta.asdf")
     grid.write(dens_filename)
-    print(f"Wrote density field to {dens_filename}\n")
+    print(f"Wrote density field to {dens_filename}")
 
     # Start reconstruction.
     print("\nStarting reconstruction")
@@ -188,7 +188,7 @@ def process(config, input_file_pattern, output_dir, overwrite):
     print("Reconstruction time: {:.2f} sec".format(recon_timer.elapsed))
 
     # Generate the reconstructed delta grid.
-    print("Reading shifted density field")
+    print("\nReading shifted density field")
     grid.clear()
     ma = MassAssignor(grid, periodic_wrap=True, disp=-disp)
     read_density_field(input_file_pattern,
@@ -196,16 +196,16 @@ def process(config, input_file_pattern, output_dir, overwrite):
                        redshift_distortion=config.redshift_distortion)
     print(f"Added {ma.num_added:,} halos ({ma.num_skipped:,} skipped).")
 
-    print("Adding shifted random particles")
+    print("\nAdding shifted random particles")
     random_weight = -dens_mean * np.prod(shape)
     add_random_particles(config.nrandom, ma, total_weight=random_weight)
     print(
         f"Added {ma.num_added:,} randoms ({ma.num_skipped:,} skipped). Total "
-        "weight: {ma.totw:.4g} ({random_weight:.4g})\n")
+        f"weight: {ma.totw:.4g} ({random_weight:.4g})")
     grid /= dens_mean
     recon_dens_filename = os.path.join(output_dir, f"delta-reconstructed.asdf")
     grid.write(recon_dens_filename)
-    print(f"Wrote reconstructed density field to {recon_dens_filename}\n")
+    print(f"\nWrote reconstructed density field to {recon_dens_filename}")
 
 
 def main(unused_argv):
