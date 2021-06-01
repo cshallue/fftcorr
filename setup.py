@@ -160,14 +160,6 @@ cython_libs = CythonLibraries([
                       "fftcorr.types", "fftcorr.array.row_major_array",
                       "fftcorr.particle_mesh.window_type"
                   ]),
-    CythonLibrary("fftcorr.grid.fft_grid",
-                  pxd_file="fftcorr/grid/fft_grid.pxd",
-                  srcs=["fftcorr/grid/fft_grid.pyx"],
-                  cc_deps=["cc/grid/fft_grid"],
-                  pyx_deps=[
-                      "fftcorr.types",
-                      "fftcorr.array.row_major_array",
-                  ]),
     CythonLibrary("fftcorr.histogram.histogram_list",
                   pxd_file="fftcorr/histogram/histogram_list.pxd",
                   srcs=["fftcorr/histogram/histogram_list.pyx"],

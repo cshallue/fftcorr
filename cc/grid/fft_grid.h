@@ -45,8 +45,6 @@ class FftGrid {
   void extract_submatrix_C2R(RowMajorArrayPtr<Float, 3>* out,
                              const RowMajorArrayPtr<Float, 3>* mult) const;
 
-  void convolve_with_gaussian(Float sigma);
-
  private:
   // TODO: allow the user to pass fft flags? I.e. FFT_MEASURE, etc.
   void plan_fft();
