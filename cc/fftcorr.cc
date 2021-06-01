@@ -206,6 +206,7 @@ void usage() {
   fprintf(stderr,
           "   -exp <int> (or -e): Use the wide-angle exponent of Slepian & "
           "Eisenstein 2016 (niche users only)\n");
+  fprintf(stderr, "   -wisdom <filename>:  FFTW wisdom file name\n");
   fprintf(stderr, "\n");
   exit(1);
 }
@@ -248,6 +249,12 @@ int main(int argc, char *argv[]) {
   char *infile = NULL;
   char *infile2 = NULL;
   char *outfile = NULL;
+#ifdef OPENMP
+  const char default_wisdom[] = "wisdom_fftw_omp";
+#else
+  const char default_wisdom[] = "wisdom_fftw";
+#endif
+  char *wisdomfile = NULL;
 
   int i = 1;
   while (i < argc) {
@@ -281,6 +288,8 @@ int main(int argc, char *argv[]) {
       periodic = true;
     else if (!strcmp(argv[i], "-window") || !strcmp(argv[i], "-w"))
       window_type = WindowType(atoi(argv[++i]));
+    else if (!strcmp(argv[i], "-wisdom") || !strcmp(argv[i], "-wf"))
+      wisdomfile = argv[++i];
     else
       usage();
     i++;
@@ -301,7 +310,6 @@ int main(int argc, char *argv[]) {
     FILE *discard = freopen(outfile, "w", stdout);
     assert(discard != NULL && stdout != NULL);
   }
-
   if (ngrid[0] <= 0) ngrid[0] = ngrid[1] = ngrid[2] = ngridCube;
   assert(ngrid[0] > 0);
   assert(ngrid[1] > 0);
@@ -312,6 +320,9 @@ int main(int argc, char *argv[]) {
 #else
   fprintf(stdout, "# Running single threaded.\n");
 #endif
+
+  if (wisdomfile == NULL) wisdomfile = (char *)default_wisdom;
+  fftw_import_wisdom_from_filename(wisdomfile);  // OK if file doesn't exist.
 
   setup_wavelet();
 
@@ -429,6 +440,10 @@ int main(int argc, char *argv[]) {
                       ngrid[2]));
 
   total_time.stop();
+
+  fprintf(stderr, "Saving wisdom file: %s...", wisdomfile);
+  assert(fftw_export_wisdom_to_filename(wisdomfile) == 1);
+
   uint64 nfft = 1;
   uint64 ngrid3 = dens.size();  // TODO: this should be the padded size
   for (int j = 0; j <= maxell; j += 2) nfft += 2 * (2 * j + 1);

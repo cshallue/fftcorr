@@ -73,34 +73,6 @@ FftGrid::~FftGrid() {
 
 void FftGrid::plan_fft() {
   plan_time_.start();
-  // Setup the FFTW plans, possibly from disk, and save the wisdom
-  fprintf(stdout, "# Planning the FFTs...");
-  fflush(NULL);
-  FILE *fp = NULL;
-#ifdef OPENMP
-#ifndef FFTSLAB
-  {
-    int errval = fftw_init_threads();
-    assert(errval);
-  }
-  fftw_plan_with_nthreads(omp_get_max_threads());
-#endif
-#define WISDOMFILE "wisdom_fftw_omp"
-#else
-#define WISDOMFILE "wisdom_fftw"
-#endif
-#ifdef FFTSLAB
-#undef WISDOMFILE
-#define WISDOMFILE "wisdom_fftw"
-#endif
-  fp = fopen(WISDOMFILE, "r");
-  if (fp != NULL) {
-    fprintf(stdout, "Reading %s...", WISDOMFILE);
-    fflush(NULL);
-    fftw_import_wisdom_from_file(fp);
-    fclose(fp);
-  }
-
   // Interpret data as complex.
   Float *data = grid_.data();
   fftw_complex *cdata = (fftw_complex *)data;
@@ -154,13 +126,6 @@ void FftGrid::plan_fft() {
                               rshape_[1] * dsize_z / 2, 1, cdata, NULL,
                               rshape_[1] * dsize_z / 2, 1, +1, FFTW_MEASURE);
 #endif
-
-  fp = fopen(WISDOMFILE, "w");
-  assert(fp != NULL);
-  fftw_export_wisdom_to_file(fp);
-  fclose(fp);
-  fprintf(stdout, "Done!\n");
-  fflush(NULL);
   plan_time_.stop();
 }
 
