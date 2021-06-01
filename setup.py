@@ -47,7 +47,13 @@ class CcLibraries(object):
 
 
 class CythonLibrary(object):
-    def __init__(self, name, pxd_file, srcs=None, cc_deps=None, pyx_deps=None):
+    def __init__(self,
+                 name,
+                 pxd_file,
+                 srcs=None,
+                 cc_deps=None,
+                 pyx_deps=None,
+                 ext_libs=None):
         self.name = name
         if pxd_file[-4:] != ".pxd":
             raise ValueError("Expected .pxd file, got: {}".format(pxd_file))
@@ -55,6 +61,7 @@ class CythonLibrary(object):
         self.srcs = srcs if srcs else []
         self.cc_deps = cc_deps if cc_deps else []
         self.pyx_deps = pyx_deps if pyx_deps else []
+        self.ext_libs = ext_libs if ext_libs else []
 
 
 class CythonLibraries(object):
@@ -178,6 +185,12 @@ cython_libs = CythonLibraries([
                       "fftcorr.grid.config_space_grid",
                       "fftcorr.histogram.histogram_list",
                   ]),
+    CythonLibrary(
+        "fftcorr.fftw.fftw",
+        pxd_file="fftcorr/fftw/fftw.pxd",
+        srcs=["fftcorr/fftw/fftw.pyx"],
+        # TODO: group the the FFTW library since it's used by fft_grid.h?
+        ext_libs=(["fftw3", "fftw3_threads", "m"] if OPENMP else ["fftw3"])),
 ])
 
 ext_modules = []
@@ -187,7 +200,7 @@ for cython_lib in cython_libs.libs.values():
     name = cython_lib.name
     sources = cython_lib.srcs.copy()
     include_dirs = set([numpy.get_include()])
-    libraries = []
+    libraries = cython_lib.ext_libs.copy()
     cc_deps = set(cython_lib.cc_deps)
     for pyx_dep in cython_lib.pyx_deps:
         cc_deps.update(cython_libs.libs[pyx_dep].cc_deps)
