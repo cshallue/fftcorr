@@ -11,8 +11,6 @@ FftGrid::FftGrid(std::array<int, 3> shape) {
   setup_time_.start();
   rshape_ = shape;
   cshape_ = std::array<int, 3>({shape[0], shape[1], rshape_[2] / 2 + 1});
-  rsize_ = (uint64)rshape_[0] * rshape_[1] * rshape_[2];
-  csize_ = (uint64)cshape_[0] * cshape_[1] * cshape_[2];
 
   int dsize_z;  // dsize_z pads out the array for the in-place FFT.
 #ifdef FFTSLAB
@@ -37,11 +35,9 @@ FftGrid::FftGrid(std::array<int, 3> shape) {
 
   std::array<int, 3> dshape = {rshape_[0], rshape_[1], dsize_z};
   arr_.allocate(dshape);
-  data_ = arr_.data();
   array_ops::set_all(0.0, arr_);  // Very Important. Touch the whole array.
   // carr_ is a complex view.
-  carr_.set_data({dshape[0], dshape[1], dshape[2] / 2}, (Complex *)data_);
-  cdata_ = carr_.data();
+  carr_.set_data({dshape[0], dshape[1], dshape[2] / 2}, (Complex *)arr_.data());
 
 // NULL is a valid fftw_plan value; the planner will return NULL if it fails.
 #ifndef FFTSLAB
@@ -105,8 +101,8 @@ void FftGrid::plan_fft() {
     fclose(fp);
   }
 
-  // Interpret data_ as complex.
-  Float *data = data_;
+  // Interpret data as complex.
+  Float *data = arr_.data();
   fftw_complex *cdata = (fftw_complex *)data;
 
 #ifndef FFTSLAB
@@ -176,19 +172,20 @@ void FftGrid::execute_fft() {
   fftw_execute(fft_);
 #else
   fftyz_time_.start();
+  Float *data = arr_.data();
   // Then need to call this for every slab.  Can OMP these lines
   int dsize_z = arr_.shape(2);
 #pragma omp parallel for MY_SCHEDULE
   for (int x = 0; x < rshape_[0]; x++) {
-    fftw_execute_dft_r2c(fftyz_, data_ + x * rshape_[1] * dsize_z,
-                         (fftw_complex *)data_ + x * rshape_[1] * dsize_z / 2);
+    fftw_execute_dft_r2c(fftyz_, data + x * rshape_[1] * dsize_z,
+                         (fftw_complex *)data + x * rshape_[1] * dsize_z / 2);
   }
   fftyz_time_.stop();
   fftx_time_.start();
 #pragma omp parallel for schedule(dynamic, 1)
   for (int y = 0; y < rshape_[1]; y++) {
-    fftw_execute_dft(fftx_, (fftw_complex *)data_ + y * dsize_z / 2,
-                     (fftw_complex *)data_ + y * dsize_z / 2);
+    fftw_execute_dft(fftx_, (fftw_complex *)data + y * dsize_z / 2,
+                     (fftw_complex *)data + y * dsize_z / 2);
   }
   fftx_time_.stop();
 #endif
@@ -201,20 +198,21 @@ void FftGrid::execute_ifft() {
   fftw_execute(ifft_);
 #else
   fftx_time_.start();
+  Float *data = arr_.data();
   // Then need to call this for every slab.  Can OMP these lines
   int dsize_z = arr_.shape(2);
 #pragma omp parallel for schedule(dynamic, 1)
   for (int y = 0; y < rshape_[1]; y++) {
-    fftw_execute_dft(ifftx_, (fftw_complex *)data_ + y * dsize_z / 2,
-                     (fftw_complex *)data_ + y * dsize_z / 2);
+    fftw_execute_dft(ifftx_, (fftw_complex *)data + y * dsize_z / 2,
+                     (fftw_complex *)data + y * dsize_z / 2);
   }
   fftx_time_.stop();
   fftyz_time_.start();
 #pragma omp parallel for MY_SCHEDULE
   for (int x = 0; x < rshape_[0]; x++) {
     fftw_execute_dft_c2r(ifftyz_,
-                         (fftw_complex *)data_ + x * rshape_[1] * dsize_z / 2,
-                         data_ + x * rshape_[1] * dsize_z);
+                         (fftw_complex *)data + x * rshape_[1] * dsize_z / 2,
+                         data + x * rshape_[1] * dsize_z);
   }
   fftyz_time_.stop();
 #endif

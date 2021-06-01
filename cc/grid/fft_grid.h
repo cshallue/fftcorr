@@ -25,18 +25,11 @@ class FftGrid {
   // setup_fft, (c) restore_from
   // void restore_from(const RowMajorArrayPtr<Float, 3>& other);
 
-  const std::array<int, 3>& rshape() const { return rshape_; }
-  const std::array<int, 3>& dshape() const { return arr_.shape(); }
-  int rshape(int i) const { return rshape_[i]; }
-  int dshape(int i) const { return arr_.shape(i); }
   Float setup_time() const { return setup_time_.elapsed_sec(); }
   Float plan_time() const { return plan_time_.elapsed_sec(); }
   Float fft_time() const { return fft_time_.elapsed_sec(); }
   Float extract_time() const { return extract_time_.elapsed_sec(); }
   Float convolve_time() const { return convolve_time_.elapsed_sec(); }
-
-  uint64 rsize() const { return rsize_; }
-  uint64 dsize() const { return arr_.size(); }
 
   RowMajorArray<Float, 3>& arr() { return arr_; }
   const RowMajorArray<Float, 3>& arr() const { return arr_; }
@@ -60,13 +53,9 @@ class FftGrid {
 
   std::array<int, 3> rshape_;  // Shape as a real array.
   std::array<int, 3> cshape_;  // Shape as a complex array.
-  uint64 rsize_;
-  uint64 csize_;
 
-  Float* data_;     // TODO: needed? owned by arr_, so this is just an alias
-  Complex* cdata_;  // TODO: needed? owned by carr_, so this is just an alias
   RowMajorArray<Float, 3> arr_;
-  RowMajorArrayPtr<Complex, 3> carr_;  // TODO: needed?
+  RowMajorArrayPtr<Complex, 3> carr_;
 
   Timer setup_time_;
   Timer plan_time_;
