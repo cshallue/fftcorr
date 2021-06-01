@@ -52,7 +52,8 @@ class Correlator {
     fflush(NULL);
     // TODO: inplace abs^2?
     mult_time_.start();
-    array_ops::multiply_with_conjugation(work_.carr(), work_.carr());
+    array_ops::multiply_with_conjugation(work_.as_complex_array(),
+                                         work_.as_complex_array());
     mult_time_.stop();
 
     // We must multiply the DFT result by (1/ncells^2): DFT differs from Fourier
@@ -127,7 +128,7 @@ class Correlator {
 
     // TODO: we could copy with conjugation.
     setup_time_.start();
-    array_ops::copy(work_.carr(), dens_fft_);
+    array_ops::copy(work_.as_complex_array(), dens_fft_);
     setup_time_.stop();
 
     /* ------------ Loop over ell & m --------------- */
@@ -147,7 +148,7 @@ class Correlator {
         // boundaries match with those of work?
         ylm_time_.start();
         make_ylm(ell, m, xcell_, ycell_, zcell_, 1.0, -wide_angle_exponent,
-                 &dens_.data(), &work_.arr());
+                 &dens_.data(), &work_.as_real_array());
         ylm_time_.stop();
         fprintf(stdout, "Ylm...");
 
@@ -157,7 +158,8 @@ class Correlator {
         // Multiply by conj(dens_fft), as complex numbers
         // TODO: we could just store the conjugate form of dens_fft.
         mult_time_.start();
-        array_ops::multiply_with_conjugation(dens_fft_, work_.carr());
+        array_ops::multiply_with_conjugation(dens_fft_,
+                                             work_.as_complex_array());
         mult_time_.stop();
 
         // Extract the anisotropic power spectrum
@@ -233,8 +235,7 @@ class Correlator {
   // Sets up a fresh call to correlate_{periodic,nonperiodic}.
   void setup(bool periodic) {
     setup_time_.start();
-    // TODO: consistency between dens.data() and work.arr()
-    array_ops::copy_into_padded_array(dens_.data(), work_.arr());
+    array_ops::copy_into_padded_array(dens_.data(), work_.as_real_array());
     if (!periodic && !xcell_.data()) {
       setup_cell_coords();
     }
@@ -242,7 +243,7 @@ class Correlator {
       setup_rgrid();
     }
     if (!periodic && !dens_fft_.data()) {
-      dens_fft_.allocate(work_.carr().shape());
+      dens_fft_.allocate(work_.as_complex_array().shape());
     }
     if (!kgrid_.data()) {
       setup_kgrid();
