@@ -18,15 +18,6 @@ class FftGrid {
   void execute_fft();
   void execute_ifft();
 
-  // TODO: consider which copy ops we need to support.
-  // void copy_from(const RowMajorArrayPtr<Float, 3>& other);
-  // void copy_from(const FftGrid& other);
-  // TODO: this could be private if FftGrid initializes the FFTs in its
-  // copy constructor, and it is a friend class. Then it would (a) copy, (b)
-  // setup_fft, (c) restore_from
-  // void restore_from(const RowMajorArrayPtr<Float, 3>& other);
-
-  // TODO: these can be out-of-class operations on two RowMajorArrayPtr<>s?
   // They are quite natural here, because they assume FFT layout.
   void extract_submatrix(RowMajorArrayPtr<Float, 3>* out) const;
   void extract_submatrix(RowMajorArrayPtr<Float, 3>* out,

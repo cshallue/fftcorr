@@ -33,7 +33,8 @@ FftGrid::FftGrid(std::array<int, 3> shape)
 
   std::array<int, 3> dshape = {rshape_[0], rshape_[1], dsize_z};
   grid_.allocate(dshape);
-  array_ops::set_all(0.0, grid_);  // Very Important. Touch the whole array.
+  // We want to touch the whole array before FFT planning.
+  array_ops::set_all(0.0, grid_);
   // cgrid_ is a complex view.
   cgrid_.set_data({dshape[0], dshape[1], dshape[2] / 2},
                   (Complex *)grid_.data());
@@ -217,17 +218,6 @@ void FftGrid::execute_ifft() {
 #endif
   fft_time_.stop();
 }
-
-// void FftGrid::restore_from(const RowMajorArrayPtr<Float, 3> &other) {
-//   // TODO: check same dimensions.
-//   if (other.at(0, 0, 1) != grid_.at(0, 0, 1) ||
-//       other.at(0, 1, 1) != grid_.at(0, 1, 1) ||
-//       other.at(1, 1, 1) != grid_.at(1, 1, 1)) {
-//     setup_time_.start();
-//     grid_.copy_from(other);
-//     setup_time_.stop();
-//   }
-// }
 
 void FftGrid::extract_submatrix(RowMajorArrayPtr<Float, 3> *out) const {
   extract_submatrix(out, NULL);
