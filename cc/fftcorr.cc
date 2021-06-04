@@ -413,7 +413,7 @@ int main(int argc, char *argv[]) {
   /* Done setup Grid ======================================================= */
 
   // Compute the correlations.
-  Correlator corr(grid, sep, dsep, kmax, dk, maxell);
+  Correlator corr(grid, sep, dsep, kmax, dk, maxell, FFTW_MEASURE);
   if (periodic) {
     corr.correlate_periodic();
   } else {

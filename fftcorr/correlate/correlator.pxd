@@ -13,7 +13,8 @@ cdef extern from "correlator.h":
                   Float dr,
                   Float kmax,
                   Float dk,
-                  int maxell) except +
+                  int maxell,
+                  unsigned fftw_flags) except +
     void correlate_periodic()
     void correlate_nonperiodic(int wide_angle_exponent)
     Float zerolag()

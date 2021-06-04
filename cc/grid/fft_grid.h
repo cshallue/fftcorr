@@ -15,6 +15,8 @@ class FftGrid {
   FftGrid(std::array<int, 3> shape);
   ~FftGrid();
 
+  void plan_fft(unsigned flags);  // Must be called before exectute_[i]fft()
+  bool fft_ready();
   void execute_fft();
   void execute_ifft();
 
@@ -40,9 +42,6 @@ class FftGrid {
   Float convolve_time() const { return convolve_time_.elapsed_sec(); }
 
  private:
-  // TODO: allow the user to pass fft flags? I.e. FFT_MEASURE, etc.
-  void plan_fft();
-
   std::array<int, 3> rshape_;  // Dimensions of the real-space input grid.
   std::array<int, 3> cshape_;  // Dimensions of the complex-space FFT output.
 

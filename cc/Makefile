@@ -14,7 +14,7 @@ ifeq ($(use_omp),true)
   CXX = g++ -march=native -fopenmp -lgomp # -fopt-info-vec-missed -fopt-info-vec-optimized
   CXXFLAGS += -O3 -DOPENMP # -DFFTSLAB -DSLAB
 else
-  CXXFLAGS += -O2 -Wno-unknown-pragmas
+  CXXFLAGS += -O2 -Wno-unknown-pragmas # -DFFTSLAB -DSLAB
 endif
 
 # If you want multi-threading with icc, the following would work:

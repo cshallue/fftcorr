@@ -29,12 +29,13 @@ Array1D<Float> sequence(Float start, Float step, int size) {
 class Correlator {
  public:
   Correlator(const ConfigSpaceGrid &dens, Float rmax, Float dr, Float kmax,
-             Float dk, int maxell)
+             Float dk, int maxell, unsigned fftw_flags)
       : dens_(dens),
         rmax_(rmax),
         kmax_(kmax),
         maxell_(maxell),
         work_(dens_.shape()),
+        fftw_flags_(fftw_flags),
         rhist_(maxell / 2 + 1, 0.0, rmax, dr),
         khist_(maxell / 2 + 1, 0.0, kmax, dk) {}
 
@@ -235,6 +236,10 @@ class Correlator {
   // Sets up a fresh call to correlate_{periodic,nonperiodic}.
   void setup(bool periodic) {
     setup_time_.start();
+    // Plan the FFTs first because planning may destroy the data.
+    if (!work_.fft_ready()) {
+      work_.plan_fft(fftw_flags_);
+    }
     array_ops::copy_into_padded_array(dens_.data(), work_.as_real_array());
     if (!periodic && !xcell_.data()) {
       setup_cell_coords();
@@ -405,8 +410,9 @@ class Correlator {
   Float kmax_;
   int maxell_;
 
-  // Workspace.
+  // Work space for FFTs.
   FftGrid work_;
+  unsigned fftw_flags_;
 
   // Configuration-space arrays
   Array1D<Float> xcell_;

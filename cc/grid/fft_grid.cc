@@ -50,7 +50,6 @@ FftGrid::FftGrid(std::array<int, 3> shape)
   ifftx_ = NULL;
 #endif
   setup_time_.stop();
-  plan_fft();
 }
 
 FftGrid::~FftGrid() {
@@ -71,67 +70,64 @@ FftGrid::~FftGrid() {
 #endif
 }
 
-void FftGrid::plan_fft() {
+void FftGrid::plan_fft(unsigned flags) {
   plan_time_.start();
-  // Interpret data as complex.
   Float *data = grid_.data();
-  fftw_complex *cdata = (fftw_complex *)data;
+  fftw_complex *cdata = (fftw_complex *)data;  // Interpret data as complex.
+  const int *dshape = grid_.shape().data();
 
 #ifndef FFTSLAB
-  // The following interface should work even if dsize_z was 'non-minimal',
-  // as might be desired by padding.
-  int nfft[3], nfftc[3];
-  nfft[0] = nfftc[0] = rshape_[0];
-  nfft[1] = nfftc[1] = rshape_[1];
-  // Since dsize_z is always even, this will trick
-  // FFTW to assume dsize_z/2 Complex numbers in the result, while
-  // fulfilling that nfft[2]>=shape[2].
-  nfft[2] = grid_.shape(2);
-  nfftc[2] = nfft[2] / 2;
+  const int nfft[3] = {dshape[0], dshape[1], dshape[2]};
+  const int nfftc[3] = {dshape[0], dshape[1], dshape[2] / 2};
   int howmany = 1;  // Only one forward and inverse FFT.
   int dist = 0;     // Unused because howmany = 1.
   int stride = 1;   // Array is continuous in memory.
   fft_ = fftw_plan_many_dft_r2c(3, rshape_.data(), howmany, data, nfft, stride,
-                                dist, cdata, nfftc, stride, dist, FFTW_MEASURE);
-  ifft_ =
-      fftw_plan_many_dft_c2r(3, rshape_.data(), howmany, cdata, nfftc, stride,
-                             dist, data, nfft, stride, dist, FFTW_MEASURE);
-
+                                dist, cdata, nfftc, stride, dist, flags);
+  ifft_ = fftw_plan_many_dft_c2r(3, rshape_.data(), howmany, cdata, nfftc,
+                                 stride, dist, data, nfft, stride, dist, flags);
 #else
-  // If we wanted to split into 2D and 1D by hand (and therefore handle the OMP
-  // aspects ourselves), then we need to have two plans each.
-  int dsize_z = grid_.shape(2);
-  int nfft2[2], nfft2c[2];
-  nfft2[0] = nfft2c[0] = rshape_[1];
-  nfft2[1] = dsize_z;  // Since dsize_z is always even, this will trick
-  nfft2c[1] = nfft2[1] / 2;
-  int nYZ[2];
-  nYZ[0] = rshape_[1];
-  nYZ[1] = rshape_[2];
-  fftyz_ = fftw_plan_many_dft_r2c(2, nYZ, 1, data, nfft2, 1, 0, cdata, nfft2c,
-                                  1, 0, FFTW_MEASURE);
-  ifftyz_ = fftw_plan_many_dft_c2r(2, nYZ, 1, cdata, nfft2c, 1, 0, data, nfft2,
-                                   1, 0, FFTW_MEASURE);
-
-  // After we've done the 2D r2c FFT, we have to do the 1D c2c transform.
-  // We'll plan to parallelize over Y, so that we're doing (shape[2]/2+1)
-  // 1D FFTs at a time.
-  // Elements in the X direction are separated by shape[1]*dsize_z/2 complex
-  // numbers.
-  int nX = rshape_[0];
-  fftx_ = fftw_plan_many_dft(1, &nX, (rshape_[2] / 2 + 1), cdata, NULL,
-                             rshape_[1] * dsize_z / 2, 1, cdata, NULL,
-                             rshape_[1] * dsize_z / 2, 1, -1, FFTW_MEASURE);
-  ifftx_ = fftw_plan_many_dft(1, &nX, (rshape_[2] / 2 + 1), cdata, NULL,
-                              rshape_[1] * dsize_z / 2, 1, cdata, NULL,
-                              rshape_[1] * dsize_z / 2, 1, +1, FFTW_MEASURE);
+  // Split into 2D and 1D by hand.
+  {
+    const int nfft2[2] = {dshape[1], dshape[2]};
+    const int nfft2c[2] = {dshape[1], dshape[2] / 2};
+    const int nYZ[2] = {rshape_[1], rshape_[2]};
+    int howmany = 1;
+    int dist = 0;
+    int stride = 1;
+    fftyz_ = fftw_plan_many_dft_r2c(2, nYZ, howmany, data, nfft2, stride, dist,
+                                    cdata, nfft2c, stride, dist, flags);
+    ifftyz_ = fftw_plan_many_dft_c2r(2, nYZ, howmany, cdata, nfft2c, stride,
+                                     dist, data, nfft2, stride, dist, flags);
+  }
+  // After the 2D r2c FFT, we have to do the 1D c2c transform.
+  {
+    const int nX[1] = {rshape_[0]};
+    // Parallelize over Y, so we're doing this many 1D FFTs at a time.
+    int howmany = rshape_[2] / 2 + 1;
+    int dist = 1;
+    // Elements in the X direction are separated by this many complex numbers.
+    int stride = dshape[1] * dshape[2] / 2;
+    const int *embed = NULL;
+    fftx_ = fftw_plan_many_dft(1, nX, howmany, cdata, embed, stride, dist,
+                               cdata, embed, stride, dist, -1, flags);
+    ifftx_ = fftw_plan_many_dft(1, nX, howmany, cdata, embed, stride, dist,
+                                cdata, embed, stride, dist, +1, flags);
+  }
 #endif
   plan_time_.stop();
 }
 
+bool FftGrid::fft_ready() {
+#ifndef FFTSLAB
+  return fft_ != NULL;
+#else
+  return fftx_ != NULL;
+#endif
+}
+
 void FftGrid::execute_fft() {
-  // TODO: assert that setup has been called. Decide best way to crash with
-  // informative message. Same with execute_ifft
+  assert(fft_ready());
   fft_time_.start();
 #ifndef FFTSLAB
   fftw_execute(fft_);
@@ -158,6 +154,7 @@ void FftGrid::execute_fft() {
 }
 
 void FftGrid::execute_ifft() {
+  assert(fft_ready());
   fft_time_.start();
 #ifndef FFTSLAB
   fftw_execute(ifft_);

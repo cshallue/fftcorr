@@ -20,6 +20,7 @@ cell_size = 100
 window_type = 0
 dens = ConfigSpaceGrid(shape=ngrid,
                        posmin=posmin,
+                       posmax=posmax,
                        cell_size=cell_size,
                        window_type=window_type)
 d = dens.data
@@ -44,9 +45,7 @@ print("Mass assignment took {:.2f} seconds".format(time.time() - start))
 
 print("num_added = {} vs {}".format(ma.num_added, len(galaxies)))
 print("totw = {} vs {}".format(ma.totw, np.sum(galaxies[:, 3])))
-print("sum(dens) = {} vs {}".format(dens.sum(), np.sum(d)))
 print("totwsq = {} vs {}".format(ma.totwsq, np.sum(galaxies[:, 3]**2)))
-print("sumsq(dens) = {} vs {}".format(dens.sumsq(), np.sum(d**2)))
 print()
 
 # Normalize
@@ -54,9 +53,7 @@ mean = np.mean(dens.data)
 d -= mean  # TODO: dens.data -= doesn't work - expected?
 d /= mean
 print("totw = {} vs {}".format(ma.totw, np.sum(galaxies[:, 3])))
-print("sum(dens) = {} vs {}".format(dens.sum(), np.sum(d)))
 print("totwsq = {} vs {}".format(ma.totwsq, np.sum(galaxies[:, 3]**2)))
-print("sumsq(dens) = {} vs {}".format(dens.sumsq(), np.sum(d**2)))
 print()
 
 rmax = 250.0
