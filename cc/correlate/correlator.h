@@ -75,7 +75,7 @@ class Correlator {
       ylm_time_.start();
       make_ylm(ell, 0, kx_, ky_, kz_, coeff, 0, NULL, &kylm_);
       ylm_time_.stop();
-      work_.extract_submatrix_C2R(&kgrid_, &kylm_);
+      work_.extract_fft_submatrix(&kgrid_, &kylm_);
       hist_time_.start();
       khist_.accumulate(ell / 2, knorm_, kgrid_);
       hist_time_.stop();
@@ -171,7 +171,7 @@ class Correlator {
                  &inv_window_, &kylm_);
         ylm_time_.stop();
         // Multiply these Ylm by the power result, and then add to total.
-        work_.extract_submatrix_C2R(&kgrid_, &kylm_);
+        work_.extract_fft_submatrix(&kgrid_, &kylm_);
 
         // iFFT the result, in place
         work_.execute_ifft();

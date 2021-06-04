@@ -9,7 +9,7 @@
 #include "../profiling/timer.h"
 #include "../types.h"
 
-// Class for in-place fast Fourier transforms of real data.
+// Manager of in-place fast Fourier transforms of real data.
 class FftGrid {
  public:
   FftGrid(std::array<int, 3> shape);
@@ -20,12 +20,11 @@ class FftGrid {
   void execute_fft();
   void execute_ifft();
 
-  // They are quite natural here, because they assume FFT layout.
   void extract_submatrix(RowMajorArrayPtr<Float, 3>* out) const;
   void extract_submatrix(RowMajorArrayPtr<Float, 3>* out,
                          const RowMajorArrayPtr<Float, 3>* mult) const;
-  void extract_submatrix_C2R(RowMajorArrayPtr<Float, 3>* out) const;
-  void extract_submatrix_C2R(RowMajorArrayPtr<Float, 3>* out,
+  void extract_fft_submatrix(RowMajorArrayPtr<Float, 3>* out) const;
+  void extract_fft_submatrix(RowMajorArrayPtr<Float, 3>* out,
                              const RowMajorArrayPtr<Float, 3>* mult) const;
 
   RowMajorArrayPtr<Float, 3>& as_real_array() { return grid_; }

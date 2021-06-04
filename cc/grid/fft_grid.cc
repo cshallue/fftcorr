@@ -8,38 +8,35 @@
 #include "../multithreading.h"
 
 FftGrid::FftGrid(std::array<int, 3> shape)
-    : rshape_(shape), cshape_({shape[0], shape[1], rshape_[2] / 2 + 1}) {
+    : rshape_(shape), cshape_({shape[0], shape[1], shape[2] / 2 + 1}) {
   setup_time_.start();
   int dsize_z;  // dsize_z pads out the array for the in-place FFT.
 #ifdef FFTSLAB
-// The rest of the code should work even if extra space is used.
-// Some operations will blindly apply to the pad cells, but that's ok.
 // In particular, we might consider having dsize_z be evenly divisible by
 // the critical alignment stride (32 bytes for AVX, but might be more for cache
 // lines) or even by a full PAGE for NUMA memory.  Doing this *will* force a
 // more complicated FFT, but at least for the NUMA case this is desired: we want
 // to force the 2D FFT to run on its socket, and only have the last 1D FFT
-// crossing sockets.  Re-using FFTW plans requires the consistent memory
-// alignment.
+// crossing sockets. Re-using FFTW plans requires consistent memory alignment.
 #define FFT_ALIGN 16
   // This is in units of Floats.  16 doubles is 1024 bits.
   dsize_z = FFT_ALIGN * (rshape_[2] / FFT_ALIGN + 1);
 #else
-  // The default 3d FFTW format must have the following:
-  dsize_z = 2 * (rshape_[2] / 2 + 1);  // For the in-place FFT
+  // The default 3D FFTW format must have the following:
+  dsize_z = 2 * (rshape_[2] / 2 + 1);
 #endif
   assert(dsize_z % 2 == 0);
   fprintf(stdout, "# Using dsize_z_=%d for FFT r2c padding\n", dsize_z);
 
   std::array<int, 3> dshape = {rshape_[0], rshape_[1], dsize_z};
   grid_.allocate(dshape);
-  // We want to touch the whole array before FFT planning.
-  array_ops::set_all(0.0, grid_);
-  // cgrid_ is a complex view.
+  array_ops::set_all(0.0, grid_);  // Touch the whole array before FFT planning.
+
+  // Complex view of the data grid.
   cgrid_.set_data({dshape[0], dshape[1], dshape[2] / 2},
                   (Complex *)grid_.data());
 
-// NULL is a valid fftw_plan value; the planner will return NULL if it fails.
+// NULL is a valid fftw_plan value.
 #ifndef FFTSLAB
   fft_ = NULL;
   ifft_ = NULL;
@@ -53,7 +50,6 @@ FftGrid::FftGrid(std::array<int, 3> shape)
 }
 
 FftGrid::~FftGrid() {
-  // Destroy the FFT plans.
 #ifndef FFTSLAB
   if (fft_ != NULL) fftw_destroy_plan(fft_);
   if (ifft_ != NULL) fftw_destroy_plan(ifft_);
@@ -185,21 +181,17 @@ void FftGrid::extract_submatrix(RowMajorArrayPtr<Float, 3> *out) const {
   extract_submatrix(out, NULL);
 }
 
+// Extracts out a submatrix, centered on [0,0,0] of this array.
+// Elements are added to out and multiplied elementwise by mult.
 void FftGrid::extract_submatrix(RowMajorArrayPtr<Float, 3> *out,
                                 const RowMajorArrayPtr<Float, 3> *mult) const {
   extract_time_.start();
-  // TODO: check dimensions.
-  // Extract out a submatrix, centered on [0,0,0] of this array
-  // Multiply elementwise by mult.
+
   const std::array<int, 3> &oshape = out->shape();
   int ox = oshape[0] / 2;  // This is the middle of the submatrix
   int oy = oshape[1] / 2;  // This is the middle of the submatrix
   int oz = oshape[2] / 2;  // This is the middle of the submatrix
 
-  // TODO: if mult is null, create an array of 1s. Currently, the only time we
-  // DON'T have mult is in the isotropic case, we only call this function once
-  // in that case. Meanwhile, we call this function many times in the
-  // anisotropic case, where mult is not null.
 #pragma omp parallel for schedule(dynamic, 1)
   for (int i = 0; i < oshape[0]; ++i) {
     int ii = (rshape_[0] - ox + i) % rshape_[0];
@@ -221,27 +213,26 @@ void FftGrid::extract_submatrix(RowMajorArrayPtr<Float, 3> *out,
   extract_time_.stop();
 }
 
-void FftGrid::extract_submatrix_C2R(RowMajorArrayPtr<Float, 3> *out) const {
-  extract_submatrix_C2R(out, NULL);
+void FftGrid::extract_fft_submatrix(RowMajorArrayPtr<Float, 3> *out) const {
+  extract_fft_submatrix(out, NULL);
 }
 
-void FftGrid::extract_submatrix_C2R(
+// Extracts out a submatrix centered at (0,0,0) assuming data is in the
+// half-domain Fourier convention. Elements are added to out and multiplied
+// elementwise by mult. We only add the real part; the imaginary part always
+// sums to zero.
+void FftGrid::extract_fft_submatrix(
     RowMajorArrayPtr<Float, 3> *out,
     const RowMajorArrayPtr<Float, 3> *mult) const {
   extract_time_.start();
-  // Given a large matrix work[shape^3/2],
-  // extract out a submatrix of size csize^3, centered on work[0,0,0].
-  // The input matrix is Complex * with the half-domain Fourier convention.
-  // We are only summing the real part; the imaginary part always sums to zero.
-  // Need to reflect the -z part around the origin, which also means reflecting
-  // x & y. shape[2] and shape2 are given as their Float values, not yet divided
-  // by two. Multiply the result by corr[csize^3] and add it onto total[csize^3]
-  // Again, zero lag is mapping to corr(csize/2, csize/2, csize/2),
-  // but it is at (0,0,0) in the FFT grid.
+
   const std::array<int, 3> &oshape = out->shape();
   int ox = oshape[0] / 2;  // This is the middle of the submatrix
   int oy = oshape[1] / 2;  // This is the middle of the submatrix
   int oz = oshape[2] / 2;  // This is the middle of the submatrix
+
+// Need to reflect the -z part around the origin, which also means reflecting
+// x & y.
 #pragma omp parallel for schedule(dynamic, 1)
   for (int i = 0; i < oshape[0]; ++i) {
     int ii = (cshape_[0] - ox + i) % cshape_[0];
@@ -251,8 +242,7 @@ void FftGrid::extract_submatrix_C2R(
       int jjn = (cshape_[1] - jj) % cshape_[1];  // The reflected coord
       // The negative half-plane (inclusive), reflected.
       // k=oz-1 should be +1, k=0 should be +oz
-      // This is (iin,jjn,+oz)
-      Float *out_data = out->get_row(i, j);
+      Float *out_data = out->get_row(i, j);  // [iin,jjn,+oz]
       const Float *m = mult ? mult->get_row(i, j) : NULL;
       const Complex *cgrid_data = cgrid_.get_row(iin, jjn);
       for (int k = 0; k < oz; ++k) {
@@ -263,8 +253,7 @@ void FftGrid::extract_submatrix_C2R(
         }
       }
       // The positive half-plane (inclusive)
-      // This is (ii,jj,-oz)
-      cgrid_data = cgrid_.get_row(ii, jj);
+      cgrid_data = cgrid_.get_row(ii, jj);  // [ii,jj,-oz]
       for (int k = oz; k < oshape[2]; ++k) {
         if (mult) {
           out_data[k] += m[k] * std::real(cgrid_data[k - oz]);
