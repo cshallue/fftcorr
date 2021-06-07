@@ -112,4 +112,10 @@ class ArrayNdPtrBase : public ArrayNd<dtype, N> {
   dtype *data_;
 };
 
+template <typename dtype, std::size_t N>
+inline bool operator==(const ArrayNdPtrBase<dtype, N> &lhs,
+                       const ArrayNdPtrBase<dtype, N> &rhs) {
+  return lhs.shape() == rhs.shape() && lhs.data() == rhs.data();
+}
+
 #endif  // ARRAY_ND_H

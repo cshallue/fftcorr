@@ -211,8 +211,9 @@ void usage() {
   exit(1);
 }
 
-void print_hist(const Array1D<Float> &bins, const RowMajorArray<int, 2> &counts,
-                const RowMajorArray<Float, 2> &hist_values, FILE *fp,
+void print_hist(const Array1D<Float> &bins,
+                const RowMajorArrayPtr<int, 2> &counts,
+                const RowMajorArrayPtr<Float, 2> &hist_values, FILE *fp,
                 int prefix, bool normalize) {
   // If norm==1, divide by counts
   for (uint64 j = 0; j < bins.size(); ++j) {
@@ -413,7 +414,7 @@ int main(int argc, char *argv[]) {
   /* Done setup Grid ======================================================= */
 
   // Compute the correlations.
-  Correlator corr(grid, sep, dsep, kmax, dk, maxell, FFTW_MEASURE);
+  Correlator corr(grid, grid, sep, dsep, kmax, dk, maxell, FFTW_MEASURE);
   if (periodic) {
     corr.correlate_periodic();
   } else {
@@ -433,7 +434,7 @@ int main(int argc, char *argv[]) {
   // Integral of power spectrum needs a d^3k/(2 pi)^3, which is (1/L)^3 =
   // (1/(cell_size*ngrid))^3
   Float sum_ell0 = 0.0;
-  const RowMajorArray<Float, 2> &kh = corr.power_spectrum_histogram();
+  const RowMajorArrayPtr<Float, 2> &kh = corr.power_spectrum_histogram();
   for (int j = 0; j < kh.shape(1); ++j) sum_ell0 += kh.at(0, j);
   fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",
           sum_ell0 / (cell_size * cell_size * cell_size * ngrid[0] * ngrid[1] *

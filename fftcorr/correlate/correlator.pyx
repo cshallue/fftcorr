@@ -10,10 +10,16 @@ cdef class Correlator:
                   Float kmax,
                   Float dk,
                   int maxell,
+                  ConfigSpaceGrid dens2 = None,
                   # TODO: use enum?
                   unsigned fftw_flags = 0):
+        if dens2 is None:
+            dens2 = dens
+        # TODO: else check dimensions, etc, match
+
         self._correlator_cc = new Correlator_cc(
-            dens.cc_grid()[0], rmax, dr, kmax, dk, maxell, fftw_flags)
+            dens.cc_grid()[0], dens2.cc_grid()[0], rmax, dr, kmax, dk, maxell,
+            fftw_flags)
         self._correlation_r = as_const_numpy(
             1,
             self._correlator_cc.correlation_r().shape().data(),

@@ -8,7 +8,8 @@ from fftcorr.types cimport Float, array, One, Two
 
 cdef extern from "correlator.h":
   cdef cppclass Correlator_cc "Correlator":
-    Correlator_cc(const ConfigSpaceGrid_cc& dens,
+    Correlator_cc(const ConfigSpaceGrid_cc& dens1,
+                  const ConfigSpaceGrid_cc& dens2,
                   Float rmax,
                   Float dr,
                   Float kmax,
