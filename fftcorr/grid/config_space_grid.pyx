@@ -1,5 +1,5 @@
 
-from fftcorr.array cimport as_numpy
+from fftcorr.array.numpy_adaptor cimport as_numpy
 from fftcorr.particle_mesh.window_type cimport WindowType
 from cpython cimport Py_INCREF
 cimport numpy as cnp
@@ -102,12 +102,7 @@ cdef class ConfigSpaceGrid:
             wt)
         
         # Wrap the data array as a numpy array.
-        self._data_arr = as_numpy(
-            3,
-            self._cc_grid.data().shape().data(),
-            cnp.NPY_DOUBLE,
-            self._cc_grid.data().data(),
-            self)
+        self._data = as_numpy(self._cc_grid.data())
 
     def __dealloc__(self):
         del self._cc_grid
@@ -141,7 +136,7 @@ cdef class ConfigSpaceGrid:
 
     @property
     def data(self):
-        return self._data_arr
+        return self._data
 
     def clear(self):
         self._cc_grid.clear()

@@ -23,7 +23,6 @@ dens = ConfigSpaceGrid(shape=ngrid,
                        posmax=posmax,
                        cell_size=cell_size,
                        window_type=window_type)
-d = dens.data
 print("created grid")
 print()
 
@@ -49,9 +48,9 @@ print("totwsq = {} vs {}".format(ma.totwsq, np.sum(galaxies[:, 3]**2)))
 print()
 
 # Normalize
-mean = np.mean(dens.data)
-d -= mean  # TODO: dens.data -= doesn't work - expected?
-d /= mean
+mean = np.mean(dens)
+dens -= mean
+dens /= mean
 print("totw = {} vs {}".format(ma.totw, np.sum(galaxies[:, 3])))
 print("totwsq = {} vs {}".format(ma.totwsq, np.sum(galaxies[:, 3]**2)))
 print()

@@ -1,4 +1,6 @@
-from fftcorr.array cimport as_const_numpy
+from fftcorr.array.numpy_adaptor cimport as_numpy
+
+# TODO: does numpy_adaptor take care of this? 
 cimport numpy as cnp
 cnp.import_array()
 
@@ -7,25 +9,9 @@ import numpy as np
 cdef class HistogramList:
     def __cinit__(self, int n, Float minval, Float maxval, Float binsize):
         self._cc_hist_list = new HistogramList_cc(n, minval, maxval, binsize)
-        # TODO: could make a simpler function to wrap a 1D array
-        self._bins = as_const_numpy(
-            1,
-            self._cc_hist_list.bins().shape().data(),
-            cnp.NPY_DOUBLE,
-            self._cc_hist_list.bins().data(),
-            self)
-        self._counts = as_const_numpy(
-            2,
-            self._cc_hist_list.counts().shape().data(),
-            cnp.NPY_INT,
-            self._cc_hist_list.counts().data(),
-            self)
-        self._hist_values = as_const_numpy(
-            2,
-            self._cc_hist_list.hist_values().shape().data(),
-            cnp.NPY_DOUBLE,
-            self._cc_hist_list.hist_values().data(),
-            self)
+        self._bins = as_numpy(self._cc_hist_list.bins())
+        self._counts = as_numpy(self._cc_hist_list.counts())
+        self._hist_values = as_numpy(self._cc_hist_list.hist_values())
 
     def __dealloc__(self):
         del self._cc_hist_list

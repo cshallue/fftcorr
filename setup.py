@@ -5,6 +5,7 @@ from Cython.Distutils import build_ext
 import os.path
 
 OPENMP = False
+FFTW_LIBS = ["fftw3", "fftw3_threads", "m"] if OPENMP else ["fftw3"]
 
 
 class CcLibrary(object):
@@ -107,16 +108,15 @@ cc_libs = CcLibraries([
                   "cc/array/array_ops",
                   "cc/particle_mesh/window_functions",
               ]),
-    CcLibrary(
-        "cc/grid/fft_grid.h",
-        srcs=["cc/grid/fft_grid.cc"],
-        deps=[
-            "cc/types",
-            "cc/array/array_ops",
-            "cc/array/row_major_array",
-            "cc/profiling/timer",
-        ],
-        ext_libs=(["fftw3", "fftw3_threads", "m"] if OPENMP else ["fftw3"])),
+    CcLibrary("cc/grid/fft_grid.h",
+              srcs=["cc/grid/fft_grid.cc"],
+              deps=[
+                  "cc/types",
+                  "cc/array/array_ops",
+                  "cc/array/row_major_array",
+                  "cc/profiling/timer",
+              ],
+              ext_libs=FFTW_LIBS),
     CcLibrary("cc/histogram/histogram_list.h",
               deps=[
                   "cc/types",
@@ -134,13 +134,19 @@ cc_libs = CcLibraries([
                   "cc/grid/fft_grid",
                   "cc/histogram/histogram_list",
               ]),
+    CcLibrary("fftcorr/array/numpy_types.h"),
+    CcLibrary("fftcorr/array/numpy_adaptor.h",
+              deps=[
+                  "cc/array/row_major_array",
+                  "fftcorr/array/numpy_types",
+              ]),
 ])
 
 cython_libs = CythonLibraries([
-    # TODO: combine numpy_adaptor with another module?
     CythonLibrary("fftcorr.array.numpy_adaptor",
+                  cc_deps=["fftcorr/array/numpy_adaptor"],
                   pxd_file="fftcorr/array/numpy_adaptor.pxd",
-                  srcs=["fftcorr/array/numpy_adaptor.pyx"]),
+                  pyx_deps=["fftcorr.array.row_major_array"]),
     CythonLibrary("fftcorr.types", pxd_file="fftcorr/types.pxd"),
     CythonLibrary("fftcorr.array.row_major_array",
                   pxd_file="fftcorr/array/row_major_array.pxd",
@@ -164,8 +170,10 @@ cython_libs = CythonLibraries([
                   srcs=["fftcorr/grid/config_space_grid.pyx"],
                   cc_deps=["cc/grid/config_space_grid"],
                   pyx_deps=[
-                      "fftcorr.types", "fftcorr.array.row_major_array",
-                      "fftcorr.particle_mesh.window_type"
+                      "fftcorr.types",
+                      "fftcorr.array.row_major_array",
+                      "fftcorr.particle_mesh.window_type",
+                      "fftcorr.array.numpy_adaptor",
                   ]),
     CythonLibrary("fftcorr.histogram.histogram_list",
                   pxd_file="fftcorr/histogram/histogram_list.pxd",
@@ -174,6 +182,7 @@ cython_libs = CythonLibraries([
                   pyx_deps=[
                       "fftcorr.types",
                       "fftcorr.array.row_major_array",
+                      "fftcorr.array.numpy_adaptor",
                   ]),
     CythonLibrary("fftcorr.correlate.correlator",
                   pxd_file="fftcorr/correlate/correlator.pxd",
@@ -182,15 +191,14 @@ cython_libs = CythonLibraries([
                   pyx_deps=[
                       "fftcorr.types",
                       "fftcorr.array.row_major_array",
+                      "fftcorr.array.numpy_adaptor",
                       "fftcorr.grid.config_space_grid",
                       "fftcorr.histogram.histogram_list",
                   ]),
-    CythonLibrary(
-        "fftcorr.fftw.fftw",
-        pxd_file="fftcorr/fftw/fftw.pxd",
-        srcs=["fftcorr/fftw/fftw.pyx"],
-        # TODO: group the the FFTW library since it's used by fft_grid.h?
-        ext_libs=(["fftw3", "fftw3_threads", "m"] if OPENMP else ["fftw3"])),
+    CythonLibrary("fftcorr.fftw.fftw",
+                  pxd_file="fftcorr/fftw/fftw.pxd",
+                  srcs=["fftcorr/fftw/fftw.pyx"],
+                  ext_libs=FFTW_LIBS),
 ])
 
 ext_modules = []
@@ -199,6 +207,7 @@ for cython_lib in cython_libs.libs.values():
         continue  # Pxd only library for use by other cython libraries.
     name = cython_lib.name
     sources = cython_lib.srcs.copy()
+    # TODO: add the numpy dependency explicitly to numpy_adaptor? Do this when wrapping both ways goes through numpy_adaptor.
     include_dirs = set([numpy.get_include()])
     libraries = cython_lib.ext_libs.copy()
     cc_deps = set(cython_lib.cc_deps)

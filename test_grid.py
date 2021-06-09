@@ -1,8 +1,7 @@
+import ctypes
+
 import fftcorr.grid
 import numpy as np
-
-print("Imported grid module")
-print(dir(fftcorr.grid))
 
 ngrid = [2, 2, 2]
 posmin = [2, -5, 77]
@@ -18,16 +17,21 @@ print(g.posmin)
 print(g.posmax)
 print()
 
-print("{0:x}".format(id(g)))
-print(dir(g))
+g_refcount = ctypes.c_long.from_address(id(g)).value
+g_data_refcount = ctypes.c_long.from_address(id(g.data)).value
+print(f"Address of g: {id(g):x}. Refcount: {g_refcount}")
+print(f"Address of g.data: {id(g.data):x}. Refcount: {g_data_refcount}")
 
-print(g.data.flags)
-print("data =", g.data.flatten())
-import sys
-print("g ref count =", sys.getrefcount(g))
 d = g.data
+g_refcount = ctypes.c_long.from_address(id(g)).value
+g_data_refcount = ctypes.c_long.from_address(id(g.data)).value
+print(f"Address of d: {id(d):x}. g Refcount: {g_refcount}. g.data refcount: "
+      f"{g_data_refcount}")
+print()
+
 print("type(d) =", type(d))
-print("g ref count =", sys.getrefcount(g))
+print("data =", g.data.flatten())
+print(g.data.flags)
 
 d2 = g.data
 print("{0:x}".format(id(d)))

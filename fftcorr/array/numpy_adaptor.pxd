@@ -1,7 +1,8 @@
+from fftcorr.array.row_major_array cimport RowMajorArrayPtr
+
 cimport numpy as cnp
+cnp.import_array()
 
-cdef cnp.ndarray as_numpy(
-    int ndim, const int* shape, int typenum, void* data, base_object)
-
-cdef cnp.ndarray as_const_numpy(
-    int ndim, const int* shape, int typenum, const void* data, base_object)
+cdef extern from "numpy_adaptor.h":
+  cnp.ndarray as_numpy[dtype, N](RowMajorArrayPtr[dtype, N]& c_arr)
+  cnp.ndarray as_numpy[dtype, N](const RowMajorArrayPtr[dtype, N]& c_arr)

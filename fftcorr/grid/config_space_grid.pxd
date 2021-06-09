@@ -20,6 +20,6 @@ cdef class ConfigSpaceGrid:
     cdef Float _padding
     cdef int _window_type
     cdef ConfigSpaceGrid_cc *_cc_grid
-    cdef cnp.ndarray _data_arr
+    cdef cnp.ndarray _data
 
     cdef ConfigSpaceGrid_cc* cc_grid(self)
