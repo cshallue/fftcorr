@@ -177,10 +177,6 @@ void FftGrid::execute_ifft() {
   fft_time_.stop();
 }
 
-void FftGrid::extract_submatrix(RowMajorArrayPtr<Float, 3> *out) const {
-  extract_submatrix(out, NULL);
-}
-
 // Extracts out a submatrix, centered on [0,0,0] of this array.
 // Elements are added to out and multiplied elementwise by mult.
 void FftGrid::extract_submatrix(RowMajorArrayPtr<Float, 3> *out,
@@ -211,10 +207,6 @@ void FftGrid::extract_submatrix(RowMajorArrayPtr<Float, 3> *out,
     }
   }
   extract_time_.stop();
-}
-
-void FftGrid::extract_fft_submatrix(RowMajorArrayPtr<Float, 3> *out) const {
-  extract_fft_submatrix(out, NULL);
 }
 
 // Extracts out a submatrix centered at (0,0,0) assuming data is in the

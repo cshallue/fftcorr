@@ -20,12 +20,10 @@ class FftGrid {
   void execute_fft();
   void execute_ifft();
 
-  void extract_submatrix(RowMajorArrayPtr<Float, 3>* out) const;
   void extract_submatrix(RowMajorArrayPtr<Float, 3>* out,
-                         const RowMajorArrayPtr<Float, 3>* mult) const;
-  void extract_fft_submatrix(RowMajorArrayPtr<Float, 3>* out) const;
+                         const RowMajorArrayPtr<Float, 3>* mult = NULL) const;
   void extract_fft_submatrix(RowMajorArrayPtr<Float, 3>* out,
-                             const RowMajorArrayPtr<Float, 3>* mult) const;
+                             const RowMajorArrayPtr<Float, 3>* mult = NULL) const;
 
   RowMajorArrayPtr<Float, 3>& as_real_array() { return grid_; }
   const RowMajorArrayPtr<Float, 3>& as_real_array() const { return grid_; }
