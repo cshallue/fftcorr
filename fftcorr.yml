@@ -5,7 +5,6 @@ channels:
 dependencies:
   - fftw
   - make
-  - autopep8
   - numpy
   - scipy
   - pylint
@@ -21,5 +20,6 @@ dependencies:
     - git+https://github.com/lgarrison/asdf.git
     - abacusutils
     - absl-py
-    - ml_collections
+    - yapf
+    - isort
 prefix: /Users/shallue/miniconda3/envs/fftcorr
