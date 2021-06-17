@@ -24,9 +24,9 @@ class HistogramList {
   }
 
   int nbins() const { return nbins_; }
-  const Array1D<Float> &bins() const { return bins_; }
-  const RowMajorArray<int, 2> &counts() const { return counts_; }
-  const RowMajorArray<Float, 2> &hist_values() const { return hist_values_; }
+  const ArrayPtr1D<Float> &bins() const { return bins_; }
+  const RowMajorArrayPtr<int, 2> &counts() const { return counts_; }
+  const RowMajorArrayPtr<Float, 2> &hist_values() const { return hist_values_; }
 
   void accumulate(int ih, const Array<Float> &x, const Array<Float> &y) {
     assert(ih < counts_.shape(0));
@@ -46,7 +46,7 @@ class HistogramList {
     int *count = counts_.data();
     Float *hist = hist_values_.data();
     for (uint64 i = 0; i < counts_.size(); ++i) {
-      count[i] = 0.0;
+      count[i] = 0;
       hist[i] = 0.0;
     }
   }

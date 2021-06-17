@@ -195,14 +195,14 @@ class Correlator {
 
   // Output accessors.
   Float zerolag() const { return zerolag_; }
-  const Array1D<Float> &correlation_r() const { return rhist_.bins(); }
+  const ArrayPtr1D<Float> &correlation_r() const { return rhist_.bins(); }
   const RowMajorArrayPtr<int, 2> &correlation_counts() const {
     return rhist_.counts();
   }
   const RowMajorArrayPtr<Float, 2> &correlation_histogram() const {
     return rhist_.hist_values();
   }
-  const Array1D<Float> &power_spectrum_k() const { return khist_.bins(); }
+  const ArrayPtr1D<Float> &power_spectrum_k() const { return khist_.bins(); }
   const RowMajorArrayPtr<int, 2> &power_spectrum_counts() const {
     return khist_.counts();
   }
