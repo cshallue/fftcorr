@@ -8,4 +8,4 @@ switch (uname)
     case '*'
         echo "Unrecognized system!"
 end
-set --export "PYTHONPATH $HOME/git/fftcorr:$PYTHONPATH"
+set --export PYTHONPATH "$HOME/git/fftcorr:$PYTHONPATH"
