@@ -2,6 +2,10 @@ from fftcorr.array.numpy_adaptor cimport as_numpy
 from fftcorr.grid cimport ConfigSpaceGrid
 from fftcorr.histogram cimport HistogramList
 
+# TODO: can numpy_adaptor take care of this? address boundary errors without it
+cimport numpy as cnp
+cnp.import_array()
+
 cdef class Correlator:
     def __cinit__(self,
                   ConfigSpaceGrid dens,
