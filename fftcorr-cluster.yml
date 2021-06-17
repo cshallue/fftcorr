@@ -14,6 +14,7 @@ dependencies:
   - jupyterlab
   - matplotlib
   - pandas
+  - git
   - pip
   - pip:
     - git+https://github.com/lgarrison/asdf.git
