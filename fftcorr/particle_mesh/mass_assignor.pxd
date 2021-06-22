@@ -34,7 +34,7 @@ cdef class MassAssignor:
     # TODO: it would be possible to have a RowMajorArray here.
     cdef Float[:, :, :, ::1] _disp_data
     # TODO: _cc_disp? _disp_rma? Consider naming conventions for arrays and
-    # their shapes.
+    # their shapes. Disp at all?
     cdef RowMajorArrayPtr[Float, Four] _disp
 
     # Keep track of these because they're useful for validation in functions 

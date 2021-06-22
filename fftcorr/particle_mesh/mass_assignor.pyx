@@ -13,7 +13,6 @@ from fftcorr.utils import Timer
 # https://book.pythontips.com/en/latest/context_managers.html
 # when the context exits, flush() should be called. should it also
 # deallocate the buffer?
-# TODO: formatting. 2 space indentation instead of 4?
 cdef class MassAssignor:
     def __cinit__(self, ConfigSpaceGrid grid, bool periodic_wrap=False, int buffer_size=10000, Float[:, :, :, :] disp=None):
         self._posmin = grid.posmin
@@ -32,13 +31,15 @@ cdef class MassAssignor:
                     f"Expected disp to have shape: {expected_shape}. Got: {actual_shape}")
 
             # Make a contiguous copy.
+            # TODO: since we're making a copy here, the input array doesn't have
+            # to be contiguous.
             print("Copying the displacement vector field")
             with Timer() as copy_timer:
                 self._disp_data = disp.copy()
             print("Copy time: {:.2g} sec".format(copy_timer.elapsed))
 
             # TODO: wrap this, it's used in multiple places
-            disp_shape =  np.array(self._disp_data.shape, dtype=np.intc)
+            disp_shape = np.array(self._disp_data.shape, dtype=np.intc)
             self._disp = RowMajorArrayPtr[Float, Four](
                 (<array[int, Four] *> &disp_shape[0])[0], &self._disp_data[0,0,0,0])
             disp_ptr = &self._disp
