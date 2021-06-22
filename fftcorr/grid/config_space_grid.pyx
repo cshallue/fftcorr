@@ -5,6 +5,7 @@ from cpython cimport Py_INCREF
 cimport numpy as cnp
 cnp.import_array()
 
+import asdf
 import numpy as np
 
 
@@ -141,8 +142,7 @@ cdef class ConfigSpaceGrid:
     def clear(self):
         self._cc_grid.clear()
 
-    def write(self, filename, dtype=np.float32):
-        import asdf  # TODO: move to top level?
+    def write(self, filename, metadata=None, dtype=np.float32):
         tree = {
             "header": {
                 "shape": self.shape,
@@ -154,22 +154,26 @@ cdef class ConfigSpaceGrid:
             },
             "data": self.data.astype(dtype),
         }
-        af = asdf.AsdfFile(tree)  # TODO: close it?
-        af.write_to(filename)
+        if metadata:
+            if "header" in metadata or "data" in metadata:
+                raise ValueError(
+                    "metadata cannot contain keys 'header' or 'data")
+            tree.update(metadata)
+        with asdf.AsdfFile(tree) as af:
+            af.write_to(filename)
 
     @classmethod
     def read(cls, filename):
-        import asdf  # TODO: move to top level?
-        af = asdf.open(filename)  # TODO: close it?
-        header = af.tree["header"]
-        grid = cls(
-            shape=header["shape"],
-            posmin=header["posmin"],
-            posmax=header["posmax"],
-            padding=header["padding"],
-            window_type=header["window_type"])
-        assert np.allclose(grid.cell_size, header["cell_size"])
-        np.copyto(grid.data, af.tree["data"])  # TODO: better way to do this?
+        with asdf.open(filename) as af:
+            header = af.tree["header"]
+            grid = cls(
+                shape=header["shape"],
+                posmin=header["posmin"],
+                posmax=header["posmax"],
+                padding=header["padding"],
+                window_type=header["window_type"])
+            assert np.allclose(grid.cell_size, header["cell_size"])
+            np.copyto(grid.data, af.tree["data"])
         return grid
 
     def __iadd__(self, other):
