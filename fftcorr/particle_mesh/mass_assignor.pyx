@@ -1,5 +1,6 @@
 from fftcorr.grid cimport ConfigSpaceGrid
 from fftcorr.types cimport array
+from fftcorr.array.row_major_array cimport as_RowMajorArrayPtr1D, as_RowMajorArrayPtr2D, as_RowMajorArrayPtr4D
 
 cimport numpy as cnp
 cnp.import_array()
@@ -38,10 +39,7 @@ cdef class MassAssignor:
                 self._disp_data = disp.copy()
             print("Copy time: {:.2g} sec".format(copy_timer.elapsed))
 
-            # TODO: wrap this, it's used in multiple places
-            disp_shape = np.array(self._disp_data.shape, dtype=np.intc)
-            self._disp = RowMajorArrayPtr[Float, Four](
-                (<array[int, Four] *> &disp_shape[0])[0], &self._disp_data[0,0,0,0])
+            self._disp = as_RowMajorArrayPtr4D(self._disp_data)
             disp_ptr = &self._disp
 
         self._cc_ma = new MassAssignor_cc(grid.cc_grid(), periodic_wrap, buffer_size, disp_ptr)
@@ -68,11 +66,8 @@ cdef class MassAssignor:
         self.flush()
 
     cpdef add_particles_to_buffer(self, Float[:, ::1] particles, weight=None):
-        particles = np.asarray(particles, order="C")
-        # TODO: wrap this?
-        cdef cnp.ndarray[cnp.npy_int] pshape = np.array(particles.shape, dtype=np.intc)
-        cdef RowMajorArrayPtr[Float, Two] pptr = RowMajorArrayPtr[Float, Two](
-            (<array[int, Two] *> &pshape[0])[0], &particles[0,0])
+        particles = np.asarray(particles, order="C")  # TODO: ensure no copy
+        cdef RowMajorArrayPtr[Float, Two] pptr = as_RowMajorArrayPtr2D(particles)
         if particles.shape[1] == 4:
             if weight is not None:
                 raise ValueError("Cannot pass weights twice")
@@ -97,11 +92,8 @@ cdef class MassAssignor:
                 "Expected weight to be 1D with the same length as "
                 "particles. Got {} and {}".format(
                     weight.shape, particles.shape))
-        cdef cnp.ndarray[cnp.npy_int] wshape = np.array(weight.shape, dtype=np.intc)
-        cdef Float[::1] weight_arr = weight
-        # TODO: wrap Array1D?
-        cdef RowMajorArrayPtr[Float, One] wptr = RowMajorArrayPtr[Float, One](
-            (<array[int, One] *> &wshape[0])[0], &weight_arr[0])
+        # TODO: wrap Array1D instead?
+        cdef RowMajorArrayPtr[Float, One] wptr = as_RowMajorArrayPtr1D(weight)
         return self._cc_ma.add_particles_to_buffer(pptr, wptr)
 
 
