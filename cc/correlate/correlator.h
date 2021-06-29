@@ -58,7 +58,8 @@ class Correlator {
     mult_time_.stop();
 
     // We must multiply the DFT result by (1/ncells^2): DFT differs from Fourier
-    // series coefficients by a factor of ncells, and we've squared the DFT.
+    // series coefficients by a factor of ncells, and we've multiplied two DFTs
+    // together.
     uint64 ncells = dens1_.data().size();
     Float k_rescale = (1.0 / ncells / ncells);
 
@@ -75,7 +76,7 @@ class Correlator {
       ylm_time_.start();
       make_ylm(ell, 0, kx_, ky_, kz_, coeff, 0, NULL, &kylm_);
       ylm_time_.stop();
-      work_.extract_fft_submatrix(&kgrid_, &kylm_);
+      work_.extract_fft_submatrix_c2r(&kgrid_, &kylm_);
       hist_time_.start();
       khist_.accumulate(ell / 2, knorm_, kgrid_);
       hist_time_.stop();
@@ -161,7 +162,15 @@ class Correlator {
                  &inv_window_, &kylm_);
         ylm_time_.stop();
         // Multiply these Ylm by the power result, and then add to total.
-        work_.extract_fft_submatrix(&kgrid_, &kylm_);
+        // TODO: we only need to extract the real part for an autocorrelation,
+        // since autocorrelations of real functions are even and therefore have
+        // purely real fourier transforms (another way to see this is that we
+        // multiply by the conjugate in fourier space). But cross correlations
+        // are not in general even and so the complex component is not generally
+        // zero. But we may be able to argue that it's negligible by isotropy
+        // of the universe...but that might not be true in redshift space? This
+        // may sink the idea of using this class to compute cross-correlations.
+        work_.extract_fft_submatrix_c2r(&kgrid_, &kylm_);
 
         // iFFT the result, in place
         work_.execute_ifft();

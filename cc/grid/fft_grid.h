@@ -22,8 +22,9 @@ class FftGrid {
 
   void extract_submatrix(RowMajorArrayPtr<Float, 3>* out,
                          const RowMajorArrayPtr<Float, 3>* mult = NULL) const;
-  void extract_fft_submatrix(RowMajorArrayPtr<Float, 3>* out,
-                             const RowMajorArrayPtr<Float, 3>* mult = NULL) const;
+  void extract_fft_submatrix_c2r(
+      RowMajorArrayPtr<Float, 3>* out,
+      const RowMajorArrayPtr<Float, 3>* mult = NULL) const;
 
   RowMajorArrayPtr<Float, 3>& as_real_array() { return grid_; }
   const RowMajorArrayPtr<Float, 3>& as_real_array() const { return grid_; }

@@ -211,9 +211,8 @@ void FftGrid::extract_submatrix(RowMajorArrayPtr<Float, 3> *out,
 
 // Extracts out a submatrix centered at (0,0,0) assuming data is in the
 // half-domain Fourier convention. Elements are added to out and multiplied
-// elementwise by mult. We only add the real part; the imaginary part always
-// sums to zero.
-void FftGrid::extract_fft_submatrix(
+// elementwise by mult. Only the real part is extracted.
+void FftGrid::extract_fft_submatrix_c2r(
     RowMajorArrayPtr<Float, 3> *out,
     const RowMajorArrayPtr<Float, 3> *mult) const {
   extract_time_.start();
