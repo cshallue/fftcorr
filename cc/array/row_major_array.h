@@ -28,7 +28,7 @@ class RowMajorArrayPtr<dtype, 1> : public ArrayNdPtrBase<dtype, 1> {
       : ArrayNdPtrBase<dtype, 1>({size}, data) {}
   dtype &operator[](uint64 idx) { return this->data_[idx]; }
   const dtype &operator[](uint64 idx) const { return this->data_[idx]; }
-  void set_data(int size, dtype *data) { this->set_data({size}, data); }
+  // void set_data(int size, dtype *data) { this->set_data({size}, data); }
 };
 
 // 2D row-major array pointer.

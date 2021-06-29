@@ -1,8 +1,8 @@
-from distutils.core import setup, Extension
+import os.path
+from distutils.core import Extension, setup
+
 import numpy
 from Cython.Distutils import build_ext
-
-import os.path
 
 OPENMP = False
 FFTW_LIBS = ["fftw3", "fftw3_threads", "m"] if OPENMP else ["fftw3"]
@@ -161,9 +161,11 @@ cython_libs = CythonLibraries([
                   srcs=["fftcorr/particle_mesh/mass_assignor.pyx"],
                   cc_deps=["cc/particle_mesh/mass_assignor"],
                   pyx_deps=[
-                      "fftcorr.types", "fftcorr.array.row_major_array",
+                      "fftcorr.types",
+                      "fftcorr.array.row_major_array",
                       "fftcorr.grid.config_space_grid",
-                      "fftcorr.particle_mesh.window_type"
+                      "fftcorr.particle_mesh.window_type",
+                      "fftcorr.array.numpy_adaptor",
                   ]),
     CythonLibrary("fftcorr.grid.config_space_grid",
                   pxd_file="fftcorr/grid/config_space_grid.pxd",

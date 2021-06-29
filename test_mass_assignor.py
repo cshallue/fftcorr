@@ -1,9 +1,11 @@
 import fftcorr.grid
+
 print("Imported grid module")
 print(dir(fftcorr.grid))
 print()
 
 import fftcorr.particle_mesh
+
 print("Imported particle_mesh module")
 print(dir(fftcorr.particle_mesh))
 print()
@@ -113,3 +115,38 @@ print("totw =", ma.totw)
 print("sum =", np.sum(g))
 print("posmin =", ma.posmin)
 print("posmax =", ma.posmax)
+
+# Try a bunch of things that shouldn't work.
+print()
+
+# Too many dimensions
+pos = np.zeros(shape=(2, 3, 4), dtype=np.float64)
+try:
+    ma.add_particles(pos, 5.0)
+except RuntimeError as e:
+    print(e)
+
+# Wrong type
+pos = np.zeros(shape=(n, 3), dtype=np.float32)
+try:
+    ma.add_particles(pos, 5.0)
+except RuntimeError as e:
+    print(e)
+
+# Not c-contiguous.
+buf = np.zeros(shape=(n, 4), dtype=np.float64)
+pos = buf[:, 0:3]
+try:
+    ma.add_particles(pos, 5.0)
+except RuntimeError as e:
+    print(e)
+
+# Not writeable
+pos = np.zeros(shape=(n, 4), dtype=np.float64)
+pos.setflags(write=False)
+try:
+    print("adding particles")
+    ma.add_particles(pos)
+    print("hello")
+except RuntimeError as e:
+    print(e)

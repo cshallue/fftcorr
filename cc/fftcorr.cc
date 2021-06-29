@@ -211,7 +211,7 @@ void usage() {
   exit(1);
 }
 
-void print_hist(const Array1D<Float> &bins,
+void print_hist(const ArrayPtr1D<Float> &bins,
                 const RowMajorArrayPtr<int, 2> &counts,
                 const RowMajorArrayPtr<Float, 2> &hist_values, FILE *fp,
                 int prefix, bool normalize) {

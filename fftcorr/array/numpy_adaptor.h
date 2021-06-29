@@ -35,4 +35,34 @@ PyObject* as_numpy(const RowMajorArrayPtr<dtype, N>& arr) {
   return py_arr;
 }
 
+// As above, but for the reverse wrapping.
+template <typename dtype, std::size_t N>
+RowMajorArrayPtr<dtype, N> as_RowMajorArrayPtr(PyArrayObject* arr) {
+  RowMajorArrayPtr<dtype, N> rma;
+  if (PyArray_NDIM(arr) != N) {
+    PyErr_SetString(PyExc_RuntimeError,
+                    "Number of dimensions of numpy array is not equal to N.");
+    return rma;
+  }
+  if (PyArray_TYPE(arr) != TypeNum<dtype>::value) {
+    PyErr_SetString(PyExc_RuntimeError,
+                    "Numpy array does not have the expected type.");
+    return rma;
+  }
+  if (!PyArray_IS_C_CONTIGUOUS(arr)) {
+    PyErr_SetString(PyExc_RuntimeError, "Numpy array is not C-contiguous.");
+    return rma;
+  }
+  if (!PyArray_ISWRITEABLE(arr)) {
+    // We could wrap it in a const RowMajorArrayPtr, though.
+    PyErr_SetString(PyExc_RuntimeError, "Numpy array is not writeable.");
+    return rma;
+  }
+  std::array<int, N> shape;
+  const npy_intp* py_shape = PyArray_SHAPE(arr);
+  std::copy(py_shape, py_shape + N, shape.begin());
+  rma.set_data(shape, (dtype*)PyArray_DATA(arr));
+  return rma;
+}
+
 #endif  // NUMPY_ADAPTOR_H
