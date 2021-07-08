@@ -1,36 +1,41 @@
-import os.path
 import glob
+import os.path
 
-from abacusnbody.data.bitpacked import unpack_rvint
 import asdf
 import numpy as np
-
-from fftcorr.particle_mesh import MassAssignor
+from abacusnbody.data.bitpacked import unpack_rvint
 from fftcorr.utils import Timer
 
 
-def read_density_field(file_pattern,
+def read_density_field(file_patterns,
                        ma,
                        file_type=None,
                        redshift_distortion=False,
                        verbose=True):
-    filenames = sorted(glob.glob(file_pattern))
-    if not filenames:
-        raise ValueError("Found no files matching {}".format(file_pattern))
+    if isinstance(file_patterns, (str, bytes)):
+        file_patterns = [file_patterns]
+
+    filenames = []
+    for file_pattern in file_patterns:
+        matches = sorted(glob.glob(file_pattern))
+        if not matches:
+            raise ValueError(f"Found no files matching {file_pattern}")
+        filenames.extend(matches)
 
     # Infer and/or validate the file type: halos or particles.
     for filename in filenames:
         basename = os.path.basename(filename)
         if basename.startswith("halo_info"):
             ft = "halos"
-        elif basename.startswith("field_rv"):
+        elif (basename.startswith("field_rv")
+              or basename.startswith("halo_rv")):
             ft = "particles"
         else:
-            raise ValueError("Unrecognized file type: '{}'".format(basename))
+            raise ValueError(f"Unrecognized file type: '{basename}'")
         if file_type is None:
             file_type = ft
         elif file_type != ft:
-            raise ValueError("Inconsistent file types")
+            raise ValueError(f"Inconsistent file types: {ft} vs {file_type}")
 
     gridmin = ma.posmin
     gridmax = ma.posmax
