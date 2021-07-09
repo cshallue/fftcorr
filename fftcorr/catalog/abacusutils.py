@@ -42,6 +42,9 @@ def read_density_field(file_patterns,
         elif file_type != ft:
             raise ValueError(f"Inconsistent file types: {ft} vs {file_type}")
 
+    if disp is not None:
+        disp = np.ascontiguousarray(disp, dtype=np.float64)
+
     gridmin = grid.posmin
     gridmax = grid.posmax
     box_size = None
@@ -132,7 +135,11 @@ def read_density_field(file_patterns,
             # Apply displacement field.
             if disp is not None:
                 with Timer() as disp_timer:
-                    apply_displacement_field(grid, pos, disp, out=pos)
+                    apply_displacement_field(grid,
+                                             pos,
+                                             disp,
+                                             periodic_wrap=periodic_wrap,
+                                             out=pos)
                 disp_time += disp_timer.elapsed
 
             # Add items to the density field.

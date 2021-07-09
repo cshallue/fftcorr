@@ -26,6 +26,9 @@ def add_random_particles(n,
     if verbose:
         print("Particle weight: {:.6g}".format(particle_weight))
 
+    if disp is not None:
+        disp = np.ascontiguousarray(disp, dtype=np.float64)
+
     gridmin = grid.posmin
     gridmax = grid.posmax
 
@@ -53,7 +56,11 @@ def add_random_particles(n,
 
             if disp is not None:
                 with Timer() as disp_timer:
-                    apply_displacement_field(grid, pos, disp, out=pos)
+                    apply_displacement_field(grid,
+                                             pos,
+                                             disp,
+                                             periodic_wrap=periodic_wrap,
+                                             out=pos)
                 disp_time += disp_timer.elapsed
 
             with Timer() as ma_timer:

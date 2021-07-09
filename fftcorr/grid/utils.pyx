@@ -21,8 +21,8 @@ import numpy as np
 cdef bool _apply_displacement_field(ConfigSpaceGrid grid,
                                     Float[:, ::1] pos,
                                     const Float[:, :, :, ::1] disp,
-                                    Float[:, :] out,
-                                    bool periodic_wrap):
+                                    bool periodic_wrap
+                                    Float[:, :] out):
     cdef const Float[::1] survey_coords
     cdef Float[:] out_coords
     cdef Float grid_coords[3]
@@ -41,7 +41,7 @@ cdef bool _apply_displacement_field(ConfigSpaceGrid grid,
     return True
 
 
-def apply_displacement_field(ConfigSpaceGrid grid, pos, disp, out=None, periodic_wrap=False):
+def apply_displacement_field(ConfigSpaceGrid grid, pos, disp, periodic_wrap=False, out=None):
     # TODO: np.float64 should be defined in global place
     pos = np.ascontiguousarray(pos, dtype=np.float64)
     disp = np.ascontiguousarray(disp, dtype=np.float64)
@@ -51,7 +51,9 @@ def apply_displacement_field(ConfigSpaceGrid grid, pos, disp, out=None, periodic
     
     # TODO: validate dimensions
 
-    if not _apply_displacement_field(grid, pos, disp, out, periodic_wrap):
-        raise ValueError("Failed to apply displacement field: coordinates out of bounds?")
+    if not _apply_displacement_field(grid, pos, disp, periodic_wrap, out):
+        raise ValueError(
+            "Failed to apply displacement field: coordinates out of bounds? "
+            "Try setting periodic_wrap=True.")
 
     return out
