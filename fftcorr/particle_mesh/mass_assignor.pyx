@@ -16,8 +16,6 @@ from fftcorr.utils import Timer
 # deallocate the buffer?
 cdef class MassAssignor:
     def __cinit__(self, ConfigSpaceGrid grid, bool periodic_wrap=False, int buffer_size=10000):
-        self._posmin = grid.posmin
-        self._posmax = grid.posmax
         self._cc_ma = new MassAssignor_cc(grid.cc_grid()[0], periodic_wrap, buffer_size)
         
 
@@ -72,15 +70,6 @@ cdef class MassAssignor:
 
     cpdef flush(self):
         self._cc_ma.flush()
-
-    # TODO: annotate return type
-    @property
-    def posmin(self):
-        return self._posmin
-
-    @property
-    def posmax(self):
-        return self._posmax
 
     @property
     def num_added(self) -> int:

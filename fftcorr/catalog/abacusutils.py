@@ -4,13 +4,17 @@ import os.path
 import asdf
 import numpy as np
 from abacusnbody.data.bitpacked import unpack_rvint
-from fftcorr.utils import Timer
+from fftcorr.particle_mesh import MassAssignor
+from fftcorr.utils import Timer, apply_displacement_field
 
 
 def read_density_field(file_patterns,
-                       ma,
+                       grid,
                        file_type=None,
+                       periodic_wrap=False,
                        redshift_distortion=False,
+                       disp=None,
+                       buffer_size=10000,
                        verbose=True):
     if isinstance(file_patterns, (str, bytes)):
         file_patterns = [file_patterns]
@@ -37,8 +41,8 @@ def read_density_field(file_patterns,
         elif file_type != ft:
             raise ValueError(f"Inconsistent file types: {ft} vs {file_type}")
 
-    gridmin = ma.posmin
-    gridmax = ma.posmax
+    gridmin = grid.posmin
+    gridmax = grid.posmax
     box_size = None
     total_items = 0
     max_items = 0
@@ -78,10 +82,11 @@ def read_density_field(file_patterns,
         if file_type == "halos":
             weight_buf = np.empty((max_items, ), dtype=np.float64, order="C")
 
+    ma = MassAssignor(grid, periodic_wrap, buffer_size)
     with Timer() as work_timer:
-        ma.clear()
         items_seen = 0
         io_time = 0.0
+        disp_time = 0.0
         ma_time = 0.0
         for filename in filenames:
             if verbose:
@@ -123,6 +128,12 @@ def read_density_field(file_patterns,
                 # that direction.
                 pos[:, 2] += vel[:, 2] / (100 * scale_factor)
 
+            # Apply displacement field.
+            if disp is not None:
+                with Timer() as disp_timer:
+                    apply_displacement_field(grid, pos, disp, out=pos)
+                disp_time += disp_timer()
+
             # Add items to the density field.
             with Timer() as ma_timer:
                 ma.add_particles_to_buffer(pos, weight)
@@ -138,6 +149,10 @@ def read_density_field(file_patterns,
         print("Setup time: {:.2f} sec".format(setup_timer.elapsed))
         print("Work time: {:.2f} sec".format(work_timer.elapsed))
         print("  IO time: {:.2f} sec".format(io_time))
+        if disp is not None:
+            print("  Displacement field time: {:.2f} sec".format(disp_time))
         print("  Mass assignor time: {:.2f} sec".format(ma_time))
         print("    Sort time: {:.2f} sec".format(ma.sort_time))
         print("    Window time: {:.2f} sec".format(ma.window_time))
+
+    return ma.num_added, ma.num_skipped

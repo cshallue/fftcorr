@@ -34,11 +34,5 @@ cdef class MassAssignor:
     # their shapes. Disp at all?
     cdef RowMajorArrayPtr[Float, Four] _disp
 
-    # Keep track of these because they're useful for validation in functions 
-    # that take a mass assignor but not the grid. Is this how we want to
-    # structure thingss?
-    cdef cnp.ndarray _posmin
-    cdef cnp.ndarray _posmax
-
     cpdef flush(self)
     cpdef clear(self)

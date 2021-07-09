@@ -24,7 +24,7 @@ cdef bool _apply_displacement_field(ConfigSpaceGrid grid,
                                     Float[:, :] out,
                                     bool periodic_wrap):
     cdef const Float[::1] survey_coords
-    cdef Float[::1] out_coords
+    cdef Float[:] out_coords
     cdef Float grid_coords[3]
     cdef const Float[::1] dxyz
     cdef int i, j
