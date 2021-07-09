@@ -1,6 +1,7 @@
 import numpy as np
+from fftcorr.grid import apply_displacement_field
 from fftcorr.particle_mesh import MassAssignor
-from fftcorr.utils import Timer, apply_displacement_field
+from fftcorr.utils import Timer
 
 
 def add_random_particles(n,

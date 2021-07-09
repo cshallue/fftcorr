@@ -4,8 +4,9 @@ import os.path
 import asdf
 import numpy as np
 from abacusnbody.data.bitpacked import unpack_rvint
+from fftcorr.grid import apply_displacement_field
 from fftcorr.particle_mesh import MassAssignor
-from fftcorr.utils import Timer, apply_displacement_field
+from fftcorr.utils import Timer
 
 
 def read_density_field(file_patterns,
