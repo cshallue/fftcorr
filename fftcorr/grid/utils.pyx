@@ -21,7 +21,7 @@ import numpy as np
 cdef bool _apply_displacement_field(ConfigSpaceGrid grid,
                                     Float[:, ::1] pos,
                                     const Float[:, :, :, ::1] disp,
-                                    bool periodic_wrap
+                                    bool periodic_wrap,
                                     Float[:, :] out):
     cdef const Float[::1] survey_coords
     cdef Float[:] out_coords
