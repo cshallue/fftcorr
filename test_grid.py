@@ -1,7 +1,8 @@
 import ctypes
 
-import fftcorr.grid
 import numpy as np
+
+import fftcorr.grid
 
 ngrid = [2, 2, 2]
 posmin = [2, -5, 77]
@@ -106,3 +107,26 @@ try:
                                  window_type=0)
 except ValueError as e:
     print(e)
+
+print()
+
+#posmin = [2, -5, 77]
+#posmax = [50, 45, 120]
+gc = g.to_grid_coords([2, -4, 79])
+print(gc)
+try:
+    g.to_grid_coords([1, 0, 77])
+except ValueError as e:
+    print(e)
+gc = g.to_grid_coords([1, 0, 77], periodic_wrap=True)
+print(gc)
+
+# Try some displacements.
+pos = np.array([[2, -5, 77], [49, 44, 119]], dtype=np.float64)
+print(pos)
+for p in pos:
+    print(g.to_grid_coords(p))
+disp = np.random.uniform(size=(ngrid + [3]))
+print(disp)
+fftcorr.grid.apply_displacement_field(g, pos, disp, out=pos)
+print(pos)

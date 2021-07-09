@@ -348,7 +348,7 @@ int main(int argc, char *argv[]) {
   int particle_batch_size = 1000000;
   Timer grid_time;
   grid_time.start();
-  MassAssignor mass_assignor(&grid, periodic, particle_batch_size);
+  MassAssignor mass_assignor(grid, periodic, particle_batch_size);
   SurveyReader reader(&mass_assignor);
   reader.read_galaxies(infile);
   if (infile2 != NULL) {

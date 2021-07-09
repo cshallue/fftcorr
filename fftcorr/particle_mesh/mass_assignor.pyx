@@ -15,23 +15,10 @@ from fftcorr.utils import Timer
 # when the context exits, flush() should be called. should it also
 # deallocate the buffer?
 cdef class MassAssignor:
-    def __cinit__(self, ConfigSpaceGrid grid, bool periodic_wrap=False, int buffer_size=10000, disp=None):
+    def __cinit__(self, ConfigSpaceGrid grid, bool periodic_wrap=False, int buffer_size=10000):
         self._posmin = grid.posmin
         self._posmax = grid.posmax
-        
-        cdef const RowMajorArrayPtr[Float, Four]* disp_ptr = NULL
-        if disp is not None:
-            # Validate dimensions.
-            expected_shape = np.concatenate((grid.shape, (3,)))
-            actual_shape = np.array(disp.shape)
-            if (np.any(expected_shape != actual_shape)):
-                raise ValueError(
-                    f"Expected disp to have shape: {expected_shape}. Got: {actual_shape}")
-
-            self._disp = as_RowMajorArrayPtr[Float, Four](disp)
-            disp_ptr = &self._disp
-
-        self._cc_ma = new MassAssignor_cc(grid.cc_grid(), periodic_wrap, buffer_size, disp_ptr)
+        self._cc_ma = new MassAssignor_cc(grid.cc_grid()[0], periodic_wrap, buffer_size)
         
 
     # @staticmethod
@@ -82,10 +69,6 @@ cdef class MassAssignor:
         # TODO: turn this into a helper as_ArrayPtr1D, or wrap ArrayPtr1D separately?
         cdef RowMajorArrayPtr[Float, One] wptr = as_RowMajorArrayPtr[Float, One](weight)
         return self._cc_ma.add_particles_to_buffer(pptr, wptr)
-
-
-    cpdef add_particle_to_buffer(self, Float x, Float y, Float z, Float w):
-        self._cc_ma.add_particle_to_buffer(x, y, z, w)
 
     cpdef flush(self):
         self._cc_ma.flush()

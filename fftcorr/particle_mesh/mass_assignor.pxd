@@ -9,16 +9,15 @@ cimport numpy as cnp
 cdef extern from "mass_assignor.h":
   cdef cppclass MassAssignor_cc "MassAssignor":
     MassAssignor_cc(
-      ConfigSpaceGrid_cc* grid,
+      ConfigSpaceGrid_cc& grid,
       bool periodic_wrap,
-      int buffer_size,
-      const RowMajorArrayPtr[Float, Four]* disp) except +
+      int buffer_size) except +
     void clear()
     void add_particles_to_buffer(const RowMajorArrayPtr[Float, Two]&)
     void add_particles_to_buffer(const RowMajorArrayPtr[Float, Two]&,
                                  const RowMajorArrayPtr[Float, One]&)
     void add_particles_to_buffer(const RowMajorArrayPtr[Float, Two]&, Float)
-    void add_particle_to_buffer(Float x, Float y, Float z, Float w)
+    void add_particle_to_buffer(Float*, Float)
     void flush()
     unsigned long long num_added()
     unsigned long long num_skipped()
@@ -41,6 +40,5 @@ cdef class MassAssignor:
     cdef cnp.ndarray _posmin
     cdef cnp.ndarray _posmax
 
-    cpdef add_particle_to_buffer(self, Float x, Float y, Float z, Float w)
     cpdef flush(self)
     cpdef clear(self)

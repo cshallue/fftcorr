@@ -1,14 +1,17 @@
 from fftcorr.array cimport RowMajorArrayPtr
 from fftcorr.types cimport Float, array, Three
 
+from libcpp cimport bool
+
 cimport numpy as cnp
 
 cdef extern from "config_space_grid.h":
   cdef cppclass ConfigSpaceGrid_cc "ConfigSpaceGrid":
     ConfigSpaceGrid_cc(array[int, Three], array[Float, Three], Float, int) except +
     Float cell_size()
-    void clear()
     RowMajorArrayPtr[Float, Three]& data()
+    void clear()
+    bool get_grid_coords(const Float*, bool, Float*)
 
 
 cdef class ConfigSpaceGrid:
@@ -23,3 +26,4 @@ cdef class ConfigSpaceGrid:
     cdef cnp.ndarray _data
 
     cdef ConfigSpaceGrid_cc* cc_grid(self)
+    cdef bool get_grid_coords(self, const Float*, bool, Float*)

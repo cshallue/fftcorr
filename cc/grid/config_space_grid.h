@@ -31,6 +31,23 @@ class ConfigSpaceGrid {
 
   void clear() { array_ops::set_all(0.0, grid_); }
 
+  bool get_grid_coords(const Float* survey_coords, bool periodic_wrap,
+                       Float* grid_coords) {
+    for (int i = 0; i < 3; ++i) {
+      Float& x = grid_coords[i];
+      // Convert to grid coordinates.
+      x = (survey_coords[i] - posmin_[i]) / cell_size_;
+      // Check bounds and possibly periodic wrap.
+      const Float xmax = shape_[i];
+      if (x < 0 || x >= xmax) {
+        if (!periodic_wrap) return false;
+        x = fmod(x, xmax);
+        if (x < 0) x += xmax;
+      }
+    }
+    return true;
+  }
+
  private:
   // Number of cells in each dimension.
   const std::array<int, 3> shape_;

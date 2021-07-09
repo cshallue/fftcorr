@@ -111,6 +111,21 @@ cdef class ConfigSpaceGrid:
     cdef ConfigSpaceGrid_cc* cc_grid(self):
         return self._cc_grid
 
+    cdef bool get_grid_coords(self, const Float* survey_coords, bool periodic_wrap, Float* grid_coords):
+        return self._cc_grid.get_grid_coords(survey_coords, periodic_wrap, grid_coords)
+
+    # TODO: resolve name clash with get_grid_coords in a satisfying way.
+    def to_grid_coords(self, survey_coords, periodic_wrap=False):
+        # TODO: np.float64 should be defined globally
+        survey_coords = np.asarray(survey_coords, dtype=np.float64)
+        grid_coords = np.empty_like(survey_coords)
+        cdef Float[:] sc_view = survey_coords
+        cdef Float[:] gc_view = grid_coords
+        if not self.get_grid_coords(&sc_view[0], periodic_wrap, &gc_view[0]):
+            raise ValueError(f"Coordinates {survey_coords} out of bounds")
+        
+        return grid_coords
+
     @property
     def shape(self):
         return self.data.shape

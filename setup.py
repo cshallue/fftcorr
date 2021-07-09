@@ -2,7 +2,12 @@ import os.path
 from distutils.core import Extension, setup
 
 import numpy
-from Cython.Distutils import build_ext
+from Cython.Build import cythonize
+
+# Uncomment and set annotate=True to generate annotated html files.
+#import Cython.Compiler.Options
+#Cython.Compiler.Options.annotate = True
+annotate = False
 
 OPENMP = False
 FFTW_LIBS = ["fftw3", "fftw3_threads", "m"] if OPENMP else ["fftw3"]
@@ -50,13 +55,13 @@ class CcLibraries(object):
 class CythonLibrary(object):
     def __init__(self,
                  name,
-                 pxd_file,
+                 pxd_file=None,
                  srcs=None,
                  cc_deps=None,
                  pyx_deps=None,
                  ext_libs=None):
         self.name = name
-        if pxd_file[-4:] != ".pxd":
+        if pxd_file and pxd_file[-4:] != ".pxd":
             raise ValueError("Expected .pxd file, got: {}".format(pxd_file))
         self.pxd_file = pxd_file
         self.srcs = srcs if srcs else []
@@ -177,6 +182,13 @@ cython_libs = CythonLibraries([
                       "fftcorr.particle_mesh.window_type",
                       "fftcorr.array.numpy_adaptor",
                   ]),
+    CythonLibrary("fftcorr.grid.utils",
+                  pxd_file="fftcorr/grid/utils.pxd",
+                  srcs=["fftcorr/grid/utils.pyx"],
+                  pyx_deps=[
+                      "fftcorr.types",
+                      "fftcorr.grid.config_space_grid",
+                  ]),
     CythonLibrary("fftcorr.histogram.histogram_list",
                   pxd_file="fftcorr/histogram/histogram_list.pxd",
                   srcs=["fftcorr/histogram/histogram_list.pyx"],
@@ -208,18 +220,22 @@ for cython_lib in cython_libs.libs.values():
     if not cython_lib.srcs:
         continue  # Pxd only library for use by other cython libraries.
     name = cython_lib.name
-    sources = cython_lib.srcs.copy()
+    sources = set(cython_lib.srcs)
     # TODO: add the numpy dependency explicitly to numpy_adaptor? Do this when wrapping both ways goes through numpy_adaptor.
     include_dirs = set([numpy.get_include()])
-    libraries = cython_lib.ext_libs.copy()
+    libraries = set(cython_lib.ext_libs)
     cc_deps = set(cython_lib.cc_deps)
     for pyx_dep in cython_lib.pyx_deps:
         cc_deps.update(cython_libs.libs[pyx_dep].cc_deps)
     print("Finding dependencies for", name)
     cc_hdrs, cc_src, cc_ext_libs = cc_libs.find_deps(cc_deps)
-    sources.extend(cc_src)
+    sources.update(cc_src)
     include_dirs.update([os.path.dirname(hdr) for hdr in cc_hdrs])
-    libraries.extend(cc_ext_libs)
+    libraries.update(cc_ext_libs)
+    sources = list(sources)
+    include_dirs = list(include_dirs)
+    libraries = list(libraries)
+    cc_deps = list(cc_deps)
     print("sources:", sources)
     print("include_dirs:", include_dirs)
     print("libraries:", libraries)
@@ -250,10 +266,7 @@ for cython_lib in cython_libs.libs.values():
     e.extra_compile_args.append("-Wno-unused-variable")
     # http://docs.cython.org/en/latest/src/userguide/source_files_and_compilation.html#configuring-the-c-build
     e.define_macros.append(('NPY_NO_DEPRECATED_API', 'NPY_1_7_API_VERSION'))
-    e.cython_directives = {'language_level': "3"}  # Python 3
     ext_modules.append(e)
 
 setup(
-    cmdclass={'build_ext': build_ext},
-    ext_modules=ext_modules,
-)
+    ext_modules=cythonize(ext_modules, language_level="3", annotate=annotate))
