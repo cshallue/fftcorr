@@ -20,13 +20,13 @@ import numpy as np
 @cython.wraparound(False)
 cdef bool _apply_displacement_field(ConfigSpaceGrid grid,
                                     Float[:, ::1] pos,
-                                    const Float[:, :, :, ::1] disp,
+                                    const Float[:, :, :, :] disp,
                                     bool periodic_wrap,
                                     Float[:, :] out):
     cdef const Float[::1] survey_coords
     cdef Float[:] out_coords
     cdef Float grid_coords[3]
-    cdef const Float[::1] dxyz
+    cdef const Float[:] dxyz
     cdef int i, j
     for i in range(pos.shape[0]):
         survey_coords = pos[i]
@@ -42,10 +42,6 @@ cdef bool _apply_displacement_field(ConfigSpaceGrid grid,
 
 
 def apply_displacement_field(ConfigSpaceGrid grid, pos, disp, periodic_wrap=False, out=None):
-    # TODO: np.float64 should be defined in global place
-    pos = np.ascontiguousarray(pos, dtype=np.float64)
-    disp = np.ascontiguousarray(disp, dtype=np.float64)
-
     if out is None:
         out = np.empty_like(pos)
     
