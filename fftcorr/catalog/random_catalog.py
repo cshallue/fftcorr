@@ -54,7 +54,7 @@ def add_random_particles(n,
             if disp is not None:
                 with Timer() as disp_timer:
                     apply_displacement_field(grid, pos, disp, out=pos)
-                disp_time += disp_timer()
+                disp_time += disp_timer.elapsed
 
             with Timer() as ma_timer:
                 ma.add_particles_to_buffer(pos, particle_weight)

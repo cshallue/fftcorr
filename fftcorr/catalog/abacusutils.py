@@ -133,7 +133,7 @@ def read_density_field(file_patterns,
             if disp is not None:
                 with Timer() as disp_timer:
                     apply_displacement_field(grid, pos, disp, out=pos)
-                disp_time += disp_timer()
+                disp_time += disp_timer.elapsed
 
             # Add items to the density field.
             with Timer() as ma_timer:
