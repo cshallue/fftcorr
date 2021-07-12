@@ -7,7 +7,6 @@
 #include "../array/row_major_array.h"
 #include "../types.h"
 #include "d12.h"  // TODO: possibly incorporate into this file
-#include "particle.h"
 
 enum WindowType {
   kNearestCell = 0,
@@ -19,26 +18,23 @@ class WindowFunction {
  public:
   virtual ~WindowFunction() {}
   virtual int width() = 0;
-  virtual void add_particle_to_grid(const Particle& p,
+  virtual void add_particle_to_grid(const Float* pos, Float weight,
                                     RowMajorArrayPtr<Float, 3>* dens) = 0;
 };
 
 class NearestCellWindow : public WindowFunction {
   int width() override { return 1; }
 
-  void add_particle_to_grid(const Particle& p,
+  void add_particle_to_grid(const Float* pos, Float weight,
                             RowMajorArrayPtr<Float, 3>* dens) override {
-    int ix = floor(p.x);
-    int iy = floor(p.y);
-    int iz = floor(p.z);
-    dens->at(ix, iy, iz) += p.w;
+    dens->at(floor(pos[0]), floor(pos[1]), floor(pos[2])) += weight;
   }
 };
 
 class CloudInCellWindow : public WindowFunction {
   int width() override { return 3; }
 
-  void add_particle_to_grid(const Particle& p,
+  void add_particle_to_grid(const Float* pos, Float weight,
                             RowMajorArrayPtr<Float, 3>* dens) override {
     // This implementation can correctly handle a padded data layout, i.e. the
     // memory layout of dens is a row-major (C-contiguous) array with dimensions
@@ -54,17 +50,17 @@ class CloudInCellWindow : public WindowFunction {
     Float* d = dens->get_row(0, 0);
     // 27-point triangular cloud-in-cell.
     uint64 index;
-    int ix = floor(p.x);
-    int iy = floor(p.y);
-    int iz = floor(p.z);
+    int ix = floor(pos[0]);
+    int iy = floor(pos[1]);
+    int iz = floor(pos[2]);
 
-    Float rx = p.x - ix;
-    Float ry = p.y - iy;
-    Float rz = p.z - iz;
+    Float rx = pos[0] - ix;
+    Float ry = pos[1] - iy;
+    Float rz = pos[2] - iz;
     //
-    Float xm = 0.5 * (1 - rx) * (1 - rx) * p.w;
-    Float xp = 0.5 * rx * rx * p.w;
-    Float x0 = (0.5 + rx - rx * rx) * p.w;
+    Float xm = 0.5 * (1 - rx) * (1 - rx) * weight;
+    Float xp = 0.5 * rx * rx * weight;
+    Float x0 = (0.5 + rx - rx * rx) * weight;
     Float ym = 0.5 * (1 - ry) * (1 - ry);
     Float yp = 0.5 * ry * ry;
     Float y0 = 0.5 + ry - ry * ry;
@@ -168,7 +164,7 @@ class CloudInCellWindow : public WindowFunction {
 class WaveletWindow : public WindowFunction {
   int width() override { return WCELLS; }
 
-  void add_particle_to_grid(const Particle& p,
+  void add_particle_to_grid(const Float* pos, Float weight,
                             RowMajorArrayPtr<Float, 3>* dens) override {
     // This implementation can correctly handle a padded data layout, i.e. the
     // memory layout of dens is a row-major (C-contiguous) array with dimensions
@@ -183,12 +179,12 @@ class WaveletWindow : public WindowFunction {
     // cell and use a lookup table.  Table is set up so that each sub-cell
     // resolution has the values for the various integral cell offsets
     // contiguous in memory.
-    int ix = floor(p.x);
-    int iy = floor(p.y);
-    int iz = floor(p.z);
-    int sx = floor((p.x - ix) * WAVESAMPLE);
-    int sy = floor((p.y - iy) * WAVESAMPLE);
-    int sz = floor((p.z - iz) * WAVESAMPLE);
+    int ix = floor(pos[0]);
+    int iy = floor(pos[1]);
+    int iz = floor(pos[2]);
+    int sx = floor((pos[0] - ix) * WAVESAMPLE);
+    int sy = floor((pos[1] - iy) * WAVESAMPLE);
+    int sz = floor((pos[2] - iz) * WAVESAMPLE);
     const Float* xwave = wave + sx * WCELLS;
     const Float* ywave = wave + sy * WCELLS;
     const Float* zwave = wave + sz * WCELLS;
@@ -203,7 +199,7 @@ class WaveletWindow : public WindowFunction {
     Float* px = dens->get_row(ix, 0);
     for (int ox = 0; ox < WCELLS; ox++, px += ngrid2 * ng1) {
       if (ix + ox == ng0) px -= ng0 * ng1 * ngrid2;  // Periodic wrap in X
-      Float Dx = xwave[ox] * p.w;
+      Float Dx = xwave[ox] * weight;
       Float* py = px + iy * ngrid2;
       for (int oy = 0; oy < WCELLS; oy++, py += ngrid2) {
         if (iy + oy == ng1) py -= ng1 * ngrid2;  // Periodic wrap in Y

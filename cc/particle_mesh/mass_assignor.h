@@ -1,6 +1,7 @@
 #ifndef MASS_ASSIGNMENT_H
 #define MASS_ASSIGNMENT_H
 
+#include <array>
 #include <memory>
 #include <vector>
 
@@ -11,8 +12,19 @@
 #include "../profiling/timer.h"
 #include "../types.h"
 #include "merge_sort_omp.h"
-#include "particle.h"
 #include "window_functions.h"
+
+struct Particle {
+  Particle(const Float *_pos, Float _w, uint64 _index)
+      : pos({_pos[0], _pos[1], _pos[2]}), w(_w), index(_index) {}
+
+  // So we can sort in index order.
+  bool operator<(const Particle &other) const { return index < other.index; }
+
+  std::array<Float, 3> pos;
+  Float w;
+  uint64 index;
+};
 
 class MassAssignor {
  public:
@@ -90,9 +102,7 @@ class MassAssignor {
       return;
     }
     uint64 idx = grid_.data().get_index(floor(x[0]), floor(x[1]), floor(x[2]));
-    // TODO: Particle could have a coordinate array and then x's data can be
-    // moved there.
-    gal_.push_back(Particle(x[0], x[1], x[2], w, idx));
+    gal_.emplace_back(x, w, idx);
     if (gal_.size() >= buffer_size_) {
       flush();
     }
@@ -127,7 +137,7 @@ class MassAssignor {
     int first[ngrid[0] + 1];
     int ptr = 0;
     for (int j = 0; j < galsize; j++) {
-      while (gal_[j].x > ptr) first[ptr++] = j;
+      while (gal_[j].pos[0] > ptr) first[ptr++] = j;
     }
     for (; ptr <= ngrid[0]; ptr++) first[ptr] = galsize;
 
@@ -142,8 +152,10 @@ class MassAssignor {
 #pragma omp parallel for schedule(dynamic, 1)
       for (int x = mod; x < ngrid[0]; x += slabset) {
         // For each slab, insert these particles
-        for (int j = first[x]; j < first[x + 1]; j++)
-          window_func_->add_particle_to_grid(gal_[j], &grid_.data());
+        for (int j = first[x]; j < first[x + 1]; j++) {
+          const Particle &p = gal_[j];
+          window_func_->add_particle_to_grid(p.pos.data(), p.w, &grid_.data());
+        }
       }
     }
     window_time_.stop();
@@ -174,7 +186,7 @@ class MassAssignor {
   const bool periodic_wrap_;
 
   const uint64 buffer_size_;
-  std::vector<Particle> gal_;
+  std::vector<Particle> gal_;  // TODO: name
   std::vector<Particle> buf_;  // Used for mergesort.
 
   uint64 num_added_;  // TODO: rename to something more descriptive

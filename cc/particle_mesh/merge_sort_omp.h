@@ -3,10 +3,7 @@
 
 #include <algorithm>
 
-#include "particle.h"
-
-typedef Particle Merge;
-
+template <typename Merge>
 void merge(Merge a[], Merge temp[], int size, int size2) {
   // Adapted from
   // https://github.com/serendependy/parallel-j/blob/master/OpenMP/mergeSort-omp.c
@@ -26,6 +23,7 @@ void merge(Merge a[], Merge temp[], int size, int size2) {
   return;
 }
 
+template <typename Merge>
 void mergesort_parallel_omp(Merge a[], const int size, Merge temp[],
                             const int threads) {
   // We need to divide the list into threads pieces.
