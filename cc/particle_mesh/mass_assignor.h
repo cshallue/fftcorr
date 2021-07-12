@@ -8,12 +8,13 @@
 // TODO: use include paths in the makefile compiler command
 #include "../array/row_major_array.h"
 #include "../grid/config_space_grid.h"
-#include "../multithreading.h"
 #include "../profiling/timer.h"
 #include "../types.h"
-#include "merge_sort_omp.h"
 #include "window_functions.h"
 
+#ifdef OPENMP
+#include "../multithreading.h"
+#include "merge_sort_omp.h"
 struct Particle {
   Particle(const Float *_pos, Float _w, uint64 _index)
       : pos({_pos[0], _pos[1], _pos[2]}), w(_w), index(_index) {}
@@ -25,7 +26,10 @@ struct Particle {
   Float w;
   uint64 index;
 };
+#endif  // OPENMP
 
+// TODO: currently we very hackily omit sorting for the single threaded
+// case. It saves significant time not to pointlessly sort in that case, though.
 class MassAssignor {
  public:
   MassAssignor(ConfigSpaceGrid &grid, bool periodic_wrap, uint64 buffer_size)
@@ -37,15 +41,16 @@ class MassAssignor {
         num_skipped_(0),
         totw_(0),
         totwsq_(0) {
-    // TODO: for development, remove.
 #ifdef OPENMP
     fprintf(stderr, "# Running with %d threads\n", omp_get_max_threads());
-#else
-    fprintf(stderr, "# Running single threaded.\n");
-#endif
     gal_.reserve(buffer_size_);
+#else
+    // TODO: for development, remove.
+    fprintf(stderr, "# Running single threaded.\n");
+#endif  // OPENMP
   }
 
+  int buffer_size() const { return buffer_size_; }
   uint64 num_added() const { return num_added_; }
   uint64 num_skipped() const { return num_skipped_; }
   Float totw() const { return totw_; }
@@ -54,7 +59,9 @@ class MassAssignor {
   Float window_time() const { return window_time_.elapsed_sec(); }
 
   void clear() {
+#ifdef OPENMP
     gal_.clear();
+#endif  // OPENMP
     num_added_ = 0;
     num_skipped_ = 0;
     totw_ = 0;
@@ -101,17 +108,22 @@ class MassAssignor {
       num_skipped_ += 1;
       return;
     }
+#ifdef OPENMP
     uint64 idx = grid_.data().get_index(floor(x[0]), floor(x[1]), floor(x[2]));
     gal_.emplace_back(x, w, idx);
     if (gal_.size() >= buffer_size_) {
       flush();
     }
+#else
+    window_func_->add_particle_to_grid(x, w, &grid_.data());
+#endif  // OPENMP
     num_added_ += 1;
     totw_ += w;
     totwsq_ += w * w;
   }
 
   void flush() {
+#ifdef OPENMP
     // Given a set of Galaxies, add them to the grid and then reset the list
     const int galsize = gal_.size();
 
@@ -161,6 +173,7 @@ class MassAssignor {
     window_time_.stop();
 
     gal_.clear();
+#endif  // OPENMP
   }
 
  private:
@@ -186,8 +199,10 @@ class MassAssignor {
   const bool periodic_wrap_;
 
   const uint64 buffer_size_;
+#ifdef OPENMP
   std::vector<Particle> gal_;  // TODO: name
   std::vector<Particle> buf_;  // Used for mergesort.
+#endif                         // OPENMP
 
   uint64 num_added_;  // TODO: rename to something more descriptive
   uint64 num_skipped_;
