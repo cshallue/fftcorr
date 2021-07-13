@@ -19,15 +19,15 @@ class WindowFunction {
   virtual ~WindowFunction() {}
   virtual int width() = 0;
   virtual void add_particle_to_grid(const Float* pos, Float weight,
-                                    RowMajorArrayPtr<Float, 3>* dens) = 0;
+                                    RowMajorArrayPtr<Float, 3>& dens) = 0;
 };
 
 class NearestCellWindow : public WindowFunction {
   int width() override { return 1; }
 
   void add_particle_to_grid(const Float* pos, Float weight,
-                            RowMajorArrayPtr<Float, 3>* dens) override {
-    dens->at(floor(pos[0]), floor(pos[1]), floor(pos[2])) += weight;
+                            RowMajorArrayPtr<Float, 3>& dens) override {
+    dens.at(floor(pos[0]), floor(pos[1]), floor(pos[2])) += weight;
   }
 };
 
@@ -35,19 +35,19 @@ class CloudInCellWindow : public WindowFunction {
   int width() override { return 3; }
 
   void add_particle_to_grid(const Float* pos, Float weight,
-                            RowMajorArrayPtr<Float, 3>* dens) override {
+                            RowMajorArrayPtr<Float, 3>& dens) override {
     // This implementation can correctly handle a padded data layout, i.e. the
     // memory layout of dens is a row-major (C-contiguous) array with dimensions
     // [nx1, ny1, nz1], whereas the logical shape of the density field grid is
     // [nx2, ny2, nz2], where nx1 == nx2, ny1 == ny2 and nz1 >= nz2. Currently,
     // we're assuming that nz1 == nz2, but the more general case can be handled
     // simply by making ngrid2 an additional parameter to this function.
-    const std::array<int, 3>& ngrid = dens->shape();  // [nx1, ny1, nz1]
-    const int ngrid2 = ngrid[2];                      // nz2
+    const std::array<int, 3>& ngrid = dens.shape();  // [nx1, ny1, nz1]
+    const int ngrid2 = ngrid[2];                     // nz2
 
     // TODO: when I have tests covering this window function, try to use
     // indexing functions.
-    Float* d = dens->get_row(0, 0);
+    Float* d = dens.get_row(0, 0);
     // 27-point triangular cloud-in-cell.
     uint64 index;
     int ix = floor(pos[0]);
@@ -165,15 +165,15 @@ class WaveletWindow : public WindowFunction {
   int width() override { return WCELLS; }
 
   void add_particle_to_grid(const Float* pos, Float weight,
-                            RowMajorArrayPtr<Float, 3>* dens) override {
+                            RowMajorArrayPtr<Float, 3>& dens) override {
     // This implementation can correctly handle a padded data layout, i.e. the
     // memory layout of dens is a row-major (C-contiguous) array with dimensions
     // [nx1, ny1, nz1], whereas the logical shape of the density field grid is
     // [nx2, ny2, nz2], where nx1 == nx2, ny1 == ny2 and nz1 >= nz2. Currently,
     // we're assuming that nz1 == nz2, but the more general case can be handled
     // simply by making ngrid2 an additional parameter to this function.
-    const std::array<int, 3>& ngrid = dens->shape();  // [nx1, ny1, nz1]
-    const int ngrid2 = ngrid[2];                      // nz2
+    const std::array<int, 3>& ngrid = dens.shape();  // [nx1, ny1, nz1]
+    const int ngrid2 = ngrid[2];                     // nz2
 
     // We truncate to 1/WAVESAMPLE resolution in each
     // cell and use a lookup table.  Table is set up so that each sub-cell
@@ -196,7 +196,7 @@ class WaveletWindow : public WindowFunction {
     ix = (ix + ng0 + WMIN) % ng0;
     iy = (iy + ng1 + WMIN) % ng1;
     iz = (iz + ng2 + WMIN) % ng2;
-    Float* px = dens->get_row(ix, 0);
+    Float* px = dens.get_row(ix, 0);
     for (int ox = 0; ox < WCELLS; ox++, px += ngrid2 * ng1) {
       if (ix + ox == ng0) px -= ng0 * ng1 * ngrid2;  // Periodic wrap in X
       Float Dx = xwave[ox] * weight;

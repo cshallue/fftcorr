@@ -115,7 +115,7 @@ class MassAssignor {
       flush();
     }
 #else
-    window_func_->add_particle_to_grid(x, w, &grid_.data());
+    window_func_->add_particle_to_grid(x, w, grid_.data());
 #endif  // OPENMP
     num_added_ += 1;
     totw_ += w;
@@ -166,7 +166,7 @@ class MassAssignor {
         // For each slab, insert these particles
         for (int j = first[x]; j < first[x + 1]; j++) {
           const Particle &p = gal_[j];
-          window_func_->add_particle_to_grid(p.pos.data(), p.w, &grid_.data());
+          window_func_->add_particle_to_grid(p.pos.data(), p.w, grid_.data());
         }
       }
     }

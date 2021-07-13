@@ -31,6 +31,8 @@ class ConfigSpaceGrid {
 
   void clear() { array_ops::set_all(0.0, grid_); }
 
+  // TODO: consider making periodic_wrap a property of the grid. Or else
+  // consider removing this method and giving the grid no nontrivial methods.
   bool get_grid_coords(const Float* survey_coords, bool periodic_wrap,
                        Float* grid_coords) {
     for (int i = 0; i < 3; ++i) {
