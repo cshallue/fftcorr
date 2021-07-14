@@ -1,11 +1,12 @@
-from fftcorr.grid import ConfigSpaceGrid
-from fftcorr.particle_mesh import MassAssignor
-from fftcorr.correlate import Correlator
-from fftcorr.histogram import HistogramList
-
 import struct
-import numpy as np
 import time
+
+import numpy as np
+
+from fftcorr.correlate import Correlator
+from fftcorr.grid import ConfigSpaceGrid
+from fftcorr.histogram import HistogramList
+from fftcorr.particle_mesh import MassAssignor
 
 DATA_FILE = "./test_data/abacus/smallmass/corrDD.dat"
 
@@ -56,14 +57,14 @@ print("totwsq = {} vs {}".format(ma.totwsq, np.sum(galaxies[:, 3]**2)))
 print()
 
 rmax = 250.0
-dr = 5
+dr = 10
 kmax = 0.4
-dk = 0.002
+dk = 0.02
 maxell = 2
 c = Correlator(dens, rmax, dr, kmax, dk, maxell)
 c.correlate_periodic()
 print("Done correlating!")
-print(c.correlation_r)
-print(c.correlation_counts)
+print(c.correlations())
+print(c.power_spectrum())
 
 print()
