@@ -41,15 +41,15 @@ def boundary_correct(xi_raw, fRR):
     # the Wigner symbol is zero for l+j+k odd). Thus, we can replace eq. 10 with
     # a matrix equation of the same form but where all odd indexes of N are
     # removed and all odd rows and columns of A are removed.
-    num_ell, num_s = fRR.shape
+    num_s, num_ell = fRR.shape
     xi = np.zeros_like(xi_raw)
     for s in range(num_s):
         A = np.identity(num_ell)
         for k in range(num_ell):
             for l in range(num_ell):
                 # Remember that the k's and ell's are indexed 0,2,4...
-                A[k][l] += Mkl_calc(2 * k, 2 * l, fRR[:, s])
-        xi[:, s] = np.linalg.solve(A, xi_raw[:, s])
+                A[k][l] += Mkl_calc(2 * k, 2 * l, fRR[s])
+        xi[s] = np.linalg.solve(A, xi_raw[s])
     return xi
 
 
@@ -59,10 +59,11 @@ def compute_xi(hist_corrNN, hist_corrRR):
     NN(s, mu) and RR(s, mu) are as defined in SE15, eq. 5.
 
     Args:
-      hist_corrNN: Array [num_ell, num_s] of multipole moments of NN(s, mu)
-      hist_corrRR: Array [num_ell, num_s] of multipole moments of RR(s, mu)
+      hist_corrNN: Array [num_s, num_ell] of multipole moments of NN(s, mu)
+      hist_corrRR: Array [num_s, num_ell] of multipole moments of RR(s, mu)
+
     """
-    fRR = hist_corrRR / hist_corrRR[0]  # f_j from SE15 eq. 8
-    xi_raw = hist_corrNN / hist_corrRR[0]  # LHS of SE15 eq. 10
+    fRR = hist_corrRR / hist_corrRR[:, [0]]  # f_j from SE15 eq. 8
+    xi_raw = hist_corrNN / hist_corrRR[:, [0]]  # LHS of SE15 eq. 10
     xi = boundary_correct(xi_raw, fRR)  # Solve SE15 eq. 10
     return xi
