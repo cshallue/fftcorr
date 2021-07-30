@@ -1,5 +1,6 @@
 import glob
 import os.path
+from multiprocessing import Value
 
 import asdf
 import numpy as np
@@ -43,6 +44,9 @@ def read_density_field(file_patterns,
             file_type = ft
         elif ft is not None and file_type != ft:
             raise ValueError(f"Inconsistent file types: {ft} vs {file_type}")
+
+    if file_type not in ["halos", "particles"]:
+        raise ValueError(f"Unrecognized file_type: {file_type}")
 
     if disp is not None:
         disp = np.ascontiguousarray(disp, dtype=np.float64)
