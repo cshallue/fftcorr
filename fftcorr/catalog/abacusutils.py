@@ -41,7 +41,7 @@ def read_density_field(file_patterns,
             raise ValueError(f"Could not infer file type: '{basename}'")
         if file_type is None:
             file_type = ft
-        elif file_type != ft:
+        elif ft is not None and file_type != ft:
             raise ValueError(f"Inconsistent file types: {ft} vs {file_type}")
 
     if disp is not None:
