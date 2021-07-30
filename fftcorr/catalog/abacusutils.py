@@ -12,6 +12,7 @@ from fftcorr.utils import Timer
 def read_density_field(file_patterns,
                        grid,
                        file_type=None,
+                       validate_file_type=True,
                        periodic_wrap=False,
                        redshift_distortion=False,
                        disp=None,
@@ -30,13 +31,14 @@ def read_density_field(file_patterns,
     # Infer and/or validate the file type: halos or particles.
     for filename in filenames:
         basename = os.path.basename(filename)
+        ft = None  # Inferred file type.
         if basename.startswith("halo_info"):
             ft = "halos"
         elif (basename.startswith("field_rv")
               or basename.startswith("halo_rv")):
             ft = "particles"
-        else:
-            raise ValueError(f"Unrecognized file type: '{basename}'")
+        if ft is None and (file_type is None or validate_file_type):
+            raise ValueError(f"Could not infer file type: '{basename}'")
         if file_type is None:
             file_type = ft
         elif file_type != ft:
