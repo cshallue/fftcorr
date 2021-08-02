@@ -1,7 +1,7 @@
 import abc
+import copy
 import glob
 import os.path
-from multiprocessing import Value
 
 import asdf
 import numpy as np
@@ -11,51 +11,52 @@ from fftcorr.particle_mesh import MassAssignor
 from fftcorr.utils import Timer
 
 
-class CatalogReader(abc.ABC):
+def _apply_redshift_distortion(pos, vel, scale_factor):
+    # Apply redshift distortions in the z direction. If desired in the
+    # future, we could accept any arbitrary direction vector and apply
+    # redshift distortion in that direction.
+    pos[:, 2] += vel[:, 2] / (100 * scale_factor)
+
+
+class AbacusData:
+    def __init__(self, header, pos, weight, vel=None):
+        self.header = copy.deepcopy(header)
+        self.pos = np.array(pos, dtype=np.float64, order="C")
+        self.weight = np.array(weight, dtype=np.float64, order="C")
+        if vel is not None:
+            self.vel = np.array(vel, dtype=np.float64, order="C")
+
+
+class AbacusFileReader(abc.ABC):
     @abc.abstractmethod
-    def read(self, filename, redshift_distortion=False):
+    def read(self, filename, load_velocity=False):
         pass
 
-    def apply_redshift_distortion(self, pos, vel, scale_factor):
-        # Apply redshift distortions in the z direction. If desired in the
-        # future, we could accept any arbitrary direction vector and apply
-        # redshift distortion in that direction.
-        pos[:, 2] += vel[:, 2] / (100 * scale_factor)
 
-
-class HaloReader(CatalogReader):
-    def read(self, filename, redshift_distortion=False):
+class HaloFileReader(AbacusFileReader):
+    def read(self, filename, load_velocity=False):
         with asdf.open(filename, lazy_load=True) as af:
-            pos = np.ascontiguousarray(af.tree["data"]["x_com"],
-                                       dtype=np.float64)
-            pos *= af.tree["header"]["BoxSize"]
-            weight = np.ascontiguousarray(af.tree["data"]["N"],
-                                          dtype=np.float64)
-
-            if redshift_distortion:
-                vel = np.ascontiguousarray(af.tree["data"]["v_com"],
-                                           dtype=np.float64)
-                self.apply_redshift_distortion(
-                    pos, vel, af.tree["header"]["ScaleFactor"])
-
-        return pos, weight
+            data = AbacusData(
+                header=af.tree["header"],
+                pos=af.tree["data"]["x_com"],
+                weight=af.tree["data"]["N"],
+                vel=af.tree["data"]["v_com"] if load_velocity else None)
+        data.pos *= data.header["BoxSize"]
+        return data
 
 
-class ParticleReader(CatalogReader):
-    def read(self, filename, redshift_distortion=False):
+class ParticleFileReader(AbacusFileReader):
+    def read(self, filename, load_velocity=False):
         with asdf.open(filename, lazy_load=True) as af:
             posvel = unpack_rvint(af.tree["data"]["rvint"],
                                   boxsize=af.tree["header"]["BoxSize"],
                                   float_dtype=np.float64,
-                                  velout=redshift_distortion)
-            pos = posvel[0]
-            if redshift_distortion:
-                vel = posvel[1]
-                self.apply_redshift_distortion(
-                    pos, vel, af.tree["header"]["ScaleFactor"])
-
-        weight = 1.0
-        return pos, weight
+                                  velout=load_velocity)
+            data = AbacusData(header=af.tree["header"],
+                              pos=posvel[0],
+                              weight=1.0,
+                              vel=posvel[1] if load_velocity else None)
+        return data
 
 
 def read_density_field(file_patterns,
@@ -98,9 +99,9 @@ def read_density_field(file_patterns,
                     f"Inconsistent file types: {ft} vs {file_type}")
         # Create the appropriate reader.
         if file_type == "halos":
-            reader = HaloReader()
+            reader = HaloFileReader()
         elif file_type == "particles":
-            reader = ParticleReader()
+            reader = ParticleFileReader()
         else:
             raise ValueError(f"Unrecognized file_type: {file_type}")
 
@@ -117,26 +118,29 @@ def read_density_field(file_patterns,
             if verbose:
                 print("Reading", os.path.basename(filename))
             with Timer() as io_timer:
-                pos, weight = reader.read(filename, redshift_distortion)
+                data = reader.read(filename, redshift_distortion)
+                if redshift_distortion:
+                    _apply_redshift_distortion(data.pos, data.vel,
+                                               data.header["ScaleFactor"])
             io_time += io_timer.elapsed
 
             # Apply displacement field.
             if disp is not None:
                 with Timer() as disp_timer:
                     apply_displacement_field(grid,
-                                             pos,
+                                             data.pos,
                                              disp,
                                              periodic_wrap=periodic_wrap,
-                                             out=pos)
+                                             out=data.pos)
                 disp_time += disp_timer.elapsed
 
             # Add items to the density field.
             with Timer() as ma_timer:
-                ma.add_particles_to_buffer(pos, weight)
+                ma.add_particles_to_buffer(data.pos, data.weight)
                 if filename == filenames[-1]:
                     ma.flush()  # Last file.
             ma_time += ma_timer.elapsed
-            items_seen += pos.shape[0]
+            items_seen += data.pos.shape[0]
 
     assert ma.num_added + ma.num_skipped == items_seen
 
