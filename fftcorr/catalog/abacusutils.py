@@ -47,14 +47,12 @@ class ParticleReader(CatalogReader):
             posvel = unpack_rvint(af.tree["data"]["rvint"],
                                   boxsize=af.tree["header"]["BoxSize"],
                                   float_dtype=np.float64,
-                                  posout=True,
                                   velout=redshift_distortion)
+            pos = posvel[0]
             if redshift_distortion:
-                pos, vel = posvel
+                vel = posvel[1]
                 self.apply_redshift_distortion(
                     pos, vel, af.tree["header"]["ScaleFactor"])
-            else:
-                pos = posvel
 
         weight = 1.0
         return pos, weight
