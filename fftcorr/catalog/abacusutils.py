@@ -1,3 +1,4 @@
+import abc
 import glob
 import os.path
 from multiprocessing import Value
@@ -10,10 +11,58 @@ from fftcorr.particle_mesh import MassAssignor
 from fftcorr.utils import Timer
 
 
+class CatalogReader(abc.ABC):
+    @abc.abstractmethod
+    def read(self, filename, redshift_distortion=False):
+        pass
+
+    def apply_redshift_distortion(self, pos, vel, scale_factor):
+        # Apply redshift distortions in the z direction. If desired in the
+        # future, we could accept any arbitrary direction vector and apply
+        # redshift distortion in that direction.
+        pos[:, 2] += vel[:, 2] / (100 * scale_factor)
+
+
+class HaloReader(CatalogReader):
+    def read(self, filename, redshift_distortion=False):
+        with asdf.open(filename, lazy_load=True) as af:
+            pos = np.ascontiguousarray(af.tree["data"]["x_com"],
+                                       dtype=np.float64)
+            pos *= af.tree["header"]["BoxSize"]
+            weight = np.ascontiguousarray(af.tree["data"]["N"],
+                                          dtype=np.float64)
+
+            if redshift_distortion:
+                vel = np.ascontiguousarray(af.tree["data"]["v_com"],
+                                           dtype=np.float64)
+                self.apply_redshift_distortion(
+                    pos, vel, af.tree["header"]["ScaleFactor"])
+
+        return pos, weight
+
+
+class ParticleReader(CatalogReader):
+    def read(self, filename, redshift_distortion=False):
+        with asdf.open(filename, lazy_load=True) as af:
+            posvel = unpack_rvint(af.tree["data"]["rvint"],
+                                  boxsize=af.tree["header"]["BoxSize"],
+                                  float_dtype=np.float64,
+                                  posout=True,
+                                  velout=redshift_distortion)
+            if redshift_distortion:
+                pos, vel = posvel
+                self.apply_redshift_distortion(
+                    pos, vel, af.tree["header"]["ScaleFactor"])
+            else:
+                pos = posvel
+
+        weight = 1.0
+        return pos, weight
+
+
 def read_density_field(file_patterns,
                        grid,
-                       file_type=None,
-                       validate_file_type=True,
+                       reader=None,
                        periodic_wrap=False,
                        redshift_distortion=False,
                        disp=None,
@@ -28,69 +77,37 @@ def read_density_field(file_patterns,
         if not matches:
             raise ValueError(f"Found no files matching {file_pattern}")
         filenames.extend(matches)
+    if verbose:
+        print("Reading density field from {:,} files".format(len(filenames)))
 
-    # Infer and/or validate the file type: halos or particles.
-    for filename in filenames:
-        basename = os.path.basename(filename)
-        ft = None  # Inferred file type.
-        if basename.startswith("halo_info"):
-            ft = "halos"
-        elif (basename.startswith("field_rv")
-              or basename.startswith("halo_rv")):
-            ft = "particles"
-        if ft is None and (file_type is None or validate_file_type):
-            raise ValueError(f"Could not infer file type: '{basename}'")
-        if file_type is None:
-            file_type = ft
-        elif ft is not None and file_type != ft:
-            raise ValueError(f"Inconsistent file types: {ft} vs {file_type}")
-
-    if file_type not in ["halos", "particles"]:
-        raise ValueError(f"Unrecognized file_type: {file_type}")
+    # Create the file reader if necessary.
+    if reader is None:
+        # Infer the type of files.
+        file_type = None
+        for filename in filenames:
+            basename = os.path.basename(filename)
+            if basename.startswith("halo_info"):
+                ft = "halos"
+            elif (basename.startswith("field_rv")
+                  or basename.startswith("halo_rv")):
+                ft = "particles"
+            else:
+                raise ValueError(f"Could not infer file type: '{basename}'")
+            if file_type is None:
+                file_type = ft
+            elif file_type != ft:
+                raise ValueError(
+                    f"Inconsistent file types: {ft} vs {file_type}")
+        # Create the appropriate reader.
+        if file_type == "halos":
+            reader = HaloReader()
+        elif file_type == "particles":
+            reader = ParticleReader()
+        else:
+            raise ValueError(f"Unrecognized file_type: {file_type}")
 
     if disp is not None:
         disp = np.ascontiguousarray(disp, dtype=np.float64)
-
-    gridmin = grid.posmin
-    gridmax = grid.posmax
-    box_size = None
-    total_items = 0
-    max_items = 0
-
-    with Timer() as setup_timer:
-        # First, open all files and figure out the max number of items in a
-        # single file.
-        for filename in filenames:
-            with asdf.open(filename, lazy_load=True) as af:
-                if box_size is None:
-                    box_size = af.tree["header"]["BoxSize"]
-                assert box_size == af.tree["header"]["BoxSize"]
-                key = "N" if file_type == "halos" else "rvint"
-                n = af.tree["data"][key].shape[0]  # Doesn't load data.
-                total_items += n
-                max_items = max(max_items, n)
-        if verbose:
-            print("Found {:,} items in {:,} files".format(
-                total_items, len(filenames)))
-
-        assert box_size > 0
-        if np.any(gridmin > -box_size / 2) or np.any(gridmax < box_size / 2):
-            raise ValueError(
-                "Grid does not cover {}: grid posmin = {}, file posmin = {},"
-                "grid posmax = {}, file posmax = {}".format(
-                    file_type, gridmin, -box_size / 2, gridmax, box_size / 2))
-
-        # Space for the items in each file.
-        # TODO: the items are actually float32s, so we could make the mass
-        # assignor accept that type without needing to cast. But we'd still need
-        # to copy because asdf arrays are read only.
-        pos_buf = np.empty((max_items, 3), dtype=np.float64, order="C")
-        vel_buf = None
-        if redshift_distortion:
-            vel_buf = np.empty((max_items, 3), dtype=np.float64, order="C")
-        weight_buf = None
-        if file_type == "halos":
-            weight_buf = np.empty((max_items, ), dtype=np.float64, order="C")
 
     ma = MassAssignor(grid, periodic_wrap, buffer_size)
     with Timer() as work_timer:
@@ -101,42 +118,9 @@ def read_density_field(file_patterns,
         for filename in filenames:
             if verbose:
                 print("Reading", os.path.basename(filename))
-
-            # Load positions and weights.
-            with asdf.open(filename, lazy_load=True) as af:
-                key = "N" if file_type == "halos" else "rvint"
-                n = af.tree["data"][key].shape[0]
-                pos = pos_buf[:n]
-                vel = vel_buf[:n] if redshift_distortion else False
-                scale_factor = af.tree["header"]["ScaleFactor"]
-                with Timer() as io_timer:
-                    if file_type == "halos":
-                        np.copyto(pos, af.tree["data"]["x_com"])
-                        pos *= box_size
-                        weight = weight_buf[:n]
-                        np.copyto(weight, af.tree["data"]["N"])
-                        if redshift_distortion:
-                            np.copyto(vel, af.tree["data"]["v_com"])
-                    else:  # file_type == "particles"
-                        npos, nvel = unpack_rvint(af.tree["data"]["rvint"],
-                                                  box_size,
-                                                  float_dtype=np.float64,
-                                                  posout=pos,
-                                                  velout=vel)
-                        weight = 1.0
-                        assert npos == n
-                        assert nvel == (n if redshift_distortion else 0)
-                io_time += io_timer.elapsed
-
-            # Apply redshift distortions.
-            if redshift_distortion:
-                assert vel.shape == (n, 3)
-                # Apply redshift distortions in the z direction because that is
-                # the direction from which the polar angle is defined in the
-                # correlator. If desired in the future, we could accept any
-                # arbitrary direction vector and apply redshift distortion in
-                # that direction.
-                pos[:, 2] += vel[:, 2] / (100 * scale_factor)
+            with Timer() as io_timer:
+                pos, weight = reader.read(filename, redshift_distortion)
+            io_time += io_timer.elapsed
 
             # Apply displacement field.
             if disp is not None:
@@ -154,13 +138,11 @@ def read_density_field(file_patterns,
                 if filename == filenames[-1]:
                     ma.flush()  # Last file.
             ma_time += ma_timer.elapsed
-            items_seen += n
+            items_seen += pos.shape[0]
 
-    assert items_seen == total_items
     assert ma.num_added + ma.num_skipped == items_seen
 
     if verbose:
-        print("Setup time: {:.2f} sec".format(setup_timer.elapsed))
         print("Work time: {:.2f} sec".format(work_timer.elapsed))
         print("  IO time: {:.2f} sec".format(io_time))
         if disp is not None:
