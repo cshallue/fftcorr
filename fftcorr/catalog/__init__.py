@@ -1,2 +1,2 @@
-from fftcorr.catalog.abacusutils import CatalogReader, read_density_field
+from fftcorr.catalog.abacusutils import AbacusFileReader, read_density_field
 from fftcorr.catalog.random_catalog import add_random_particles
