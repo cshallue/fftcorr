@@ -35,11 +35,17 @@ cdef class PeriodicCorrelator:
         self._power_spectrum_counts = as_numpy(self._periodic_correlator_cc.power_spectrum_counts())
         self._power_spectrum_histogram = as_numpy(self._periodic_correlator_cc.power_spectrum_histogram())
 
+    def set_dens2(self, ConfigSpaceGrid dens2):
+        self._periodic_correlator_cc.set_dens2(dens2.cc_grid()[0])
+
     def autocorrelate(self, ConfigSpaceGrid dens):
         self._periodic_correlator_cc.autocorrelate(dens.cc_grid()[0])
 
-    def cross_correlate(self, ConfigSpaceGrid dens1, ConfigSpaceGrid dens2):
-        self._periodic_correlator_cc.cross_correlate(dens1.cc_grid()[0], dens2.cc_grid()[0])
+    def cross_correlate(self, ConfigSpaceGrid dens1, ConfigSpaceGrid dens2=None):
+        if dens2 is None:
+            self._periodic_correlator_cc.cross_correlate(dens1.cc_grid()[0])
+        else:
+            self._periodic_correlator_cc.cross_correlate(dens1.cc_grid()[0], dens2.cc_grid()[0])
 
     def correlations(self):
         return astropy.table.Table(

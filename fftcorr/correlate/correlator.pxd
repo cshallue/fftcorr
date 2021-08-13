@@ -17,10 +17,10 @@ cdef extern from "correlator.h":
                           Float dk,
                           int maxell,
                           unsigned fftw_flags) except +
+    void set_dens2(const ConfigSpaceGrid_cc& dens2)
     void autocorrelate(const ConfigSpaceGrid_cc& dens1)
     void cross_correlate(const ConfigSpaceGrid_cc& dens1,
                          const ConfigSpaceGrid_cc& dens2)
-    void correlate_nonperiodic(int wide_angle_exponent)
     Float zerolag()
     const RowMajorArrayPtr[Float, One]& correlation_r()
     const RowMajorArrayPtr[int, Two]& correlation_counts()

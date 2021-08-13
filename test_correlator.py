@@ -61,9 +61,30 @@ kmax = 0.4
 dk = 0.02
 maxell = 2
 c = PeriodicCorrelator(ngrid, rmax, dr, kmax, dk, maxell)
+print("Computing autocorrelation!")
 c.autocorrelate(dens)
 print("Done correlating!")
 print(c.correlations())
 print(c.power_spectrum())
+print()
 
+dens2 = ConfigSpaceGrid(shape=ngrid,
+                        posmin=posmin,
+                        posmax=posmax,
+                        cell_size=cell_size,
+                        window_type=window_type)
+np.copyto(dens2.data, np.random.uniform(size=dens2.shape))
+print("Computing cross correlation!")
+c.cross_correlate(dens, dens2)
+print("Done correlating!")
+print(c.correlations())
+print(c.power_spectrum())
+print()
+
+print("Computing cross correlation!")
+c.set_dens2(dens2)
+c.cross_correlate(dens)
+print("Done correlating!")
+print(c.correlations())
+print(c.power_spectrum())
 print()
