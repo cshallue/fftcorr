@@ -29,25 +29,50 @@ Array1D<Float> sequence(Float start, Float step, int size) {
 // TODO: rename dens* to something more generic
 class BaseCorrelator {
  public:
-  BaseCorrelator(const ConfigSpaceGrid &dens1, const ConfigSpaceGrid &dens2,
-                 Float rmax, Float dr, Float kmax, Float dk, int maxell,
-                 unsigned fftw_flags)
-      : dens1_(dens1),
-        dens2_(dens2),
-        rmax_(rmax),
+  BaseCorrelator(const std::array<int, 3> shape, Float rmax, Float dr,
+                 Float kmax, Float dk, int maxell, unsigned fftw_flags)
+      : rmax_(rmax),
         kmax_(kmax),
         maxell_(maxell),
-        work_(dens1_.shape()),
+        work_(shape),
         fftw_flags_(fftw_flags),
         rhist_(maxell / 2 + 1, 0.0, rmax, dr),
-        khist_(maxell / 2 + 1, 0.0, kmax, dk) {
-    // The dimensions, window type, etc, should also match, but they won't
-    // cause the program to crash. Check this because it would cause a memory
-    // error.
-    assert(dens1_.shape() == dens2_.shape());
+        khist_(maxell / 2 + 1, 0.0, kmax, dk) {}
+
+  void set_dens2(const ConfigSpaceGrid &dens2) {
+    setup_time_.start();
+    array_ops::copy_into_padded_array(dens2.data(), work_.as_real_array());
+    setup_fft();
+    setup_time_.stop();
+
+    fprintf(stdout, "# Computing the density 2 FFT...");
+    fflush(NULL);
+    work_.execute_fft();
+    fprintf(stdout, "# Done!\n");
+    fflush(NULL);
+
+    // Save the FFT of dens2.
+    setup_time_.start();
+    if (!dens2_fft_.data()) {
+      dens2_fft_.allocate(work_.as_complex_array().shape());
+    }
+    array_ops::copy(work_.as_complex_array(), dens2_fft_);
+    setup_time_.stop();
   }
 
-  virtual void correlate() = 0;
+  void autocorrelate(const ConfigSpaceGrid &dens) {
+    correlate_internal(dens, NULL);
+  }
+
+  void cross_correlate(const ConfigSpaceGrid &dens1) {
+    correlate_internal(dens1, &dens2_fft_);
+  }
+
+  void cross_correlate(const ConfigSpaceGrid &dens1,
+                       const ConfigSpaceGrid &dens2) {
+    set_dens2(dens2);
+    cross_correlate(dens1);
+  }
 
   // Output accessors.
   Float zerolag() const { return zerolag_; }
@@ -79,108 +104,30 @@ class BaseCorrelator {
   Float total_time() const { return total_time_.elapsed_sec(); }
 
  protected:
-  // Sets up a fresh call to correlate_{periodic,nonperiodic}.
-  const RowMajorArrayPtr<Complex, 3> &setup(bool periodic) {
-    setup_time_.start();
+  void setup_fft() {
     if (!work_.fft_ready()) {
       work_.plan_fft(fftw_flags_);  // Planning may destroy data in work_.
     }
-    if (!periodic && !xcell_.data()) {
-      setup_cell_coords();
-    }
+  }
+
+  void setup_correlate(const ConfigSpaceGrid &dens) {
+    setup_time_.start();
+    setup_fft();
     if (!rgrid_.data()) {
-      setup_rgrid();
+      setup_rgrid(dens);
     }
     if (!kgrid_.data()) {
-      setup_kgrid();
+      setup_kgrid(dens);
     }
     rhist_.reset();
     khist_.reset();
     zerolag_ = -1.0;
     setup_time_.stop();
-
-    bool is_autocorr = dens1_.data() == dens2_.data();
-    return compute_dens_ffts(periodic, is_autocorr);
   }
 
-  const RowMajorArrayPtr<Complex, 3> &compute_dens_ffts(bool periodic,
-                                                        bool is_autocorr) {
-    array_ops::copy_into_padded_array(dens2_.data(), work_.as_real_array());
-
-    fprintf(stdout, "# Computing the density 2 FFT...");
-    fflush(NULL);
-    work_.execute_fft();
-    fprintf(stdout, "# Done!\n");
-    fflush(NULL);
-
-    if (periodic && is_autocorr) {
-      // Periodic autocorrelation. Don't need to store dens2_fft separately
-      // and don't need to compute the FFT of dens1.
-      // TODO: if it did anyway, the code would be simpler (wouldn't need to
-      // return anything from this function) and we could save the conjugate
-      // of the dens2_fft, potentially saving a touch of computation.
-      fprintf(stderr, "# Periodic autocorrelation\n");
-      fflush(NULL);
-      return work_.as_complex_array();
-    }
-
-    // Save the FFT of dens2.
-    setup_time_.start();
-    if (!dens2_fft_.data()) {
-      dens2_fft_.allocate(work_.as_complex_array().shape());
-    }
-    array_ops::copy(work_.as_complex_array(), dens2_fft_);
-    setup_time_.stop();
-    if (is_autocorr) {
-      // Nonperiodic autocorrelation. Don't need to compute the FFT of dens1.
-      fprintf(stderr, "# Nonperiodic autocorrelation\n");
-      fflush(NULL);
-      return dens2_fft_;
-    }
-
-    fprintf(stderr, "# Cross-correlation\n");
-    fflush(NULL);
-
-    // Cross-correlation. Compute the FFT of dens1.
-    setup_time_.start();
-    array_ops::copy_into_padded_array(dens1_.data(), work_.as_real_array());
-    setup_time_.stop();
-
-    fprintf(stdout, "# Computing the density 1 FFT...");
-    fflush(NULL);
-    work_.execute_fft();
-    fprintf(stdout, "# Done!\n");
-    fflush(NULL);
-    return dens2_fft_;
-    // Now the FFT of dens1 is in work_. The FFT of dens2 is in dens2_fft_.
-  }
-
-  void setup_cell_coords() {
-    // Location of the observer relative to posmin, in grid units.
-    std::array<Float, 3> observer;
-    // Put the observer at the origin of the survey coordinate system.
-    for (int i = 0; i < 3; ++i) {
-      observer[i] = -dens1_.posmin(i) / dens1_.cell_size();
-    }
-    // We cab simulate a periodic box by puting the observer centered in the
-    // grid, but displaced far away in the -x direction. This is an
-    // inefficient way to compute the periodic case, but it's a good sanity
-    // check. for (int i = 0; i < 3; ++i) {
-    //   observer[i] = dens1_.shape(i) / 2.0;
-    // }
-    // observer[0] -= dens1_.shape(0) * 1e6;  // Observer far away!
-
-    // Coordinates of the cell centers in each dimension, relative to the
-    // observer. We're using grid units (scale doesn't matter when computing
-    // Ylms).
-    xcell_ = sequence(0.5 - observer[0], 1.0, dens1_.shape(0));
-    ycell_ = sequence(0.5 - observer[1], 1.0, dens1_.shape(1));
-    zcell_ = sequence(0.5 - observer[2], 1.0, dens1_.shape(2));
-  }
-
-  void setup_rgrid() {
+  void setup_rgrid(const ConfigSpaceGrid &dens) {
     // Create the separation-space subgrid.
-    Float cell_size = dens1_.cell_size();
+    Float cell_size = dens.cell_size();
     int rmax_cells = ceil(rmax_ / cell_size);  // rmax in grid cell units.
     fprintf(stderr, "rmax = %f, cell_size = %f, rmax_cells =%d\n", rmax_,
             cell_size, rmax_cells);
@@ -213,12 +160,12 @@ class BaseCorrelator {
     rylm_.allocate(rshape);
   }
 
-  void setup_kgrid() {
+  void setup_kgrid(const ConfigSpaceGrid &dens) {
     // Create the Fourier-space subgrid.
     // Our box has cubic-sized cells, so k_Nyquist is the same in all
     // directions. The spacing of modes is therefore 2*k_Nyq/ngrid.
-    const std::array<int, 3> &ngrid = dens1_.shape();
-    Float cell_size = dens1_.cell_size();
+    const std::array<int, 3> &ngrid = dens.shape();
+    Float cell_size = dens.cell_size();
     Float k_Nyq = M_PI / cell_size;  // The Nyquist frequency for our grid.
     // Number of cells in the subgrid.
     std::array<int, 3> kshape;
@@ -270,7 +217,7 @@ class BaseCorrelator {
     for (int i = 0; i < kshape[0]; ++i) {
       for (int j = 0; j < kshape[1]; ++j) {
         for (int k = 0; k < kshape[2]; ++k) {
-          switch (dens1_.window_type()) {
+          switch (dens.window_type()) {
             case kNearestCell:
               window = 1.0;
               break;
@@ -300,9 +247,11 @@ class BaseCorrelator {
     }
   }
 
+  virtual void correlate_internal(
+      const ConfigSpaceGrid &dens1,
+      const RowMajorArrayPtr<Complex, 3> *dens2_fft) = 0;
+
   // Inputs.
-  const ConfigSpaceGrid &dens1_;
-  const ConfigSpaceGrid &dens2_;
   Float rmax_;
   Float kmax_;
   int maxell_;
@@ -352,21 +301,34 @@ class PeriodicCorrelator : public BaseCorrelator {
  public:
   using BaseCorrelator::BaseCorrelator;  // Inherit constructors.
 
-  void correlate() {
+ protected:
+  void correlate_internal(const ConfigSpaceGrid &dens1,
+                          const RowMajorArrayPtr<Complex, 3> *dens2_fft) {
     total_time_.start();
-    const RowMajorArrayPtr<Complex, 3> &dens2_fft = setup(true);
+    setup_correlate(dens1);
+
+    array_ops::copy_into_padded_array(dens1.data(), work_.as_real_array());
+    fprintf(stdout, "# Computing the density 1 FFT...");
+    fflush(NULL);
+    work_.execute_fft();
+    fprintf(stdout, "# Done!\n");
+    fflush(NULL);
+
+    if (!dens2_fft) {
+      dens2_fft = &work_.as_complex_array();  // Autocorrelation.
+    }
 
     fprintf(stdout, "# Multiply...");
     fflush(NULL);
     // TODO: inplace abs^2?
     mult_time_.start();
-    array_ops::multiply_with_conjugation(dens2_fft, work_.as_complex_array());
+    array_ops::multiply_with_conjugation(*dens2_fft, work_.as_complex_array());
     mult_time_.stop();
 
     // We must multiply the DFT result by (1/ncells^2): DFT differs from
     // Fourier series coefficients by a factor of ncells, and we've multiplied
     // two DFTs together.
-    uint64 ncells = dens1_.data().size();
+    uint64 ncells = dens1.data().size();
     Float k_rescale = (1.0 / ncells / ncells);
 
     // Extract the power spectrum, expanded in Legendre polynomials.
@@ -430,10 +392,53 @@ class Correlator : public BaseCorrelator {
  public:
   using BaseCorrelator::BaseCorrelator;  // Inherit constructors.
 
-  void correlate() {
+ protected:
+  void setup_correlate(const ConfigSpaceGrid &dens) {
+    BaseCorrelator::setup_correlate(dens);
+    if (!xcell_.data()) {
+      setup_cell_coords(dens);
+    }
+  }
+
+  void setup_cell_coords(const ConfigSpaceGrid &dens) {
+    // Location of the observer relative to posmin, in grid units.
+    std::array<Float, 3> observer;
+    // Put the observer at the origin of the survey coordinate system.
+    for (int i = 0; i < 3; ++i) {
+      observer[i] = -dens.posmin(i) / dens.cell_size();
+    }
+    // We cab simulate a periodic box by puting the observer centered in the
+    // grid, but displaced far away in the -x direction. This is an
+    // inefficient way to compute the periodic case, but it's a good sanity
+    // check. for (int i = 0; i < 3; ++i) {
+    //   observer[i] = dens1.shape(i) / 2.0;
+    // }
+    // observer[0] -= dens1.shape(0) * 1e6;  // Observer far away!
+
+    // Coordinates of the cell centers in each dimension, relative to the
+    // observer. We're using grid units (scale doesn't matter when computing
+    // Ylms).
+    xcell_ = sequence(0.5 - observer[0], 1.0, dens.shape(0));
+    ycell_ = sequence(0.5 - observer[1], 1.0, dens.shape(1));
+    zcell_ = sequence(0.5 - observer[2], 1.0, dens.shape(2));
+  }
+
+  void correlate_internal(const ConfigSpaceGrid &dens1,
+                          const RowMajorArrayPtr<Complex, 3> *dens2_fft) {
     constexpr int wide_angle_exponent = 0;  // TODO: do we still need this?
     total_time_.start();
-    const RowMajorArrayPtr<Complex, 3> &dens2_fft = setup(false);
+    setup_correlate(dens1);
+
+    array_ops::copy_into_padded_array(dens1.data(), work_.as_real_array());
+    fprintf(stdout, "# Computing the density 1 FFT...");
+    fflush(NULL);
+    work_.execute_fft();
+    fprintf(stdout, "# Done!\n");
+    fflush(NULL);
+
+    if (!dens2_fft) {
+      dens2_fft = &work_.as_complex_array();  // Autocorrelation.
+    }
 
     /* ------------ Loop over ell & m --------------- */
     // Loop over each ell to compute the anisotropic correlations
@@ -448,11 +453,11 @@ class Correlator : public BaseCorrelator {
         fprintf(stdout, "# Computing %d %2d...", ell, m);
 
         // Create the Ylm matrix times work_
-        // TODO: here, is it advantageous if dens1_ is padded as well, so its
+        // TODO: here, is it advantageous if dens1 is padded as well, so its
         // boundaries match with those of work?
         ylm_time_.start();
         make_ylm(ell, m, xcell_, ycell_, zcell_, 1.0, -wide_angle_exponent,
-                 &dens1_.data(), &work_.as_real_array());
+                 &dens1.data(), &work_.as_real_array());
         ylm_time_.stop();
         fprintf(stdout, "Ylm...");
 
@@ -462,7 +467,7 @@ class Correlator : public BaseCorrelator {
         // Multiply by conj(dens2_fft), as complex numbers
         // TODO: we could just store the conjugate form of dens2_fft.
         mult_time_.start();
-        array_ops::multiply_with_conjugation(dens2_fft,
+        array_ops::multiply_with_conjugation(*dens2_fft,
                                              work_.as_complex_array());
         mult_time_.stop();
 
@@ -492,7 +497,7 @@ class Correlator : public BaseCorrelator {
         // Create Ylm for the submatrix that we'll extract for histogramming
         // Include the SE15 normalization and the factor of ncells to finish
         // the inverse FFT (FFTW doesn't include this factor automatically).
-        uint64 ncells = dens1_.data().size();
+        uint64 ncells = dens1.data().size();
         ylm_time_.start();
         make_ylm(ell, m, rx_, ry_, rz_, 4.0 * M_PI / ncells,
                  wide_angle_exponent, NULL, &rylm_);

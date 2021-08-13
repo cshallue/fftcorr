@@ -60,8 +60,8 @@ dr = 10
 kmax = 0.4
 dk = 0.02
 maxell = 2
-c = PeriodicCorrelator(dens, rmax, dr, kmax, dk, maxell)
-c.correlate()
+c = PeriodicCorrelator(ngrid, rmax, dr, kmax, dk, maxell)
+c.autocorrelate(dens)
 print("Done correlating!")
 print(c.correlations())
 print(c.power_spectrum())

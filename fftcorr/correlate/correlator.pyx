@@ -11,7 +11,7 @@ import astropy.table
 
 cdef class PeriodicCorrelator:
     def __cinit__(self,
-                  ConfigSpaceGrid dens,
+                  shape,
                   Float rmax,
                   Float dr,
                   Float kmax,
@@ -20,13 +20,11 @@ cdef class PeriodicCorrelator:
                   ConfigSpaceGrid dens2 = None,
                   # TODO: use enum?
                   unsigned fftw_flags = 0):
-        if dens2 is None:
-            dens2 = dens
-        # TODO: else check dimensions, etc, match
+        shape = np.ascontiguousarray(shape, dtype=np.intc)
+        cdef cnp.ndarray[int, ndim=1, mode="c"] cshape = shape
 
         self._periodic_correlator_cc = new PeriodicCorrelator_cc(
-            dens.cc_grid()[0], dens2.cc_grid()[0], rmax, dr, kmax, dk, maxell,
-            fftw_flags)
+            (<array[int, Three] *> &cshape[0])[0], rmax, dr, kmax, dk, maxell, fftw_flags)
         # These are references to the internal C++ arrays and therefore should
         # be copied before being exposed to the user (they change with
         # subsequent correlation calls).
@@ -37,8 +35,11 @@ cdef class PeriodicCorrelator:
         self._power_spectrum_counts = as_numpy(self._periodic_correlator_cc.power_spectrum_counts())
         self._power_spectrum_histogram = as_numpy(self._periodic_correlator_cc.power_spectrum_histogram())
 
-    def correlate(self):
-        self._periodic_correlator_cc.correlate()
+    def autocorrelate(self, ConfigSpaceGrid dens):
+        self._periodic_correlator_cc.autocorrelate(dens.cc_grid()[0])
+
+    def cross_correlate(self, ConfigSpaceGrid dens1, ConfigSpaceGrid dens2):
+        self._periodic_correlator_cc.cross_correlate(dens1.cc_grid()[0], dens2.cc_grid()[0])
 
     def correlations(self):
         return astropy.table.Table(

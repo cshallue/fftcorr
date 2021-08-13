@@ -1,3 +1,5 @@
+from fftcorr.types cimport Float, array, Three
+
 from libcpp cimport bool
 
 cimport numpy as cnp
@@ -8,15 +10,16 @@ from fftcorr.types cimport Float, array, One, Two
 
 cdef extern from "correlator.h":
   cdef cppclass PeriodicCorrelator_cc "PeriodicCorrelator":
-    PeriodicCorrelator_cc(const ConfigSpaceGrid_cc& dens1,
-                          const ConfigSpaceGrid_cc& dens2,
+    PeriodicCorrelator_cc(const array[int, Three]& shape,
                           Float rmax,
                           Float dr,
                           Float kmax,
                           Float dk,
                           int maxell,
                           unsigned fftw_flags) except +
-    void correlate()
+    void autocorrelate(const ConfigSpaceGrid_cc& dens1)
+    void cross_correlate(const ConfigSpaceGrid_cc& dens1,
+                         const ConfigSpaceGrid_cc& dens2)
     void correlate_nonperiodic(int wide_angle_exponent)
     Float zerolag()
     const RowMajorArrayPtr[Float, One]& correlation_r()
