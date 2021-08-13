@@ -96,8 +96,8 @@ cloud-in-cell to keep up.
 #include "types.h"
 
 void report_times(FILE *fp, const SurveyReader &sr, const MassAssignor &ma,
-                  const Correlator &corr, double total_time, double grid_time,
-                  uint64 nfft, uint64 ngrid3, int cnt) {
+                  const BaseCorrelator &corr, double total_time,
+                  double grid_time, uint64 nfft, uint64 ngrid3, int cnt) {
   fflush(NULL);
   fprintf(fp, "#\n# Timing Report: \n");
   Float io_time = sr.total_time() - grid_time;
@@ -240,7 +240,7 @@ int main(int argc, char *argv[]) {
   Float kmax = 0.03;
   Float dk = 0.01;
   int maxell = 0;
-  int wide_angle_exponent = 0;
+  // int wide_angle_exponent = 0;
   int ngridCube = 256;
   bool periodic = false;
   WindowType window_type = kWavelet;
@@ -267,8 +267,8 @@ int main(int argc, char *argv[]) {
       ngrid[2] = atoi(argv[++i]);
     } else if (!strcmp(argv[i], "-maxell") || !strcmp(argv[i], "-ell"))
       maxell = atoi(argv[++i]);
-    else if (!strcmp(argv[i], "-exp") || !strcmp(argv[i], "-e"))
-      wide_angle_exponent = atoi(argv[++i]);
+    // else if (!strcmp(argv[i], "-exp") || !strcmp(argv[i], "-e"))
+    //   wide_angle_exponent = atoi(argv[++i]);
     else if (!strcmp(argv[i], "-sep") || !strcmp(argv[i], "-r"))
       sep = atof(argv[++i]);
     else if (!strcmp(argv[i], "-dsep") || !strcmp(argv[i], "-dr"))
@@ -298,7 +298,7 @@ int main(int argc, char *argv[]) {
 
   assert(ngridCube > 0);
   assert(maxell >= 0 && maxell % 2 == 0);
-  assert(wide_angle_exponent % 2 == 0);  // Must be an even number
+  // assert(wide_angle_exponent % 2 == 0);  // Must be an even number
   assert(sep > 0.0);
   assert(dsep > 0.0);
   assert(kmax != 0.0);
@@ -414,27 +414,30 @@ int main(int argc, char *argv[]) {
   /* Done setup Grid ======================================================= */
 
   // Compute the correlations.
-  Correlator corr(grid, grid, sep, dsep, kmax, dk, maxell, FFTW_MEASURE);
+  BaseCorrelator *corr;  // TODO: is this what we want to do?
   if (periodic) {
-    corr.correlate_periodic();
+    corr = new PeriodicCorrelator(grid, grid, sep, dsep, kmax, dk, maxell,
+                                  FFTW_MEASURE);
   } else {
-    fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-    corr.correlate_nonperiodic(wide_angle_exponent);
+    // fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
+    corr =
+        new Correlator(grid, grid, sep, dsep, kmax, dk, maxell, FFTW_MEASURE);
   }
+  corr->correlate();
   Ylm_count.print(stdout);
   fprintf(stdout, "# Anisotropic power spectrum:\n");
-  print_hist(corr.power_spectrum_k(), corr.power_spectrum_counts(),
-             corr.power_spectrum_histogram(), stdout, 1, true);
+  print_hist(corr->power_spectrum_k(), corr->power_spectrum_counts(),
+             corr->power_spectrum_histogram(), stdout, 1, true);
   fprintf(stdout, "# Anisotropic correlations:\n");
-  print_hist(corr.correlation_r(), corr.correlation_counts(),
-             corr.correlation_histogram(), stdout, 0, periodic);
+  print_hist(corr->correlation_r(), corr->correlation_counts(),
+             corr->correlation_histogram(), stdout, 0, periodic);
   // We want to use the correlation at zero lag as the I normalization
   // factor in the FKP power spectrum.
-  fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", corr.zerolag());
+  fprintf(stdout, "#\n# Zero-lag correlations are %14.7e\n", corr->zerolag());
   // Integral of power spectrum needs a d^3k/(2 pi)^3, which is (1/L)^3 =
   // (1/(cell_size*ngrid))^3
   Float sum_ell0 = 0.0;
-  const RowMajorArrayPtr<Float, 2> &kh = corr.power_spectrum_histogram();
+  const RowMajorArrayPtr<Float, 2> &kh = corr->power_spectrum_histogram();
   for (int j = 0; j < kh.shape(1); ++j) sum_ell0 += kh.at(0, j);
   fprintf(stdout, "#\n# Integral of power spectrum is %14.7e\n",
           sum_ell0 / (cell_size * cell_size * cell_size * ngrid[0] * ngrid[1] *
@@ -450,7 +453,7 @@ int main(int argc, char *argv[]) {
   for (int j = 0; j <= maxell; j += 2) nfft += 2 * (2 * j + 1);
   nfft *= ngrid3;
   fprintf(stdout, "#\n");
-  report_times(stderr, reader, mass_assignor, corr, total_time.elapsed_sec(),
+  report_times(stderr, reader, mass_assignor, *corr, total_time.elapsed_sec(),
                grid_time.elapsed_sec(), nfft, ngrid3,
                mass_assignor.num_added());
   return 0;

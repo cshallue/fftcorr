@@ -27,11 +27,11 @@ Array1D<Float> sequence(Float start, Float step, int size) {
 }
 
 // TODO: rename dens* to something more generic
-class Correlator {
+class BaseCorrelator {
  public:
-  Correlator(const ConfigSpaceGrid &dens1, const ConfigSpaceGrid &dens2,
-             Float rmax, Float dr, Float kmax, Float dk, int maxell,
-             unsigned fftw_flags)
+  BaseCorrelator(const ConfigSpaceGrid &dens1, const ConfigSpaceGrid &dens2,
+                 Float rmax, Float dr, Float kmax, Float dk, int maxell,
+                 unsigned fftw_flags)
       : dens1_(dens1),
         dens2_(dens2),
         rmax_(rmax),
@@ -41,166 +41,13 @@ class Correlator {
         fftw_flags_(fftw_flags),
         rhist_(maxell / 2 + 1, 0.0, rmax, dr),
         khist_(maxell / 2 + 1, 0.0, kmax, dk) {
-    // The dimensions, window type, etc, should also match, but they won't cause
-    // the program to crash. Check this because it would cause a memory error.
+    // The dimensions, window type, etc, should also match, but they won't
+    // cause the program to crash. Check this because it would cause a memory
+    // error.
     assert(dens1_.shape() == dens2_.shape());
   }
 
-  void correlate_periodic() {
-    total_time_.start();
-    const RowMajorArrayPtr<Complex, 3> &dens2_fft = setup(true);
-
-    fprintf(stdout, "# Multiply...");
-    fflush(NULL);
-    // TODO: inplace abs^2?
-    mult_time_.start();
-    array_ops::multiply_with_conjugation(dens2_fft, work_.as_complex_array());
-    mult_time_.stop();
-
-    // We must multiply the DFT result by (1/ncells^2): DFT differs from Fourier
-    // series coefficients by a factor of ncells, and we've multiplied two DFTs
-    // together.
-    uint64 ncells = dens1_.data().size();
-    Float k_rescale = (1.0 / ncells / ncells);
-
-    // Extract the power spectrum, expanded in Legendre polynomials.
-    for (int ell = 0; ell <= maxell_; ell += 2) {
-      setup_time_.start();
-      array_ops::set_all(0.0, kgrid_);
-      setup_time_.stop();
-      // P_l = Y_l0 * sqrt(4.0 * M_PI / (2 * ell + 1)) and then we need to
-      // multiply by (2 * ell + 1) to account for the normalization of P_l's.
-      // Also include the DFT scaling.
-      Float coeff = sqrt((4.0 * M_PI) * (2 * ell + 1)) * k_rescale;
-      // TODO: include &inv_window if appropriate in this case.
-      ylm_time_.start();
-      make_ylm(ell, 0, kx_, ky_, kz_, coeff, 0, NULL, &kylm_);
-      ylm_time_.stop();
-      work_.extract_fft_submatrix_c2r(&kgrid_, &kylm_);
-      hist_time_.start();
-      khist_.accumulate(ell / 2, knorm_, kgrid_);
-      hist_time_.stop();
-    }
-
-    // iFFT the result, in place
-    fprintf(stdout, "IFFT...");
-    fflush(NULL);
-    work_.execute_ifft();
-    fprintf(stdout, "# Done!\n");
-    fflush(NULL);
-
-    // We must multiply the IFT by two factors of (1/ncells): the first one
-    // completes the inverse FFT (FFTW doesn't include this factor
-    // automatically) and the second is the factor converting the circular
-    // cross-correlation of grids to an estimator of the cross-correlation
-    // function of random fields.
-    Float r_rescale = (1.0 / ncells / ncells);
-
-    // Extract the 2PCF, expanded in Legendre polynomials.
-    for (int ell = 0; ell <= maxell_; ell += 2) {
-      setup_time_.start();
-      array_ops::set_all(0.0, rgrid_);
-      setup_time_.stop();
-      // P_l = Y_l0 * sqrt(4.0 * M_PI / (2 * ell + 1)) and then we need to
-      // multiply by (2 * ell + 1) to account for the normalization of P_l's.
-      // Also include the IFT scaling.
-      Float coeff = sqrt((4.0 * M_PI) * (2 * ell + 1)) * r_rescale;
-      ylm_time_.start();
-      make_ylm(ell, 0, rx_, ry_, rz_, coeff, 0, NULL, &rylm_);
-      ylm_time_.stop();
-      work_.extract_submatrix(&rgrid_, &rylm_);
-      hist_time_.start();
-      rhist_.accumulate(ell / 2, rnorm_, rgrid_);
-      hist_time_.stop();
-      if (ell == 0) {
-        zerolag_ = rgrid_.at(rzero_[0], rzero_[1], rzero_[2]);
-      }
-    }
-    total_time_.stop();
-  }
-
-  void correlate_nonperiodic(int wide_angle_exponent) {
-    total_time_.start();
-    const RowMajorArrayPtr<Complex, 3> &dens2_fft = setup(false);
-
-    /* ------------ Loop over ell & m --------------- */
-    // Loop over each ell to compute the anisotropic correlations
-    for (int ell = 0; ell <= maxell_; ell += 2) {
-      // Initialize the submatrix
-      setup_time_.start();
-      array_ops::set_all(0.0, rgrid_);
-      array_ops::set_all(0.0, kgrid_);
-      setup_time_.stop();
-      // Loop over m
-      for (int m = -ell; m <= ell; m++) {
-        fprintf(stdout, "# Computing %d %2d...", ell, m);
-
-        // Create the Ylm matrix times work_
-        // TODO: here, is it advantageous if dens1_ is padded as well, so its
-        // boundaries match with those of work?
-        ylm_time_.start();
-        make_ylm(ell, m, xcell_, ycell_, zcell_, 1.0, -wide_angle_exponent,
-                 &dens1_.data(), &work_.as_real_array());
-        ylm_time_.stop();
-        fprintf(stdout, "Ylm...");
-
-        // FFT in place
-        work_.execute_fft();
-
-        // Multiply by conj(dens2_fft), as complex numbers
-        // TODO: we could just store the conjugate form of dens2_fft.
-        mult_time_.start();
-        array_ops::multiply_with_conjugation(dens2_fft,
-                                             work_.as_complex_array());
-        mult_time_.stop();
-
-        // Extract the anisotropic power spectrum
-        // Load the Ylm's. Include the window correction and the SE15
-        // normalization.
-        ylm_time_.start();
-        make_ylm(ell, m, kx_, ky_, kz_, 4.0 * M_PI, wide_angle_exponent,
-                 &inv_window_, &kylm_);
-        ylm_time_.stop();
-        // Multiply these Ylm by the power result, and then add to total.
-        // TODO: we only need to extract the real part for an autocorrelation,
-        // since autocorrelations of real functions are even and therefore have
-        // purely real fourier transforms (another way to see this is that we
-        // multiply by the conjugate in fourier space). But cross correlations
-        // are not in general even and so the complex component is not generally
-        // zero. But we may be able to argue that it's negligible by isotropy
-        // of the universe...but that might not be true in redshift space? This
-        // may sink the idea of using this class to compute cross-correlations.
-        work_.extract_fft_submatrix_c2r(&kgrid_, &kylm_);
-
-        // iFFT the result, in place
-        work_.execute_ifft();
-        fprintf(stdout, "FFT...");
-
-        // Create Ylm for the submatrix that we'll extract for histogramming
-        // Include the SE15 normalization and the factor of ncells to finish the
-        // inverse FFT (FFTW doesn't include this factor automatically).
-        uint64 ncells = dens1_.data().size();
-        ylm_time_.start();
-        make_ylm(ell, m, rx_, ry_, rz_, 4.0 * M_PI / ncells,
-                 wide_angle_exponent, NULL, &rylm_);
-        ylm_time_.stop();
-
-        // Multiply these Ylm by the correlation result, and then add to total.
-        work_.extract_submatrix(&rgrid_, &rylm_);
-
-        fprintf(stdout, "Done!\n");
-        fflush(NULL);
-      }
-      hist_time_.start();
-      rhist_.accumulate(ell / 2, rnorm_, rgrid_);
-      khist_.accumulate(ell / 2, knorm_, kgrid_);
-      hist_time_.stop();
-      if (ell == 0) {
-        zerolag_ = rgrid_.at(rzero_[0], rzero_[1], rzero_[2]);
-      }
-    }
-    total_time_.stop();
-  }
+  virtual void correlate() = 0;
 
   // Output accessors.
   Float zerolag() const { return zerolag_; }
@@ -231,7 +78,7 @@ class Correlator {
   Float histogram_time() const { return hist_time_.elapsed_sec(); }
   Float total_time() const { return total_time_.elapsed_sec(); }
 
- private:
+ protected:
   // Sets up a fresh call to correlate_{periodic,nonperiodic}.
   const RowMajorArrayPtr<Complex, 3> &setup(bool periodic) {
     setup_time_.start();
@@ -267,11 +114,11 @@ class Correlator {
     fflush(NULL);
 
     if (periodic && is_autocorr) {
-      // Periodic autocorrelation. Don't need to store dens2_fft separately and
-      // don't need to compute the FFT of dens1.
+      // Periodic autocorrelation. Don't need to store dens2_fft separately
+      // and don't need to compute the FFT of dens1.
       // TODO: if it did anyway, the code would be simpler (wouldn't need to
-      // return anything from this function) and we could save the conjugate of
-      // the dens2_fft, potentially saving a touch of computation.
+      // return anything from this function) and we could save the conjugate
+      // of the dens2_fft, potentially saving a touch of computation.
       fprintf(stderr, "# Periodic autocorrelation\n");
       fflush(NULL);
       return work_.as_complex_array();
@@ -316,9 +163,9 @@ class Correlator {
       observer[i] = -dens1_.posmin(i) / dens1_.cell_size();
     }
     // We cab simulate a periodic box by puting the observer centered in the
-    // grid, but displaced far away in the -x direction. This is an inefficient
-    // way to compute the periodic case, but it's a good sanity check.
-    // for (int i = 0; i < 3; ++i) {
+    // grid, but displaced far away in the -x direction. This is an
+    // inefficient way to compute the periodic case, but it's a good sanity
+    // check. for (int i = 0; i < 3; ++i) {
     //   observer[i] = dens1_.shape(i) / 2.0;
     // }
     // observer[0] -= dens1_.shape(0) * 1e6;  // Observer far away!
@@ -499,6 +346,175 @@ class Correlator {
   mutable Timer ylm_time_;
   mutable Timer hist_time_;
   mutable Timer total_time_;
+};
+
+class PeriodicCorrelator : public BaseCorrelator {
+ public:
+  using BaseCorrelator::BaseCorrelator;  // Inherit constructors.
+
+  void correlate() {
+    total_time_.start();
+    const RowMajorArrayPtr<Complex, 3> &dens2_fft = setup(true);
+
+    fprintf(stdout, "# Multiply...");
+    fflush(NULL);
+    // TODO: inplace abs^2?
+    mult_time_.start();
+    array_ops::multiply_with_conjugation(dens2_fft, work_.as_complex_array());
+    mult_time_.stop();
+
+    // We must multiply the DFT result by (1/ncells^2): DFT differs from
+    // Fourier series coefficients by a factor of ncells, and we've multiplied
+    // two DFTs together.
+    uint64 ncells = dens1_.data().size();
+    Float k_rescale = (1.0 / ncells / ncells);
+
+    // Extract the power spectrum, expanded in Legendre polynomials.
+    for (int ell = 0; ell <= maxell_; ell += 2) {
+      setup_time_.start();
+      array_ops::set_all(0.0, kgrid_);
+      setup_time_.stop();
+      // P_l = Y_l0 * sqrt(4.0 * M_PI / (2 * ell + 1)) and then we need to
+      // multiply by (2 * ell + 1) to account for the normalization of P_l's.
+      // Also include the DFT scaling.
+      Float coeff = sqrt((4.0 * M_PI) * (2 * ell + 1)) * k_rescale;
+      // TODO: include &inv_window if appropriate in this case.
+      ylm_time_.start();
+      make_ylm(ell, 0, kx_, ky_, kz_, coeff, 0, NULL, &kylm_);
+      ylm_time_.stop();
+      work_.extract_fft_submatrix_c2r(&kgrid_, &kylm_);
+      hist_time_.start();
+      khist_.accumulate(ell / 2, knorm_, kgrid_);
+      hist_time_.stop();
+    }
+
+    // iFFT the result, in place
+    fprintf(stdout, "IFFT...");
+    fflush(NULL);
+    work_.execute_ifft();
+    fprintf(stdout, "# Done!\n");
+    fflush(NULL);
+
+    // We must multiply the IFT by two factors of (1/ncells): the first one
+    // completes the inverse FFT (FFTW doesn't include this factor
+    // automatically) and the second is the factor converting the circular
+    // cross-correlation of grids to an estimator of the cross-correlation
+    // function of random fields.
+    Float r_rescale = (1.0 / ncells / ncells);
+
+    // Extract the 2PCF, expanded in Legendre polynomials.
+    for (int ell = 0; ell <= maxell_; ell += 2) {
+      setup_time_.start();
+      array_ops::set_all(0.0, rgrid_);
+      setup_time_.stop();
+      // P_l = Y_l0 * sqrt(4.0 * M_PI / (2 * ell + 1)) and then we need to
+      // multiply by (2 * ell + 1) to account for the normalization of P_l's.
+      // Also include the IFT scaling.
+      Float coeff = sqrt((4.0 * M_PI) * (2 * ell + 1)) * r_rescale;
+      ylm_time_.start();
+      make_ylm(ell, 0, rx_, ry_, rz_, coeff, 0, NULL, &rylm_);
+      ylm_time_.stop();
+      work_.extract_submatrix(&rgrid_, &rylm_);
+      hist_time_.start();
+      rhist_.accumulate(ell / 2, rnorm_, rgrid_);
+      hist_time_.stop();
+      if (ell == 0) {
+        zerolag_ = rgrid_.at(rzero_[0], rzero_[1], rzero_[2]);
+      }
+    }
+    total_time_.stop();
+  }
+};
+
+class Correlator : public BaseCorrelator {
+ public:
+  using BaseCorrelator::BaseCorrelator;  // Inherit constructors.
+
+  void correlate() {
+    constexpr int wide_angle_exponent = 0;  // TODO: do we still need this?
+    total_time_.start();
+    const RowMajorArrayPtr<Complex, 3> &dens2_fft = setup(false);
+
+    /* ------------ Loop over ell & m --------------- */
+    // Loop over each ell to compute the anisotropic correlations
+    for (int ell = 0; ell <= maxell_; ell += 2) {
+      // Initialize the submatrix
+      setup_time_.start();
+      array_ops::set_all(0.0, rgrid_);
+      array_ops::set_all(0.0, kgrid_);
+      setup_time_.stop();
+      // Loop over m
+      for (int m = -ell; m <= ell; m++) {
+        fprintf(stdout, "# Computing %d %2d...", ell, m);
+
+        // Create the Ylm matrix times work_
+        // TODO: here, is it advantageous if dens1_ is padded as well, so its
+        // boundaries match with those of work?
+        ylm_time_.start();
+        make_ylm(ell, m, xcell_, ycell_, zcell_, 1.0, -wide_angle_exponent,
+                 &dens1_.data(), &work_.as_real_array());
+        ylm_time_.stop();
+        fprintf(stdout, "Ylm...");
+
+        // FFT in place
+        work_.execute_fft();
+
+        // Multiply by conj(dens2_fft), as complex numbers
+        // TODO: we could just store the conjugate form of dens2_fft.
+        mult_time_.start();
+        array_ops::multiply_with_conjugation(dens2_fft,
+                                             work_.as_complex_array());
+        mult_time_.stop();
+
+        // Extract the anisotropic power spectrum
+        // Load the Ylm's. Include the window correction and the SE15
+        // normalization.
+        ylm_time_.start();
+        make_ylm(ell, m, kx_, ky_, kz_, 4.0 * M_PI, wide_angle_exponent,
+                 &inv_window_, &kylm_);
+        ylm_time_.stop();
+        // Multiply these Ylm by the power result, and then add to total.
+        // TODO: we only need to extract the real part for an autocorrelation,
+        // since autocorrelations of real functions are even and therefore
+        // have purely real fourier transforms (another way to see this is
+        // that we multiply by the conjugate in fourier space). But cross
+        // correlations are not in general even and so the complex component
+        // is not generally zero. But we may be able to argue that it's
+        // negligible by isotropy of the universe...but that might not be true
+        // in redshift space? This may sink the idea of using this class to
+        // compute cross-correlations.
+        work_.extract_fft_submatrix_c2r(&kgrid_, &kylm_);
+
+        // iFFT the result, in place
+        work_.execute_ifft();
+        fprintf(stdout, "FFT...");
+
+        // Create Ylm for the submatrix that we'll extract for histogramming
+        // Include the SE15 normalization and the factor of ncells to finish
+        // the inverse FFT (FFTW doesn't include this factor automatically).
+        uint64 ncells = dens1_.data().size();
+        ylm_time_.start();
+        make_ylm(ell, m, rx_, ry_, rz_, 4.0 * M_PI / ncells,
+                 wide_angle_exponent, NULL, &rylm_);
+        ylm_time_.stop();
+
+        // Multiply these Ylm by the correlation result, and then add to
+        // total.
+        work_.extract_submatrix(&rgrid_, &rylm_);
+
+        fprintf(stdout, "Done!\n");
+        fflush(NULL);
+      }
+      hist_time_.start();
+      rhist_.accumulate(ell / 2, rnorm_, rgrid_);
+      khist_.accumulate(ell / 2, knorm_, kgrid_);
+      hist_time_.stop();
+      if (ell == 0) {
+        zerolag_ = rgrid_.at(rzero_[0], rzero_[1], rzero_[2]);
+      }
+    }
+    total_time_.stop();
+  }
 };
 
 #endif  // CORRELATE_H

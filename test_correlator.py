@@ -3,9 +3,8 @@ import time
 
 import numpy as np
 
-from fftcorr.correlate import Correlator
+from fftcorr.correlate import PeriodicCorrelator
 from fftcorr.grid import ConfigSpaceGrid
-from fftcorr.histogram import HistogramList
 from fftcorr.particle_mesh import MassAssignor
 
 DATA_FILE = "./test_data/abacus/smallmass/corrDD.dat"
@@ -61,8 +60,8 @@ dr = 10
 kmax = 0.4
 dk = 0.02
 maxell = 2
-c = Correlator(dens, rmax, dr, kmax, dk, maxell)
-c.correlate_periodic()
+c = PeriodicCorrelator(dens, rmax, dr, kmax, dk, maxell)
+c.correlate()
 print("Done correlating!")
 print(c.correlations())
 print(c.power_spectrum())
