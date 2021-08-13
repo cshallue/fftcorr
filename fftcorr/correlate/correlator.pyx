@@ -47,22 +47,30 @@ cdef class PeriodicCorrelator:
         else:
             self._periodic_correlator_cc.cross_correlate(dens1.cc_grid()[0], dens2.cc_grid()[0])
 
-    def correlations(self):
+    def correlations(self, squeeze=True):
+        r = self._correlation_r
+        xi = np.transpose(
+            self._correlation_histogram / self._correlation_counts)
+        histogram = np.transpose(self._correlation_histogram)
+        count = self._correlation_counts[0, :]
+        if squeeze:
+            xi = np.squeeze(xi)
+            histogram = np.squeeze(histogram)
         return astropy.table.Table(
-            data=(
-                self._correlation_r,
-                self._correlation_counts[0, :],
-                np.transpose(self._correlation_histogram),
-            ),
-            names=("r", "count", "histogram"),
+            data=(r, xi, histogram, count),
+            names=("r", "xi", "histogram", "count"),
             copy=True)
 
-    def power_spectrum(self):
+    def power_spectrum(self, squeeze=True):
+        k = self._power_spectrum_k
+        ps = np.transpose(
+            self._power_spectrum_histogram / self._power_spectrum_counts)
+        histogram = np.transpose(self._power_spectrum_histogram)
+        count = self._power_spectrum_counts[0, :]
+        if squeeze:
+            ps = np.squeeze(ps)
+            histogram = np.squeeze(histogram)
         return astropy.table.Table(
-            data=(
-                self._power_spectrum_k,
-                self._power_spectrum_counts[0, :],
-                np.transpose(self._power_spectrum_histogram),
-            ),
-            names=("k", "count", "histogram"),
+            data=(k, ps, histogram, count),
+            names=("k", "ps", "histogram", "count"),
             copy=True)
