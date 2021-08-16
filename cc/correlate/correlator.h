@@ -39,6 +39,16 @@ class BaseCorrelator {
         rhist_(maxell / 2 + 1, 0.0, rmax, dr),
         khist_(maxell / 2 + 1, 0.0, kmax, dk) {}
 
+  virtual void autocorrelate(const ConfigSpaceGrid &dens) = 0;
+
+  virtual void cross_correlate(const ConfigSpaceGrid &dens1) = 0;
+
+  void cross_correlate(const ConfigSpaceGrid &dens1,
+                       const ConfigSpaceGrid &dens2) {
+    set_dens2(dens2);
+    cross_correlate(dens1);
+  }
+
   void set_dens2(const ConfigSpaceGrid &dens2) {
     setup_time_.start();
     array_ops::copy_into_padded_array(dens2.data(), work_.as_real_array());
@@ -58,20 +68,6 @@ class BaseCorrelator {
     }
     array_ops::copy(work_.as_complex_array(), dens2_fft_);
     setup_time_.stop();
-  }
-
-  void autocorrelate(const ConfigSpaceGrid &dens) {
-    correlate_internal(dens, NULL);
-  }
-
-  void cross_correlate(const ConfigSpaceGrid &dens1) {
-    correlate_internal(dens1, &dens2_fft_);
-  }
-
-  void cross_correlate(const ConfigSpaceGrid &dens1,
-                       const ConfigSpaceGrid &dens2) {
-    set_dens2(dens2);
-    cross_correlate(dens1);
   }
 
   // Output accessors.
@@ -247,10 +243,6 @@ class BaseCorrelator {
     }
   }
 
-  virtual void correlate_internal(
-      const ConfigSpaceGrid &dens1,
-      const RowMajorArrayPtr<Complex, 3> *dens2_fft) = 0;
-
   // Inputs.
   Float rmax_;
   Float kmax_;
@@ -300,6 +292,14 @@ class BaseCorrelator {
 class PeriodicCorrelator : public BaseCorrelator {
  public:
   using BaseCorrelator::BaseCorrelator;  // Inherit constructors.
+
+  void autocorrelate(const ConfigSpaceGrid &dens) {
+    correlate_internal(dens, NULL);
+  }
+
+  void cross_correlate(const ConfigSpaceGrid &dens1) {
+    correlate_internal(dens1, &dens2_fft_);
+  }
 
  protected:
   void correlate_internal(const ConfigSpaceGrid &dens1,
@@ -392,6 +392,14 @@ class Correlator : public BaseCorrelator {
  public:
   using BaseCorrelator::BaseCorrelator;  // Inherit constructors.
 
+  void autocorrelate(const ConfigSpaceGrid &dens) {
+    BaseCorrelator::cross_correlate(dens, dens);
+  }
+
+  void cross_correlate(const ConfigSpaceGrid &dens1) {
+    correlate_internal(dens1);
+  }
+
  protected:
   void setup_correlate(const ConfigSpaceGrid &dens) {
     BaseCorrelator::setup_correlate(dens);
@@ -423,8 +431,7 @@ class Correlator : public BaseCorrelator {
     zcell_ = sequence(0.5 - observer[2], 1.0, dens.shape(2));
   }
 
-  void correlate_internal(const ConfigSpaceGrid &dens1,
-                          const RowMajorArrayPtr<Complex, 3> *dens2_fft) {
+  void correlate_internal(const ConfigSpaceGrid &dens1) {
     constexpr int wide_angle_exponent = 0;  // TODO: do we still need this?
     total_time_.start();
     setup_correlate(dens1);
@@ -435,10 +442,6 @@ class Correlator : public BaseCorrelator {
     work_.execute_fft();
     fprintf(stdout, "# Done!\n");
     fflush(NULL);
-
-    if (!dens2_fft) {
-      dens2_fft = &work_.as_complex_array();  // Autocorrelation.
-    }
 
     /* ------------ Loop over ell & m --------------- */
     // Loop over each ell to compute the anisotropic correlations
@@ -467,7 +470,7 @@ class Correlator : public BaseCorrelator {
         // Multiply by conj(dens2_fft), as complex numbers
         // TODO: we could just store the conjugate form of dens2_fft.
         mult_time_.start();
-        array_ops::multiply_with_conjugation(*dens2_fft,
+        array_ops::multiply_with_conjugation(dens2_fft_,
                                              work_.as_complex_array());
         mult_time_.stop();
 
