@@ -252,11 +252,6 @@ class BaseCorrelator {
   FftGrid work_;
   unsigned fftw_flags_;
 
-  // Configuration-space arrays
-  Array1D<Float> xcell_;
-  Array1D<Float> ycell_;
-  Array1D<Float> zcell_;
-
   // Separation-space arrays.
   RowMajorArray<Float, 3> rgrid_;  // TODO: rtotal_?
   std::array<int, 3> rzero_;
@@ -523,6 +518,11 @@ class Correlator : public BaseCorrelator {
     }
     total_time_.stop();
   }
+
+  // Configuration-space arrays
+  Array1D<Float> xcell_;
+  Array1D<Float> ycell_;
+  Array1D<Float> zcell_;
 };
 
 #endif  // CORRELATE_H
