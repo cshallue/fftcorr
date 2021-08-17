@@ -10,6 +10,12 @@
 #include "array/row_major_array.h"
 #include "numpy_types.h"
 
+template <typename dtype, std::size_t N>
+PyObject* copy_to_numpy(const RowMajorArrayPtr<dtype, N>& arr) {
+  PyObject* wrapped_arr = as_numpy(arr);
+  return PyArray_NewCopy((PyArrayObject*)wrapped_arr, NPY_CORDER);
+}
+
 // Returns a numpy array wrapper around data pointed to by a RowMajorArrayPtr.
 // It is the responsibility of the caller to ensure that underlying memory is
 // not freed as long as the returned array is in existence.

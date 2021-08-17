@@ -149,7 +149,9 @@ class RowMajorArray<dtype, 1> : public RowMajorArrayBase<dtype, 1> {
   RowMajorArray(const std::array<int, 1> &shape)
       : RowMajorArrayBase<dtype, 1>(shape) {}
   RowMajorArray(int size) : RowMajorArrayBase<dtype, 1>({size}) {}
-  void allocate(int size) { this->allocate({size}); }
+  void allocate(int size) {
+    RowMajorArrayBase<dtype, 1>::allocate(std::array<int, 1>({size}));
+  }
 };
 
 template <typename dtype>

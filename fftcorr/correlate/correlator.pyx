@@ -1,4 +1,4 @@
-from fftcorr.array.numpy_adaptor cimport as_numpy
+from fftcorr.array.numpy_adaptor cimport copy_to_numpy
 from fftcorr.grid cimport ConfigSpaceGrid
 from fftcorr.histogram cimport HistogramList
 
@@ -28,12 +28,24 @@ cdef class PeriodicCorrelator:
         # These are references to the internal C++ arrays and therefore should
         # be copied before being exposed to the user (they change with
         # subsequent correlation calls).
-        self._correlation_r = as_numpy(self._periodic_correlator_cc.correlation_r())
-        self._correlation_counts = as_numpy(self._periodic_correlator_cc.correlation_counts())
-        self._correlation_histogram = as_numpy(self._periodic_correlator_cc.correlation_histogram())
-        self._power_spectrum_k = as_numpy(self._periodic_correlator_cc.power_spectrum_k())
-        self._power_spectrum_counts = as_numpy(self._periodic_correlator_cc.power_spectrum_counts())
-        self._power_spectrum_histogram = as_numpy(self._periodic_correlator_cc.power_spectrum_histogram())
+
+    cdef cnp.ndarray _correlation_r(self):
+        return copy_to_numpy(self._periodic_correlator_cc.correlation_r())
+
+    cdef cnp.ndarray _correlation_counts(self):
+        return copy_to_numpy(self._periodic_correlator_cc.correlation_counts())
+
+    cdef cnp.ndarray _correlation_histogram(self):
+        return copy_to_numpy(self._periodic_correlator_cc.correlation_histogram())
+
+    cdef cnp.ndarray _power_spectrum_k(self):
+        return copy_to_numpy(self._periodic_correlator_cc.power_spectrum_k())
+
+    cdef cnp.ndarray _power_spectrum_counts(self):
+        return copy_to_numpy(self._periodic_correlator_cc.power_spectrum_counts())
+
+    cdef cnp.ndarray _power_spectrum_histogram(self):
+        return copy_to_numpy(self._periodic_correlator_cc.power_spectrum_histogram())
 
     def set_dens2(self, ConfigSpaceGrid dens2):
         self._periodic_correlator_cc.set_dens2(dens2.cc_grid()[0])
@@ -48,29 +60,27 @@ cdef class PeriodicCorrelator:
             self._periodic_correlator_cc.cross_correlate(dens1.cc_grid()[0], dens2.cc_grid()[0])
 
     def correlations(self, squeeze=True):
-        r = self._correlation_r
-        xi = np.transpose(
-            self._correlation_histogram / self._correlation_counts)
-        histogram = np.transpose(self._correlation_histogram)
-        count = self._correlation_counts[0, :]
+        r = self._correlation_r()
+        histogram = self._correlation_histogram()
+        counts = self._correlation_counts()
+        xi = histogram / counts
         if squeeze:
             xi = np.squeeze(xi)
             histogram = np.squeeze(histogram)
         return astropy.table.Table(
-            data=(r, xi, histogram, count),
+            data=(r, np.transpose(xi), np.transpose(histogram), counts[0, :]),
             names=("r", "xi", "histogram", "count"),
             copy=True)
 
     def power_spectrum(self, squeeze=True):
-        k = self._power_spectrum_k
-        ps = np.transpose(
-            self._power_spectrum_histogram / self._power_spectrum_counts)
-        histogram = np.transpose(self._power_spectrum_histogram)
-        count = self._power_spectrum_counts[0, :]
+        k = self._power_spectrum_k()
+        histogram = self._power_spectrum_histogram()
+        counts = self._power_spectrum_counts()
+        ps = histogram / counts
         if squeeze:
             ps = np.squeeze(ps)
             histogram = np.squeeze(histogram)
         return astropy.table.Table(
-            data=(k, ps, histogram, count),
+            data=(k, np.transpose(ps), np.transpose(histogram), counts[0, :]),
             names=("k", "ps", "histogram", "count"),
             copy=True)

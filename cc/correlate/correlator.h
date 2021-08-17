@@ -31,13 +31,15 @@ class BaseCorrelator {
  public:
   BaseCorrelator(const std::array<int, 3> shape, Float rmax, Float dr,
                  Float kmax, Float dk, int maxell, unsigned fftw_flags)
-      : rmax_(rmax),
+      : shape_(shape),
+        rmax_(rmax),
+        dr_(dr),
         kmax_(kmax),
+        dk_(dk),
         maxell_(maxell),
-        work_(shape),
-        fftw_flags_(fftw_flags),
-        rhist_(maxell / 2 + 1, 0.0, rmax, dr),
-        khist_(maxell / 2 + 1, 0.0, kmax, dk) {}
+        work_(shape) {
+    work_.plan_fft(fftw_flags);
+  }
 
   virtual void autocorrelate(const ConfigSpaceGrid &dens) = 0;
 
@@ -51,8 +53,8 @@ class BaseCorrelator {
 
   void set_dens2(const ConfigSpaceGrid &dens2) {
     setup_time_.start();
+    set_or_validate_grid_info(dens2);
     array_ops::copy_into_padded_array(dens2.data(), work_.as_real_array());
-    setup_fft();
     setup_time_.stop();
 
     fprintf(stdout, "# Computing the density 2 FFT...");
@@ -100,33 +102,40 @@ class BaseCorrelator {
   Float total_time() const { return total_time_.elapsed_sec(); }
 
  protected:
-  void setup_fft() {
-    if (!work_.fft_ready()) {
-      work_.plan_fft(fftw_flags_);  // Planning may destroy data in work_.
+  void set_or_validate_grid_info(const ConfigSpaceGrid &dens) {
+    if (cell_size_ == 0) {
+      cell_size_ = dens.cell_size();
+      posmin_ = dens.posmin();  // TODO: only needed in nonperiodic case.
+      window_type_ = dens.window_type();
     }
+    // Make sure we're correlating between two grids of compatible dimensions.
+    assert(shape_ == dens.shape());
+    const Float tolerance = 1e-4;  // Crude, but just a sanity check.
+    assert(abs((cell_size_ - dens.cell_size()) / cell_size_) < tolerance);
+    assert(window_type_ == dens.window_type());
+    assert(posmin_ == dens.posmin());  // TODO: only needed in nonperiodic case.
   }
 
   void setup_correlate(const ConfigSpaceGrid &dens) {
     setup_time_.start();
-    setup_fft();
+    set_or_validate_grid_info(dens);
     if (!rgrid_.data()) {
-      setup_rgrid(dens);
+      setup_rgrid();
+      setup_kgrid();
+      rhist_.initialize(maxell_ / 2 + 1, 0.0, rmax_, dr_);
+      khist_.initialize(maxell_ / 2 + 1, 0.0, kmax_, dk_);
+    } else {
+      rhist_.reset();
+      khist_.reset();
     }
-    if (!kgrid_.data()) {
-      setup_kgrid(dens);
-    }
-    rhist_.reset();
-    khist_.reset();
-    zerolag_ = -1.0;
     setup_time_.stop();
   }
 
-  void setup_rgrid(const ConfigSpaceGrid &dens) {
+  void setup_rgrid() {
     // Create the separation-space subgrid.
-    Float cell_size = dens.cell_size();
-    int rmax_cells = ceil(rmax_ / cell_size);  // rmax in grid cell units.
+    int rmax_cells = ceil(rmax_ / cell_size_);  // rmax in grid cell units.
     fprintf(stderr, "rmax = %f, cell_size = %f, rmax_cells =%d\n", rmax_,
-            cell_size, rmax_cells);
+            cell_size_, rmax_cells);
     // Number of cells in each dimension of the subgrid.
     int sizex = 2 * rmax_cells + 1;  // Include negative separation vectors.
     std::array<int, 3> rshape = {sizex, sizex, sizex};
@@ -135,9 +144,10 @@ class BaseCorrelator {
     rgrid_.allocate(rshape);
 
     // The axes of the cell centers in separation space in physical units.
-    rx_ = sequence(-cell_size * rmax_cells, cell_size, rshape[0]);
-    ry_ = sequence(-cell_size * rmax_cells, cell_size, rshape[1]);
-    rz_ = sequence(-cell_size * rmax_cells, cell_size, rshape[2]);
+    const Float minsep = -cell_size_ * rmax_cells;
+    rx_ = sequence(minsep, cell_size_, rshape[0]);
+    ry_ = sequence(minsep, cell_size_, rshape[1]);
+    rz_ = sequence(minsep, cell_size_, rshape[2]);
 
     // Radius of each separation-space subgrid cell in physical units.
     rnorm_.allocate(rshape);
@@ -156,25 +166,23 @@ class BaseCorrelator {
     rylm_.allocate(rshape);
   }
 
-  void setup_kgrid(const ConfigSpaceGrid &dens) {
+  void setup_kgrid() {
     // Create the Fourier-space subgrid.
     // Our box has cubic-sized cells, so k_Nyquist is the same in all
     // directions. The spacing of modes is therefore 2*k_Nyq/ngrid.
-    const std::array<int, 3> &ngrid = dens.shape();
-    Float cell_size = dens.cell_size();
-    Float k_Nyq = M_PI / cell_size;  // The Nyquist frequency for our grid.
+    Float k_Nyq = M_PI / cell_size_;  // The Nyquist frequency for our grid.
     // Number of cells in the subgrid.
     std::array<int, 3> kshape;
     for (int i = 0; i < 3; ++i) {
-      kshape[i] = 2 * ceil(kmax_ / (2.0 * k_Nyq / ngrid[i])) + 1;
+      kshape[i] = 2 * ceil(kmax_ / (2.0 * k_Nyq / shape_[i])) + 1;
     }
     fprintf(stdout, "# Storing wavenumbers up to %6.4f, with k_Nyq = %6.4f\n",
             kmax_, k_Nyq);
     for (int i = 0; i < 3; ++i) {
-      if (kshape[i] > ngrid[i]) {
+      if (kshape[i] > shape_[i]) {
         // TODO: in the corner case of kmax ~= k_Nyq, this can be greater than
         // ngrid[i].
-        kshape[i] = 2 * floor(ngrid[i] / 2) + 1;
+        kshape[i] = 2 * floor(shape_[i] / 2) + 1;
         fprintf(stdout,
                 "# WARNING: Requested wavenumber is too big. Truncating "
                 "shape[%d] to %d\n",
@@ -188,12 +196,12 @@ class BaseCorrelator {
     fprintf(stderr, "kshape = [%d, %d, %d]\n", kshape[0], kshape[1], kshape[2]);
 
     // The axes in Fourier space.
-    kx_ = sequence((-kshape[0] / 2) * 2.0 * k_Nyq / ngrid[0],
-                   2.0 * k_Nyq / ngrid[0], kshape[0]);
-    ky_ = sequence((-kshape[1] / 2) * 2.0 * k_Nyq / ngrid[1],
-                   2.0 * k_Nyq / ngrid[1], kshape[1]);
-    kz_ = sequence((-kshape[2] / 2) * 2.0 * k_Nyq / ngrid[2],
-                   2.0 * k_Nyq / ngrid[2], kshape[2]);
+    kx_ = sequence((-kshape[0] / 2) * 2.0 * k_Nyq / shape_[0],
+                   2.0 * k_Nyq / shape_[0], kshape[0]);
+    ky_ = sequence((-kshape[1] / 2) * 2.0 * k_Nyq / shape_[1],
+                   2.0 * k_Nyq / shape_[1], kshape[1]);
+    kz_ = sequence((-kshape[2] / 2) * 2.0 * k_Nyq / shape_[2],
+                   2.0 * k_Nyq / shape_[2], kshape[2]);
 
     // Frequency of each freqency subgrid cell in physical units.
     knorm_.allocate(kshape);
@@ -213,15 +221,15 @@ class BaseCorrelator {
     for (int i = 0; i < kshape[0]; ++i) {
       for (int j = 0; j < kshape[1]; ++j) {
         for (int k = 0; k < kshape[2]; ++k) {
-          switch (dens.window_type()) {
+          switch (window_type_) {
             case kNearestCell:
               window = 1.0;
               break;
             case kCloudInCell: {
               // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
-              Float sinkxL = sin(kx_[i] * cell_size / 2.0);
-              Float sinkyL = sin(ky_[j] * cell_size / 2.0);
-              Float sinkzL = sin(kz_[k] * cell_size / 2.0);
+              Float sinkxL = sin(kx_[i] * cell_size_ / 2.0);
+              Float sinkyL = sin(ky_[j] * cell_size_ / 2.0);
+              Float sinkzL = sin(kz_[k] * cell_size_ / 2.0);
               sinkxL *= sinkxL;
               sinkyL *= sinkyL;
               sinkzL *= sinkzL;
@@ -243,14 +251,21 @@ class BaseCorrelator {
     }
   }
 
-  // Inputs.
+  // Input arguments.
+  std::array<int, 3> shape_;  // Dimensions of the real-space input grid.
   Float rmax_;
+  Float dr_;
   Float kmax_;
-  int maxell_;
+  Float dk_;
+  Float maxell_;
 
   // Work space for FFTs.
   FftGrid work_;
-  unsigned fftw_flags_;
+
+  // Physical dimensions of the input grid.
+  Float cell_size_ = 0;
+  std::array<Float, 3> posmin_;  // TODO: only needed for nonperiodic case
+  WindowType window_type_;
 
   // Separation-space arrays.
   RowMajorArray<Float, 3> rgrid_;  // TODO: rtotal_?
@@ -294,6 +309,12 @@ class PeriodicCorrelator : public BaseCorrelator {
 
   void cross_correlate(const ConfigSpaceGrid &dens1) {
     correlate_internal(dens1, &dens2_fft_);
+  }
+
+  // TODO: this appears to be necessary for cython?
+  void cross_correlate(const ConfigSpaceGrid &dens1,
+                       const ConfigSpaceGrid &dens2) {
+    BaseCorrelator::cross_correlate(dens1, dens2);
   }
 
  protected:

@@ -32,9 +32,9 @@ cdef extern from "correlator.h":
 
 cdef class PeriodicCorrelator:
     cdef PeriodicCorrelator_cc* _periodic_correlator_cc
-    cdef cnp.ndarray _correlation_r
-    cdef cnp.ndarray _correlation_counts
-    cdef cnp.ndarray _correlation_histogram
-    cdef cnp.ndarray _power_spectrum_k
-    cdef cnp.ndarray _power_spectrum_counts
-    cdef cnp.ndarray _power_spectrum_histogram
+    cdef cnp.ndarray _correlation_r(self)
+    cdef cnp.ndarray _correlation_counts(self)
+    cdef cnp.ndarray _correlation_histogram(self)
+    cdef cnp.ndarray _power_spectrum_k(self)
+    cdef cnp.ndarray _power_spectrum_counts(self)
+    cdef cnp.ndarray _power_spectrum_histogram(self)

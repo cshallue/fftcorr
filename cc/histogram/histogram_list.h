@@ -9,24 +9,32 @@
 
 class HistogramList {
  public:
-  HistogramList(int n, Float minval, Float maxval, Float binsize)
-      : minval_(minval),
-        binsize_(binsize),
-        nbins_(floor((maxval - minval) / binsize)),
-        bins_(nbins_),
-        counts_({n, nbins_}),
-        hist_values_({n, nbins_}) {
-    assert(n > 0);
-    assert(maxval > minval);
-    assert(binsize > 0);
-    for (int i = 0; i < nbins_; ++i) bins_[i] = (i + 0.5) * binsize_;
-    reset();
+  // Default constructor. Must call initialize() before using the object.
+  HistogramList() {}
+
+  HistogramList(int n, Float minval, Float maxval, Float binsize) {
+    initialize(n, minval, maxval, binsize);
   }
 
   int nbins() const { return nbins_; }
   const ArrayPtr1D<Float> &bins() const { return bins_; }
   const RowMajorArrayPtr<int, 2> &counts() const { return counts_; }
   const RowMajorArrayPtr<Float, 2> &hist_values() const { return hist_values_; }
+
+  void initialize(int n, Float minval, Float maxval, Float binsize) {
+    fprintf(stderr, "HistogramList initialize\n");
+    assert(n > 0);
+    assert(maxval > minval);
+    assert(binsize > 0);
+    minval_ = minval;
+    binsize_ = binsize;
+    nbins_ = floor((maxval - minval) / binsize);
+    bins_.allocate(nbins_);
+    counts_.allocate({n, nbins_});
+    hist_values_.allocate({n, nbins_});
+    for (int i = 0; i < nbins_; ++i) bins_[i] = (i + 0.5) * binsize_;
+    reset();
+  }
 
   void accumulate(int ih, const Array<Float> &x, const Array<Float> &y) {
     assert(ih < counts_.shape(0));

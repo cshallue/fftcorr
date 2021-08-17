@@ -23,6 +23,7 @@ class ConfigSpaceGrid {
   const std::array<int, 3>& shape() const { return shape_; }
   int shape(int i) const { return shape_[i]; }
   uint64 size() const { return grid_.size(); }
+  const std::array<Float, 3>& posmin() const { return posmin_; }
   Float posmin(int i) const { return posmin_[i]; }
   Float cell_size() const { return cell_size_; }
   WindowType window_type() const { return window_type_; }
