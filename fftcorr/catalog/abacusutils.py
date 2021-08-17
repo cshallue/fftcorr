@@ -48,10 +48,11 @@ class HaloFileReader(AbacusFileReader):
 class ParticleFileReader(AbacusFileReader):
     def read(self, filename, load_velocity=False):
         with asdf.open(filename, lazy_load=True) as af:
+            velout = None if load_velocity else False
             posvel = unpack_rvint(af.tree["data"]["rvint"],
                                   boxsize=af.tree["header"]["BoxSize"],
                                   float_dtype=np.float64,
-                                  velout=load_velocity)
+                                  velout=velout)
             data = AbacusData(header=af.tree["header"],
                               pos=posvel[0],
                               weight=1.0,
