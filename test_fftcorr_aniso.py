@@ -87,7 +87,6 @@ class TestSetupCPP(BaseTest):
 
 
 class TestCorrelateCPP(BaseTest):
-    @unittest.skip("Turn off while developing C++ code")
     def run_test(self):
         ref_dd_infile = os.path.join(DATA_DIR, self.hemisphere, "corrDD.dat")
         ref_rr_infile = os.path.join(DATA_DIR, self.hemisphere, "corrRR.dat")

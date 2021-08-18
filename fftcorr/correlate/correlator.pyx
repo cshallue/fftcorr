@@ -1,6 +1,6 @@
-from fftcorr.array.numpy_adaptor cimport copy_to_numpy
-from fftcorr.grid cimport ConfigSpaceGrid
+from fftcorr.array.numpy_adaptor cimport copy_to_numpy, as_RowMajorArrayPtr
 from fftcorr.histogram cimport HistogramList
+from fftcorr.particle_mesh.window_type cimport WindowType
 
 # TODO: can numpy_adaptor take care of this? address boundary errors without it
 cimport numpy as cnp
@@ -12,19 +12,20 @@ import astropy.table
 cdef class PeriodicCorrelator:
     def __cinit__(self,
                   shape,
+                  Float cell_size,
+                  WindowType window_type,
                   Float rmax,
                   Float dr,
                   Float kmax,
                   Float dk,
                   int maxell,
-                  ConfigSpaceGrid dens2 = None,
                   # TODO: use enum?
                   unsigned fftw_flags = 0):
         shape = np.ascontiguousarray(shape, dtype=np.intc)
         cdef cnp.ndarray[int, ndim=1, mode="c"] cshape = shape
 
         self._periodic_correlator_cc = new PeriodicCorrelator_cc(
-            (<array[int, Three] *> &cshape[0])[0], rmax, dr, kmax, dk, maxell, fftw_flags)
+            (<array[int, Three] *> &cshape[0])[0], cell_size, window_type, rmax, dr, kmax, dk, maxell, fftw_flags)
         # These are references to the internal C++ arrays and therefore should
         # be copied before being exposed to the user (they change with
         # subsequent correlation calls).
@@ -47,17 +48,19 @@ cdef class PeriodicCorrelator:
     cdef cnp.ndarray _power_spectrum_histogram(self):
         return copy_to_numpy(self._periodic_correlator_cc.power_spectrum_histogram())
 
-    def set_dens2(self, ConfigSpaceGrid dens2):
-        self._periodic_correlator_cc.set_dens2(dens2.cc_grid()[0])
+    def set_dens2(self, cnp.ndarray dens2):
+        self._periodic_correlator_cc.set_dens2(as_RowMajorArrayPtr[Float, Three](dens2))
 
-    def autocorrelate(self, ConfigSpaceGrid dens):
-        self._periodic_correlator_cc.autocorrelate(dens.cc_grid()[0])
+    def autocorrelate(self, cnp.ndarray dens):
+        self._periodic_correlator_cc.autocorrelate(as_RowMajorArrayPtr[Float, Three](dens))
 
-    def cross_correlate(self, ConfigSpaceGrid dens1, ConfigSpaceGrid dens2=None):
+    def cross_correlate(self, cnp.ndarray dens1, cnp.ndarray dens2=None):
         if dens2 is None:
-            self._periodic_correlator_cc.cross_correlate(dens1.cc_grid()[0])
+            self._periodic_correlator_cc.cross_correlate(as_RowMajorArrayPtr[Float, Three](dens1))
         else:
-            self._periodic_correlator_cc.cross_correlate(dens1.cc_grid()[0], dens2.cc_grid()[0])
+            self._periodic_correlator_cc.cross_correlate(
+                as_RowMajorArrayPtr[Float, Three](dens1),
+                as_RowMajorArrayPtr[Float, Three](dens2))
 
     def correlations(self, squeeze=True):
         r = self._correlation_r()

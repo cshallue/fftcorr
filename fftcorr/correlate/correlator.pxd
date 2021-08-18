@@ -4,24 +4,25 @@ from libcpp cimport bool
 
 cimport numpy as cnp
 
-from fftcorr.grid cimport ConfigSpaceGrid_cc
 from fftcorr.array cimport RowMajorArrayPtr
-from fftcorr.types cimport Float, array, One, Two
+from fftcorr.types cimport Float, array, One, Two, Three
 
 cdef extern from "correlator.h":
   cdef cppclass PeriodicCorrelator_cc "PeriodicCorrelator":
     PeriodicCorrelator_cc(const array[int, Three]& shape,
+                          Float cell_size,
+                          int window_type,  # TODO: enum type?
                           Float rmax,
                           Float dr,
                           Float kmax,
                           Float dk,
                           int maxell,
                           unsigned fftw_flags) except +
-    void set_dens2(const ConfigSpaceGrid_cc& dens2)
-    void autocorrelate(const ConfigSpaceGrid_cc& dens1)
-    void cross_correlate(const ConfigSpaceGrid_cc& dens1)
-    void cross_correlate(const ConfigSpaceGrid_cc& dens1,
-                         const ConfigSpaceGrid_cc& dens2)
+    void set_dens2(const RowMajorArrayPtr[Float, Three]& dens2)
+    void autocorrelate(const RowMajorArrayPtr[Float, Three]& dens1)
+    void cross_correlate(const RowMajorArrayPtr[Float, Three]& dens1)
+    void cross_correlate(const RowMajorArrayPtr[Float, Three]& dens1,
+                         const RowMajorArrayPtr[Float, Three]& dens2)
     Float zerolag()
     const RowMajorArrayPtr[Float, One]& correlation_r()
     const RowMajorArrayPtr[int, Two]& correlation_counts()

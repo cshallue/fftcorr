@@ -416,14 +416,16 @@ int main(int argc, char *argv[]) {
   // Compute the correlations.
   BaseCorrelator *corr;  // TODO: is this what we want to do?
   if (periodic) {
-    corr = new PeriodicCorrelator(grid.shape(), sep, dsep, kmax, dk, maxell,
-                                  FFTW_MEASURE);
+    corr = new PeriodicCorrelator(grid.shape(), grid.cell_size(),
+                                  grid.window_type(), sep, dsep, kmax, dk,
+                                  maxell, FFTW_MEASURE);
   } else {
     // fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
-    corr =
-        new Correlator(grid.shape(), sep, dsep, kmax, dk, maxell, FFTW_MEASURE);
+    corr = new Correlator(grid.shape(), grid.cell_size(), grid.posmin(),
+                          grid.window_type(), sep, dsep, kmax, dk, maxell,
+                          FFTW_MEASURE);
   }
-  corr->autocorrelate(grid);
+  corr->autocorrelate(grid.data());
   Ylm_count.print(stdout);
   fprintf(stdout, "# Anisotropic power spectrum:\n");
   print_hist(corr->power_spectrum_k(), corr->power_spectrum_counts(),
