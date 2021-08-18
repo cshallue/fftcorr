@@ -38,7 +38,8 @@ print("window time =", ma.window_time)
 print()
 
 print("adding particle")
-ma.add_particle_to_buffer(10, 10, 100, 12)
+posw = np.array([[10, 10, 100, 12]], dtype=np.float64)
+ma.add_particles(posw)
 print("num_added =", ma.num_added)
 print("totw =", ma.totw)
 print("totwsq =", ma.totwsq)
@@ -94,30 +95,7 @@ print("totw =", ma.totw)
 print("sum =", np.sum(g))
 print()
 
-# Test displacement field.
-g.clear()
-disp = np.random.uniform(-1.0, 1.0, size=ngrid + [3])
-ma = fftcorr.particle_mesh.MassAssignor(g, buffer_size=100, disp=disp)
-ma.add_particles(pos, 1.0)
-print("num_added =", ma.num_added)
-print("totw =", ma.totw)
-print("sum =", np.sum(g))
-print()
-
-# Test displacement field with large displacements that push outside the boundary.
-g.clear()
-ma.clear()
-disp = np.random.uniform(-1000.0, 1000.0, size=ngrid + [3])
-ma = fftcorr.particle_mesh.MassAssignor(g, buffer_size=100, disp=disp)
-ma.add_particles(pos, 1.0)
-print("num_added =", ma.num_added)
-print("totw =", ma.totw)
-print("sum =", np.sum(g))
-print("posmin =", ma.posmin)
-print("posmax =", ma.posmax)
-
 # Try a bunch of things that shouldn't work.
-print()
 
 # Too many dimensions
 pos = np.zeros(shape=(2, 3, 4), dtype=np.float64)
