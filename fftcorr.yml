@@ -17,8 +17,6 @@ dependencies:
   - git
   - pip
   - pip:
-    - git+https://github.com/lgarrison/asdf.git
-    - abacusutils
     - absl-py
     - yapf
     - isort
