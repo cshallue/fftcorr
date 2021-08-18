@@ -406,7 +406,7 @@ class Correlator : public BaseCorrelator {
     std::array<Float, 3> observer;
     // Put the observer at the origin of the survey coordinate system.
     for (int i = 0; i < 3; ++i) {
-      observer[i] = posmin_[i] / cell_size_;
+      observer[i] = -posmin_[i] / cell_size_;
     }
     // We cab simulate a periodic box by puting the observer centered in the
     // grid, but displaced far away in the -x direction. This is an
