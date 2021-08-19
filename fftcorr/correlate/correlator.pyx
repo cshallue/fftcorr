@@ -48,21 +48,7 @@ cdef class PeriodicCorrelator:
     cdef cnp.ndarray _power_spectrum_histogram(self):
         return copy_to_numpy(self._periodic_correlator_cc.power_spectrum_histogram())
 
-    def set_dens2(self, cnp.ndarray dens2):
-        self._periodic_correlator_cc.set_dens2(as_RowMajorArrayPtr[Float, Three](dens2))
-
-    def autocorrelate(self, cnp.ndarray dens):
-        self._periodic_correlator_cc.autocorrelate(as_RowMajorArrayPtr[Float, Three](dens))
-
-    def cross_correlate(self, cnp.ndarray dens1, cnp.ndarray dens2=None):
-        if dens2 is None:
-            self._periodic_correlator_cc.cross_correlate(as_RowMajorArrayPtr[Float, Three](dens1))
-        else:
-            self._periodic_correlator_cc.cross_correlate(
-                as_RowMajorArrayPtr[Float, Three](dens1),
-                as_RowMajorArrayPtr[Float, Three](dens2))
-
-    def correlations(self, squeeze=True):
+    def _correlation(self, squeeze=True):
         r = self._correlation_r()
         histogram = self._correlation_histogram()
         counts = self._correlation_counts()
@@ -75,7 +61,7 @@ cdef class PeriodicCorrelator:
             names=("r", "xi", "histogram", "count"),
             copy=True)
 
-    def power_spectrum(self, squeeze=True):
+    def _power_spectrum(self, squeeze=True):
         k = self._power_spectrum_k()
         histogram = self._power_spectrum_histogram()
         counts = self._power_spectrum_counts()
@@ -87,3 +73,28 @@ cdef class PeriodicCorrelator:
             data=(k, np.transpose(ps), np.transpose(histogram), counts[0, :]),
             names=("k", "ps", "histogram", "count"),
             copy=True)
+
+    def set_dens2(self, dens2):
+        # TODO: dtype should be set somewhere global. Here and below.
+        dens2 = np.ascontiguousarray(dens2, dtype=np.float64)
+        self._periodic_correlator_cc.set_dens2(as_RowMajorArrayPtr[Float, Three](dens2))
+
+    def autocorrelate(self, dens, squeeze=True):
+        # TODO: as_RowMajorArrayPtr currently raises an error if the argument is
+        # not writeable, but in this case it could be since the Correlator takes
+        # a const RowMajorArrayPtr.
+        dens = np.ascontiguousarray(dens, dtype=np.float64)
+        self._periodic_correlator_cc.autocorrelate(as_RowMajorArrayPtr[Float, Three](dens))
+        return self._power_spectrum(squeeze), self._correlation(squeeze)
+
+    def cross_correlate(self, dens1, dens2=None, squeeze=True):
+        dens1 = np.ascontiguousarray(dens1, dtype=np.float64)
+        if dens2 is None:
+            self._periodic_correlator_cc.cross_correlate(as_RowMajorArrayPtr[Float, Three](dens1))
+        else:
+            dens2 = np.ascontiguousarray(dens2, dtype=np.float64)
+            self._periodic_correlator_cc.cross_correlate(
+                as_RowMajorArrayPtr[Float, Three](dens1),
+                as_RowMajorArrayPtr[Float, Three](dens2))
+
+        return self._power_spectrum(squeeze), self._correlation(squeeze)
