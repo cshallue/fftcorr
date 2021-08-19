@@ -299,6 +299,9 @@ class PeriodicCorrelator : public BaseCorrelator {
   void correlate_internal(const RowMajorArrayPtr<Float, 3> &dens1,
                           const RowMajorArrayPtr<Complex, 3> *dens2_fft) {
     total_time_.start();
+    rhist_.reset();
+    khist_.reset();
+
     array_ops::copy_into_padded_array(dens1, work_.as_real_array());
     fprintf(stdout, "# Computing the density 1 FFT...");
     fflush(NULL);
@@ -427,6 +430,9 @@ class Correlator : public BaseCorrelator {
   void correlate_internal(const RowMajorArrayPtr<Float, 3> &dens1) {
     constexpr int wide_angle_exponent = 0;  // TODO: do we still need this?
     total_time_.start();
+    rhist_.reset();
+    khist_.reset();
+
     array_ops::copy_into_padded_array(dens1, work_.as_real_array());
     fprintf(stdout, "# Computing the density 1 FFT...");
     fflush(NULL);
