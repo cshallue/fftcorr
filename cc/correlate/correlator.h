@@ -50,6 +50,8 @@ class BaseCorrelator {
     setup_time_.stop();
   }
 
+  virtual ~BaseCorrelator() {}
+
   virtual void autocorrelate(const RowMajorArrayPtr<Float, 3> &dens) = 0;
 
   virtual void cross_correlate(const RowMajorArrayPtr<Float, 3> &dens1) = 0;
