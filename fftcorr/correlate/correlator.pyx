@@ -30,6 +30,9 @@ cdef class PeriodicCorrelator:
         # be copied before being exposed to the user (they change with
         # subsequent correlation calls).
 
+    def __dealloc__(self):
+        del self._periodic_correlator_cc
+
     cdef cnp.ndarray _correlation_r(self):
         return copy_to_numpy(self._periodic_correlator_cc.correlation_r())
 
