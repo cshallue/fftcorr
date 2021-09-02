@@ -1,6 +1,7 @@
 from fftcorr.array.numpy_adaptor cimport copy_to_numpy, as_RowMajorArrayPtr
 from fftcorr.histogram cimport HistogramList
 from fftcorr.particle_mesh.window_type cimport WindowType
+from fftcorr.grid cimport ConfigSpaceGrid
 
 # TODO: can numpy_adaptor take care of this? address boundary errors without it
 cimport numpy as cnp
@@ -32,6 +33,27 @@ cdef class PeriodicCorrelator:
 
     def __dealloc__(self):
         del self._periodic_correlator_cc
+
+    # TODO: this method implies that we might want to have a ConfigSpaceGridSpec
+    # class and the user would pass in grid.spec.
+    @classmethod
+    def from_grid_spec(cls,
+                       ConfigSpaceGrid grid,
+                       Float rmax,
+                       Float dr,
+                       Float kmax,
+                       Float dk,
+                       int maxell,
+                       unsigned fftw_flags = 0):
+        return cls(shape=grid.shape,
+                cell_size=grid.cell_size,
+                window_type=grid.window_type,
+                rmax=rmax,
+                dr=dr,
+                kmax=kmax,
+                dk=dk,
+                maxell=maxell,
+                fftw_flags=fftw_flags)
 
     cdef cnp.ndarray _correlation_r(self):
         return copy_to_numpy(self._periodic_correlator_cc.correlation_r())

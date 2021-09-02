@@ -60,8 +60,7 @@ dr = 10
 kmax = 0.4
 dk = 0.02
 maxell = 2
-c = PeriodicCorrelator(dens.shape, dens.cell_size, dens.window_type, rmax, dr,
-                       kmax, dk, maxell)
+c = PeriodicCorrelator.from_grid_spec(dens, rmax, dr, kmax, dk, maxell)
 print("Computing autocorrelation!")
 ps, corr = c.autocorrelate(dens.data)
 print("Done correlating!")
