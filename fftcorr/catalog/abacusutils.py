@@ -20,7 +20,7 @@ def _apply_redshift_distortion(s, pos, vel, scale_factor):
     elif s == 2 or s == "z":
         s = [0, 0, 1]
 
-    s = np.asarray(s)
+    s = np.asarray(s, dtype=np.float64)
     if s.shape != (3, ):
         raise ValueError("direction should be an array of length 3")
 
