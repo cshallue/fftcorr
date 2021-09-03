@@ -2,6 +2,7 @@ import abc
 import copy
 import glob
 import os.path
+from re import S
 
 import asdf
 import numpy as np
@@ -11,11 +12,21 @@ from fftcorr.particle_mesh import MassAssignor
 from fftcorr.utils import Timer
 
 
-def _apply_redshift_distortion(pos, vel, scale_factor):
-    # Apply redshift distortions in the z direction. If desired in the
-    # future, we could accept any arbitrary direction vector and apply
-    # redshift distortion in that direction.
-    pos[:, 2] += vel[:, 2] / (100 * scale_factor)
+def _apply_redshift_distortion(s, pos, vel, scale_factor):
+    if s == 0 or s == "x":
+        s = [1, 0, 0]
+    elif s == 1 or s == "y":
+        s = [0, 1, 0]
+    elif s == 2 or s == "z":
+        s = [0, 0, 1]
+
+    s = np.asarray(s)
+    if s.shape != (3, ):
+        raise ValueError("direction should be an array of length 3")
+
+    vs = np.dot(vel, s)  # Component of velocity in direction s.
+    dpos = np.transpose(vs * np.expand_dims(s, -1))
+    pos += dpos / (100 * scale_factor)
 
 
 class AbacusData:
@@ -64,7 +75,7 @@ def read_density_field(file_patterns,
                        grid,
                        reader=None,
                        periodic_wrap=False,
-                       redshift_distortion=False,
+                       redshift_distortion=None,
                        disp=None,
                        buffer_size=10000,
                        verbose=True):
@@ -119,9 +130,11 @@ def read_density_field(file_patterns,
             if verbose:
                 print("Reading", os.path.basename(filename))
             with Timer() as io_timer:
-                data = reader.read(filename, redshift_distortion)
-                if redshift_distortion:
-                    _apply_redshift_distortion(data.pos, data.vel,
+                want_redshift_distort = (redshift_distortion is not None)
+                data = reader.read(filename, load_vel=want_redshift_distort)
+                if want_redshift_distort:
+                    _apply_redshift_distortion(redshift_distortion, data.pos,
+                                               data.vel,
                                                data.header["ScaleFactor"])
             io_time += io_timer.elapsed
 
