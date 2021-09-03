@@ -130,7 +130,8 @@ def read_density_field(file_patterns,
             if verbose:
                 print("Reading", os.path.basename(filename))
             with Timer() as io_timer:
-                want_redshift_distort = (redshift_distortion is not None)
+                want_redshift_distort = (redshift_distortion is not False
+                                         and redshift_distortion is not None)
                 data = reader.read(filename,
                                    load_velocity=want_redshift_distort)
                 if want_redshift_distort:
