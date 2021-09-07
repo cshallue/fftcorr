@@ -1,4 +1,5 @@
 import numpy as np
+from absl import logging
 from fftcorr.grid import apply_displacement_field
 from fftcorr.particle_mesh import MassAssignor
 from fftcorr.utils import Timer
@@ -11,8 +12,7 @@ def add_random_particles(n,
                          periodic_wrap=False,
                          disp=None,
                          batch_size=int(1e8),
-                         buffer_size=10000,
-                         verbose=True):
+                         buffer_size=10000):
     if total_weight is not None:
         if particle_weight is not None:
             raise ValueError(
@@ -23,8 +23,7 @@ def add_random_particles(n,
     if particle_weight is None:
         particle_weight = 1.0
 
-    if verbose:
-        print("Particle weight: {:.6g}".format(particle_weight))
+    logging.info("Particle weight: {particle_weight:.6g}")
 
     if disp is not None:
         disp = np.ascontiguousarray(disp, dtype=np.float64)
@@ -43,9 +42,8 @@ def add_random_particles(n,
         ma_time = 0.0
         while particles_added < n:
             nbatch = int(min(batch_size, n - particles_added))
-            if verbose:
-                print("Adding particles [{:,.6g}, {:,.6g}]".format(
-                    particles_added + 1, particles_added + nbatch))
+            logging.info(f"Adding particles [{particles_added + 1:,.6g}, "
+                         f"{particles_added + nbatch:,.6g}]")
 
             pos = pos_buf[:nbatch]
 
@@ -73,14 +71,15 @@ def add_random_particles(n,
     assert particles_added == n
     assert ma.num_added + ma.num_skipped == n
 
-    if verbose:
-        print("Setup time: {:.2f} sec".format(setup_timer.elapsed))
-        print("Work time: {:.2f} sec".format(work_timer.elapsed))
-        print("  RNG time: {:.2f} sec".format(rng_time))
-        if disp is not None:
-            print("  Displacement field time: {:.2f} sec".format(disp_time))
-        print("  Mass assignor time: {:.2f} sec".format(ma_time))
-        print("    Sort time: {:.2f} sec".format(ma.sort_time))
-        print("    Window time: {:.2f} sec".format(ma.window_time))
+    logging.debug(f"Setup time: {setup_timer.elapsed:.2f} sec")
+    logging.debug(f"Work time: {work_timer.elapsed:.2f} sec")
+    logging.debug(f"  RNG time: {rng_time:.2f} sec")
+    if disp is not None:
+        logging.debug(f"  Displacement field time: {disp_time:.2f} sec")
+    logging.debug(f"  Mass assignor time: {ma_time:.2f} sec")
+    logging.debug(f"    Sort time: {ma.sort_time:.2f} sec")
+    logging.debug(f"    Window time: {ma.window_time:.2f} sec")
 
+    logging.info(f"Particles added: {ma.num_added}")
+    logging.info(f"Particles skipped: {ma.num_skipped}")
     return ma.num_added, ma.num_skipped

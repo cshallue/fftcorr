@@ -6,6 +6,7 @@ import os.path
 import asdf
 import numpy as np
 from abacusnbody.data.bitpacked import unpack_rvint
+from absl import logging
 from fftcorr.grid import apply_displacement_field
 from fftcorr.particle_mesh import MassAssignor
 from fftcorr.utils import Timer
@@ -34,8 +35,8 @@ def _load_file(reader, filename, redshift_distortion):
     data = reader.read(filename, load_velocity=applying_rsd)
     if applying_rsd:
         conversion = data.header["VelZSpace_to_kms"] / data.header["BoxSize"]
-        print("Converting velocities to redshift-space comoving "
-              f"displacements with factor {conversion}")
+        logging.info("Converting velocities to redshift-space comoving "
+                     f"displacements with factor {conversion}")
         _apply_redshift_distortion(redshift_distortion, data.pos, data.vel,
                                    conversion)
 
@@ -90,8 +91,7 @@ def read_density_field(file_patterns,
                        periodic_wrap=False,
                        redshift_distortion=None,
                        disp=None,
-                       buffer_size=10000,
-                       verbose=True):
+                       buffer_size=10000):
     if isinstance(file_patterns, (str, bytes)):
         file_patterns = [file_patterns]
 
@@ -100,9 +100,9 @@ def read_density_field(file_patterns,
         matches = sorted(glob.glob(file_pattern))
         if not matches:
             raise ValueError(f"Found no files matching {file_pattern}")
+        logging.info(f"Found {len(matches):,} files matching {file_pattern}")
         filenames.extend(matches)
-    if verbose:
-        print("Reading density field from {:,} files".format(len(filenames)))
+    logging.info(f"Reading density field from {len(filenames):,} files")
 
     # Create the file reader if necessary.
     if reader is None:
@@ -140,8 +140,7 @@ def read_density_field(file_patterns,
         disp_time = 0.0
         ma_time = 0.0
         for filename in filenames:
-            if verbose:
-                print("Reading", os.path.basename(filename))
+            logging.info(f"Reading {os.path.basename(filename)}")
             with Timer() as io_timer:
                 data = _load_file(reader, filename, redshift_distortion)
             io_time += io_timer.elapsed
@@ -166,13 +165,14 @@ def read_density_field(file_patterns,
 
     assert ma.num_added + ma.num_skipped == items_seen
 
-    if verbose:
-        print("Work time: {:.2f} sec".format(work_timer.elapsed))
-        print("  IO time: {:.2f} sec".format(io_time))
-        if disp is not None:
-            print("  Displacement field time: {:.2f} sec".format(disp_time))
-        print("  Mass assignor time: {:.2f} sec".format(ma_time))
-        print("    Sort time: {:.2f} sec".format(ma.sort_time))
-        print("    Window time: {:.2f} sec".format(ma.window_time))
+    logging.debug(f"Work time: {work_timer.elapsed:.2f} sec")
+    logging.debug(f"  IO time: {io_time:.2f} sec")
+    if disp is not None:
+        logging.debug(f"  Displacement field time: {disp_time:.2f} sec")
+    logging.debug(f"  Mass assignor time: {ma_time:.2f} sec")
+    logging.debug(f"    Sort time: {ma.sort_time:.2f} sec")
+    logging.debug(f"    Window time: {ma.window_time:.2f} sec")
 
+    logging.info(f"Particles added: {ma.num_added}")
+    logging.info(f"Particles skipped: {ma.num_skipped}")
     return ma.num_added, ma.num_skipped
