@@ -30,13 +30,17 @@ def _apply_redshift_distortion(s, pos, vel, conversion):
 
 
 def _load_file(reader, filename, redshift_distortion):
-    applying_rsd = (redshift_distortion is not False
-                    and redshift_distortion is not None)
+    if redshift_distortion is True:
+        redshift_distortion = "z"  # By default, distort in z direction.
+    elif redshift_distortion is False:
+        redshift_distortion = None
+    applying_rsd = redshift_distortion is not None
     data = reader.read(filename, load_velocity=applying_rsd)
     if applying_rsd:
         conversion = data.header["VelZSpace_to_kms"] / data.header["BoxSize"]
-        logging.info("Converting velocities to redshift-space comoving "
-                     f"displacements with factor {conversion}")
+        logging.info(
+            f"Applying redshift_distortion={redshift_distortion} with "
+            f"velocity-to-displacement conversion factor {conversion}")
         _apply_redshift_distortion(redshift_distortion, data.pos, data.vel,
                                    conversion)
 
