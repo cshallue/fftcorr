@@ -2,7 +2,6 @@ import abc
 import copy
 import glob
 import os.path
-from re import S
 
 import asdf
 import numpy as np
@@ -12,7 +11,7 @@ from fftcorr.particle_mesh import MassAssignor
 from fftcorr.utils import Timer
 
 
-def _apply_redshift_distortion(s, pos, vel, scale_factor):
+def _apply_redshift_distortion(s, pos, vel, conversion):
     if s == 0 or s == "x":
         s = [1, 0, 0]
     elif s == 1 or s == "y":
@@ -26,7 +25,21 @@ def _apply_redshift_distortion(s, pos, vel, scale_factor):
 
     vs = np.dot(vel, s)  # Component of velocity in direction s.
     dpos = np.transpose(vs * np.expand_dims(s, -1))
-    pos += dpos / (100 * scale_factor)
+    pos += dpos / conversion
+
+
+def _load_file(reader, filename, redshift_distortion):
+    applying_rsd = (redshift_distortion is not False
+                    and redshift_distortion is not None)
+    data = reader.read(filename, load_velocity=applying_rsd)
+    if applying_rsd:
+        conversion = data.header["VelZSpace_to_kms"] / data.header["BoxSize"]
+        print("Converting velocities to redshift-space comoving "
+              f"displacements with factor {conversion}")
+        _apply_redshift_distortion(redshift_distortion, data.pos, data.vel,
+                                   conversion)
+
+    return data
 
 
 class AbacusData:
@@ -130,14 +143,7 @@ def read_density_field(file_patterns,
             if verbose:
                 print("Reading", os.path.basename(filename))
             with Timer() as io_timer:
-                want_redshift_distort = (redshift_distortion is not False
-                                         and redshift_distortion is not None)
-                data = reader.read(filename,
-                                   load_velocity=want_redshift_distort)
-                if want_redshift_distort:
-                    _apply_redshift_distortion(redshift_distortion, data.pos,
-                                               data.vel,
-                                               data.header["ScaleFactor"])
+                data = _load_file(reader, filename, redshift_distortion)
             io_time += io_timer.elapsed
 
             # Apply displacement field.
