@@ -70,6 +70,9 @@ def add_random_particles(n,
 
     assert particles_added == n
     assert ma.num_added + ma.num_skipped == n
+    logging.info(
+        f"Added {ma.num_added:,} randoms ({ma.num_skipped:,} skipped). Total "
+        f"weight: {ma.totw:.4g}")
 
     logging.debug(f"Setup time: {setup_timer.elapsed:.2f} sec")
     logging.debug(f"Work time: {work_timer.elapsed:.2f} sec")
@@ -82,4 +85,3 @@ def add_random_particles(n,
 
     logging.info(f"Particles added: {ma.num_added}")
     logging.info(f"Particles skipped: {ma.num_skipped}")
-    return ma.num_added, ma.num_skipped

@@ -164,6 +164,9 @@ def read_density_field(file_patterns,
             items_seen += data.pos.shape[0]
 
     assert ma.num_added + ma.num_skipped == items_seen
+    logging.info(
+        f"Added {ma.num_added:,} particles ({ma.num_skipped:,} skipped). Total "
+        f"weight: {ma.totw:.4g}")
 
     logging.debug(f"Work time: {work_timer.elapsed:.2f} sec")
     logging.debug(f"  IO time: {io_time:.2f} sec")
@@ -172,7 +175,3 @@ def read_density_field(file_patterns,
     logging.debug(f"  Mass assignor time: {ma_time:.2f} sec")
     logging.debug(f"    Sort time: {ma.sort_time:.2f} sec")
     logging.debug(f"    Window time: {ma.window_time:.2f} sec")
-
-    logging.info(f"Particles added: {ma.num_added}")
-    logging.info(f"Particles skipped: {ma.num_skipped}")
-    return ma.num_added, ma.num_skipped
