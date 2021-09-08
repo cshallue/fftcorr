@@ -23,7 +23,7 @@ def add_random_particles(n,
     if particle_weight is None:
         particle_weight = 1.0
 
-    logging.info("Particle weight: {particle_weight:.6g}")
+    logging.info(f"Particle weight: {particle_weight:.6g}")
 
     if disp is not None:
         disp = np.ascontiguousarray(disp, dtype=np.float64)
