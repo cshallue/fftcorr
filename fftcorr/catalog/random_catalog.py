@@ -82,6 +82,3 @@ def add_random_particles(n,
     logging.debug(f"  Mass assignor time: {ma_time:.2f} sec")
     logging.debug(f"    Sort time: {ma.sort_time:.2f} sec")
     logging.debug(f"    Window time: {ma.window_time:.2f} sec")
-
-    logging.info(f"Particles added: {ma.num_added}")
-    logging.info(f"Particles skipped: {ma.num_skipped}")
