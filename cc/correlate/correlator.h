@@ -429,6 +429,8 @@ class Correlator : public BaseCorrelator {
     zcell_ = sequence(0.5 - observer[2], 1.0, shape_[2]);
   }
 
+  // TODO: the normalization doesn't match the periodic case, but that doesn't
+  // really matter because here we take the ratios of NN and RR.
   void correlate_internal(const RowMajorArrayPtr<Float, 3> &dens1) {
     constexpr int wide_angle_exponent = 0;  // TODO: do we still need this?
     total_time_.start();
