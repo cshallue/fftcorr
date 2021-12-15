@@ -322,11 +322,15 @@ class PeriodicCorrelator : public BaseCorrelator {
     array_ops::multiply_with_conjugation(*dens2_fft, work_.as_complex_array());
     mult_time_.stop();
 
-    // We must multiply the DFT result by (1/ncells^2): DFT differs from
-    // Fourier series coefficients by a factor of ncells, and we've multiplied
-    // two DFTs together.
+    // To compute the periodic cross spectrum we must rescale by a factor of
+    // V / ncells^2 = cell_size^3 / ncells, where V is the volume of the box. V
+    // comes from the conversion between the product FT[dens1] * conj(FT[dens2])
+    // and the periodic cross spectrum, where FT[.] denotes the Fourier series
+    // coefficients. The factor of (1/ncells^2) comes from the conversion
+    // between the two discrete Fourier transforms and the corresponding Fourier
+    // series coefficients.
     uint64 ncells = dens1.size();
-    Float k_rescale = (1.0 / ncells / ncells);
+    Float k_rescale = cell_size_ * cell_size_ * cell_size_ / ncells;
 
     // Extract the power spectrum, expanded in Legendre polynomials.
     for (int ell = 0; ell <= maxell_; ell += 2) {
@@ -354,8 +358,8 @@ class PeriodicCorrelator : public BaseCorrelator {
     fprintf(stdout, "# Done!\n");
     fflush(NULL);
 
-    // We must multiply the IFT by two factors of (1/ncells): the first one
-    // completes the inverse FFT (FFTW doesn't include this factor
+    // To compute the 2PCF we must rescale by wwo factors of (1/ncells): the
+    // first one completes the inverse FFT (FFTW doesn't include this factor
     // automatically) and the second is the factor converting the circular
     // cross-correlation of grids to an estimator of the cross-correlation
     // function of random fields.
