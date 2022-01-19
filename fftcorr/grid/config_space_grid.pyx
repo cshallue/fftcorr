@@ -172,7 +172,7 @@ cdef class ConfigSpaceGrid:
         if metadata:
             if "header" in metadata or "data" in metadata:
                 raise ValueError(
-                    "metadata cannot contain keys 'header' or 'data")
+                    "metadata cannot contain keys 'header' or 'data'")
             tree.update(metadata)
         with asdf.AsdfFile(tree) as af:
             af.write_to(filename)
