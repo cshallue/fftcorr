@@ -26,8 +26,6 @@ struct Particle {
   uint64 index;
 };
 
-// TODO: currently we very hackily omit sorting for the single threaded
-// case. It saves significant time not to pointlessly sort in that case, though.
 class MassAssignor {
  public:
   MassAssignor(ConfigSpaceGrid &grid, bool periodic_wrap, uint64 buffer_size)
