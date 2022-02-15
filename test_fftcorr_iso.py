@@ -1,9 +1,8 @@
-import unittest
-
 import os
-import tempfile
 import shlex
 import subprocess
+import tempfile
+import unittest
 
 import numpy as np
 
