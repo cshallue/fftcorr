@@ -42,7 +42,8 @@ class MassAssignor {
     fprintf(stderr, "# Running with %d threads\n", omp_get_max_threads());
 #else
     // TODO: for development, remove.
-    fprintf(stderr, "# Running single threaded.\n");
+    fprintf(stderr, "# Running single threaded with buffer size %lld.\n",
+            buffer_size_);
 #endif  // OPENMP
   }
 
@@ -104,10 +105,16 @@ class MassAssignor {
       num_skipped_ += 1;
       return;
     }
-    uint64 idx = grid_.data().get_index(floor(x[0]), floor(x[1]), floor(x[2]));
-    gal_.emplace_back(x, w, idx);
-    if (gal_.size() >= buffer_size_) {
-      flush();
+    if (!buffer_size_) {
+      // We're adding particles directly to the grid.
+      window_func_->add_particle_to_grid(x, w, grid_.data());
+    } else {
+      uint64 idx =
+          grid_.data().get_index(floor(x[0]), floor(x[1]), floor(x[2]));
+      gal_.emplace_back(x, w, idx);
+      if (gal_.size() >= buffer_size_) {
+        flush();
+      }
     }
     // TODO: add these statistics to the window function?
     num_added_ += 1;
@@ -116,6 +123,8 @@ class MassAssignor {
   }
 
   void flush() {
+    if (!buffer_size_) return;
+
     // Given a set of Galaxies, add them to the grid and then reset the list
     const int galsize = gal_.size();
 
