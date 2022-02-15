@@ -94,8 +94,7 @@ def read_density_field(file_patterns,
                        reader=None,
                        periodic_wrap=False,
                        redshift_distortion=None,
-                       disp=None,
-                       buffer_size=10000):
+                       disp=None):
     if isinstance(file_patterns, (str, bytes)):
         file_patterns = [file_patterns]
 
@@ -137,7 +136,10 @@ def read_density_field(file_patterns,
     if disp is not None:
         disp = np.ascontiguousarray(disp, dtype=np.float64)
 
-    ma = MassAssignor(grid, periodic_wrap, buffer_size)
+    # Set the buffer size to 0 because we're running single-threaded and the
+    # Abacus files are already sorted: sorting only slows things down.
+    ma = MassAssignor(grid, periodic_wrap, buffer_size=0)
+
     with Timer() as work_timer:
         items_seen = 0
         io_time = 0.0
