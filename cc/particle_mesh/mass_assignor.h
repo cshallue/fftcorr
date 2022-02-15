@@ -10,11 +10,13 @@
 #include "../grid/config_space_grid.h"
 #include "../profiling/timer.h"
 #include "../types.h"
+#include "merge_sort_omp.h"
 #include "window_functions.h"
 
 #ifdef OPENMP
 #include "../multithreading.h"
-#include "merge_sort_omp.h"
+#endif  // OPENMP
+
 struct Particle {
   Particle(const Float *_pos, Float _w, uint64 _index)
       : pos({_pos[0], _pos[1], _pos[2]}), w(_w), index(_index) {}
@@ -26,7 +28,6 @@ struct Particle {
   Float w;
   uint64 index;
 };
-#endif  // OPENMP
 
 // TODO: currently we very hackily omit sorting for the single threaded
 // case. It saves significant time not to pointlessly sort in that case, though.
@@ -41,9 +42,9 @@ class MassAssignor {
         num_skipped_(0),
         totw_(0),
         totwsq_(0) {
+    gal_.reserve(buffer_size_);
 #ifdef OPENMP
     fprintf(stderr, "# Running with %d threads\n", omp_get_max_threads());
-    gal_.reserve(buffer_size_);
 #else
     // TODO: for development, remove.
     fprintf(stderr, "# Running single threaded.\n");
@@ -108,22 +109,18 @@ class MassAssignor {
       num_skipped_ += 1;
       return;
     }
-#ifdef OPENMP
     uint64 idx = grid_.data().get_index(floor(x[0]), floor(x[1]), floor(x[2]));
     gal_.emplace_back(x, w, idx);
     if (gal_.size() >= buffer_size_) {
       flush();
     }
-#else
-    window_func_->add_particle_to_grid(x, w, grid_.data());
-#endif  // OPENMP
+    // TODO: add these statistics to the window function?
     num_added_ += 1;
     totw_ += w;
     totwsq_ += w * w;
   }
 
   void flush() {
-#ifdef OPENMP
     // Given a set of Galaxies, add them to the grid and then reset the list
     const int galsize = gal_.size();
 
@@ -136,8 +133,12 @@ class MassAssignor {
     // Do this by another vector.
     buf_.reserve(galsize);
     sort_time_.start();
-    mergesort_parallel_omp(gal_.data(), galsize, buf_.data(),
-                           omp_get_max_threads());
+#ifdef OPENMP
+    int max_threads = omp_get_max_threads();
+#else
+    int max_threads = 1;
+#endif  // OPENMP
+    mergesort_parallel_omp(gal_.data(), galsize, buf_.data(), max_threads);
     sort_time_.stop();
     // This just falls back to std::sort if omp_get_max_threads==1
 
@@ -173,7 +174,6 @@ class MassAssignor {
     window_time_.stop();
 
     gal_.clear();
-#endif  // OPENMP
   }
 
  private:
@@ -199,10 +199,8 @@ class MassAssignor {
   const bool periodic_wrap_;
 
   const uint64 buffer_size_;
-#ifdef OPENMP
   std::vector<Particle> gal_;  // TODO: name
   std::vector<Particle> buf_;  // Used for mergesort.
-#endif                         // OPENMP
 
   uint64 num_added_;  // TODO: rename to something more descriptive
   uint64 num_skipped_;
