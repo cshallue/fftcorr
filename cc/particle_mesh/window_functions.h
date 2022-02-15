@@ -14,6 +14,7 @@ enum WindowType {
   kWavelet = 2,
 };
 
+// TODO: rename to "Particle distribution scheme", as per Jeong 2010 Ch 7.1.1?
 class WindowFunction {
  public:
   virtual ~WindowFunction() {}
