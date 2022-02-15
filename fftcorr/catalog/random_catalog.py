@@ -13,7 +13,7 @@ def add_random_particles(n,
                          disp=None,
                          seed=None,
                          batch_size=int(1e8),
-                         buffer_size=10000):
+                         buffer_size=int(1e7)):
     if total_weight is not None:
         if particle_weight is not None:
             raise ValueError(
