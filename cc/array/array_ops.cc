@@ -2,7 +2,6 @@
 
 #include <assert.h>
 
-#include "../multithreading.h"
 #include "row_major_array.h"
 
 namespace array_ops {
@@ -19,8 +18,8 @@ void set_all(Float value, RowMajorArrayPtr<Float, 3> &arr) {
     }
   }
 #else
-#pragma omp parallel for MY_SCHEDULE
   Float *data = arr.data();
+#pragma omp parallel for MY_SCHEDULE
   for (uint64 i = 0; i < arr.size(); i++) {
     data[i] = value;
   }

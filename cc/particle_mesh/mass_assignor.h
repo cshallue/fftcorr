@@ -8,14 +8,11 @@
 // TODO: use include paths in the makefile compiler command
 #include "../array/row_major_array.h"
 #include "../grid/config_space_grid.h"
+#include "../multithreading.h"
 #include "../profiling/timer.h"
 #include "../types.h"
 #include "merge_sort_omp.h"
 #include "window_functions.h"
-
-#ifdef OPENMP
-#include "../multithreading.h"
-#endif  // OPENMP
 
 struct Particle {
   Particle(const Float *_pos, Float _w, uint64 _index)

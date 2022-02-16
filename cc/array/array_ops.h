@@ -1,6 +1,7 @@
 #ifndef ARRAY_OPS_H
 #define ARRAY_OPS_H
 
+#include "../multithreading.h"
 #include "../types.h"
 #include "row_major_array.h"
 
