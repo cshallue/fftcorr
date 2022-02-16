@@ -109,14 +109,10 @@ class MassAssignor {
       // We're adding particles directly to the grid.
       window_func_->add_particle_to_grid(x, w, grid_.data());
     } else {
-      uint64 idx =
-          grid_.data().get_index(floor(x[0]), floor(x[1]), floor(x[2]));
-      gal_.emplace_back(x, w, idx);
-      if (gal_.size() >= buffer_size_) {
-        flush();
-      }
+      uint64 i = grid_.data().get_index(floor(x[0]), floor(x[1]), floor(x[2]));
+      gal_.emplace_back(x, w, i);
+      if (gal_.size() >= buffer_size_) flush();
     }
-    // TODO: add these statistics to the window function?
     num_added_ += 1;
     totw_ += w;
     totwsq_ += w * w;
@@ -163,16 +159,26 @@ class MassAssignor {
     // for memory to respond, not actually piping between processors.  b)
     // Adjacent slabs may not be on the same memory bank anyways.  Keep it
     // simple.
-    int slabset = window_func_->width();
+    int width = window_func_->width();
+    // We shouldn't overlap the start of the grid with the end of the grid, due
+    // to periodic wrapping. The maximum end slab index that will not overlap
+    // with a given start index is start + maxsep.
+    int maxsep = width * (ngrid[0] / width - 1);
     window_time_.start();
-    for (int mod = 0; mod < slabset; mod++) {
+    for (int start = 0; start < width; ++start) {
 #pragma omp parallel for schedule(dynamic, 1)
-      for (int x = mod; x < ngrid[0]; x += slabset) {
-        // For each slab, insert these particles
+      for (int x = start; x <= start + maxsep; x += width) {
         for (int j = first[x]; j < first[x + 1]; j++) {
           const Particle &p = gal_[j];
           window_func_->add_particle_to_grid(p.pos.data(), p.w, grid_.data());
         }
+      }
+    }
+    // Slabs at the end of the grid that were cut off to prevent overlap.
+    for (int x = width + maxsep; x < ngrid[0]; x += 1) {
+      for (int j = first[x]; j < first[x + 1]; ++j) {
+        const Particle &p = gal_[j];
+        window_func_->add_particle_to_grid(p.pos.data(), p.w, grid_.data());
       }
     }
     window_time_.stop();
