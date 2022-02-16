@@ -29,13 +29,29 @@ def _apply_redshift_distortion(s, pos, vel, conversion):
     pos += dpos / conversion
 
 
-def _load_file(reader, filename, redshift_distortion):
+def _apply_flip_xy(arr):
+    if len(arr.shape) != 2 or arr.shape[1] != 3:
+        raise ValueError(f"Unexpected shape: {arr.shape}")
+    new_arr = np.copy(arr)
+    new_arr[:, 0] = arr[:, 1]
+    new_arr[:, 1] = arr[:, 0]
+    new_arr[:, 3] = arr[:, 2]
+    return new_arr
+
+
+def _load_file(reader, filename, redshift_distortion, flip_xy):
     if redshift_distortion is True:
-        redshift_distortion = "z"  # By default, distort in z direction.
+        # Always distort in z direction, which will not interfere with the
+        # flip_xy argument.
+        redshift_distortion = "z"
     elif redshift_distortion is False:
         redshift_distortion = None
     applying_rsd = redshift_distortion is not None
     data = reader.read(filename, load_velocity=applying_rsd)
+    if flip_xy:
+        data.pos = _apply_flip_xy(data.pos)
+        if data.vel is not None:
+            data.vel = _apply_flip_xy(data.vel)
     if applying_rsd:
         conversion = data.header["VelZSpace_to_kms"] / data.header["BoxSize"]
         logging.info(
@@ -94,7 +110,9 @@ def read_density_field(file_patterns,
                        reader=None,
                        periodic_wrap=False,
                        redshift_distortion=None,
-                       disp=None):
+                       disp=None,
+                       flip_xy=False,
+                       buffer_size=0):
     if isinstance(file_patterns, (str, bytes)):
         file_patterns = [file_patterns]
 
@@ -133,25 +151,30 @@ def read_density_field(file_patterns,
         else:
             raise ValueError(f"Unrecognized file_type: {file_type}")
 
-    if disp is not None:
-        disp = np.ascontiguousarray(disp, dtype=np.float64)
-
-    # Set the buffer size to 0 because we're running single-threaded and the
-    # Abacus files are already sorted: sorting only slows things down.
-    ma = MassAssignor(grid, periodic_wrap, buffer_size=0)
-
+    ma = MassAssignor(grid, periodic_wrap, buffer_size)
     with Timer() as work_timer:
-        items_seen = 0
         io_time = 0.0
+        transpose_time = 0.0
         disp_time = 0.0
         ma_time = 0.0
+
+        if disp is not None:
+            disp = np.ascontiguousarray(disp, dtype=np.float64)
+            if flip_xy:
+                with Timer() as transpose_timer:
+                    disp = np.transpose(disp, [1, 0, 2])
+                transpose_time += transpose_timer.elapsed
+
+        items_seen = 0
         for filename in filenames:
             logging.info(f"Reading {os.path.basename(filename)}")
             with Timer() as io_timer:
-                data = _load_file(reader, filename, redshift_distortion)
+                data = _load_file(reader, filename, redshift_distortion,
+                                  flip_xy)
             io_time += io_timer.elapsed
 
             # Apply displacement field.
+            # TODO: do we want to assume that disp has flipped xy or not?
             if disp is not None:
                 with Timer() as disp_timer:
                     apply_displacement_field(grid,
@@ -169,6 +192,11 @@ def read_density_field(file_patterns,
             ma_time += ma_timer.elapsed
             items_seen += data.pos.shape[0]
 
+    if flip_xy:
+        with Timer() as transpose_timer:
+            grid.data = np.transpose(grid.data, [1, 0, 2])
+        transpose_time += transpose_timer.elapsed
+
     assert ma.num_added + ma.num_skipped == items_seen
     logging.info(
         f"Added {ma.num_added:,} particles ({ma.num_skipped:,} skipped). Total "
@@ -176,6 +204,8 @@ def read_density_field(file_patterns,
 
     logging.debug(f"Work time: {work_timer.elapsed:.2f} sec")
     logging.debug(f"  IO time: {io_time:.2f} sec")
+    if flip_xy is not None:
+        logging.debug(f"  Transpose time: {transpose_time:.2f} sec")
     if disp is not None:
         logging.debug(f"  Displacement field time: {disp_time:.2f} sec")
     logging.debug(f"  Mass assignor time: {ma_time:.2f} sec")
