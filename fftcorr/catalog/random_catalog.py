@@ -11,6 +11,7 @@ def add_random_particles(n,
                          total_weight=None,
                          periodic_wrap=False,
                          disp=None,
+                         seed=None,
                          batch_size=int(1e8),
                          buffer_size=10000):
     if total_weight is not None:
@@ -34,6 +35,7 @@ def add_random_particles(n,
     with Timer() as setup_timer:
         pos_buf = np.empty((batch_size, 3), dtype=np.float64, order="C")
 
+    rng = np.random.default_rng(seed)
     ma = MassAssignor(grid, periodic_wrap, buffer_size)
     with Timer() as work_timer:
         particles_added = 0
@@ -48,7 +50,7 @@ def add_random_particles(n,
             pos = pos_buf[:nbatch]
 
             with Timer() as rng_timer:
-                rnd = np.random.uniform(gridmin, gridmax, (nbatch, 3))
+                rnd = rng.uniform(gridmin, gridmax, (nbatch, 3))
                 np.copyto(pos, rnd)
             rng_time += rng_timer.elapsed
 
