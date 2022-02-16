@@ -32,6 +32,8 @@ class NearestCellWindow : public WindowFunction {
   }
 };
 
+// TODO: isn't this more commonly called triangular shaped cloud? (CIC is the
+// top hat cloud function)
 class CloudInCellWindow : public WindowFunction {
   int width() override { return 3; }
 
