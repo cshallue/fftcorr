@@ -8,13 +8,11 @@
 // TODO: use include paths in the makefile compiler command
 #include "../array/row_major_array.h"
 #include "../grid/config_space_grid.h"
+#include "../multithreading.h"
 #include "../profiling/timer.h"
 #include "../types.h"
 #include "window_functions.h"
 
-#ifdef OPENMP
-#include "../multithreading.h"
-#include "merge_sort_omp.h"
 struct Particle {
   Particle(const Float *_pos, Float _w, uint64 _index)
       : pos({_pos[0], _pos[1], _pos[2]}), w(_w), index(_index) {}
@@ -26,7 +24,6 @@ struct Particle {
   Float w;
   uint64 index;
 };
-#endif  // OPENMP
 
 // TODO: currently we very hackily omit sorting for the single threaded
 // case. It saves significant time not to pointlessly sort in that case, though.
