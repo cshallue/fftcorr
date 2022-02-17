@@ -94,7 +94,9 @@ def read_density_field(file_patterns,
                        reader=None,
                        periodic_wrap=False,
                        redshift_distortion=None,
-                       disp=None):
+                       disp=None,
+                       flip_xz=False,
+                       buffer_size=0):
     if isinstance(file_patterns, (str, bytes)):
         file_patterns = [file_patterns]
 
@@ -136,15 +138,13 @@ def read_density_field(file_patterns,
     if disp is not None:
         disp = np.ascontiguousarray(disp, dtype=np.float64)
 
-    # Set the buffer size to 0 because we're running single-threaded and the
-    # Abacus files are already sorted: sorting only slows things down.
-    ma = MassAssignor(grid, periodic_wrap, buffer_size=0)
-
+    ma = MassAssignor(grid, periodic_wrap, buffer_size)
     with Timer() as work_timer:
         items_seen = 0
         io_time = 0.0
         disp_time = 0.0
         ma_time = 0.0
+        transpose_time = 0.0
         for filename in filenames:
             logging.info(f"Reading {os.path.basename(filename)}")
             with Timer() as io_timer:
@@ -161,6 +161,10 @@ def read_density_field(file_patterns,
                                              out=data.pos)
                 disp_time += disp_timer.elapsed
 
+            # Possibly flip xz for faster multithreaded gridding.
+            if flip_xz:
+                data.pos = np.fliplr(data.pos)
+
             # Add items to the density field.
             with Timer() as ma_timer:
                 ma.add_particles_to_buffer(data.pos, data.weight)
@@ -169,6 +173,11 @@ def read_density_field(file_patterns,
             ma_time += ma_timer.elapsed
             items_seen += data.pos.shape[0]
 
+    if flip_xz:
+        with Timer() as transpose_timer:
+            np.copyto(grid.data, np.transpose(grid.data, [2, 1, 0]))
+        transpose_time += transpose_timer.elapsed
+
     assert ma.num_added + ma.num_skipped == items_seen
     logging.info(
         f"Added {ma.num_added:,} particles ({ma.num_skipped:,} skipped). Total "
@@ -176,6 +185,8 @@ def read_density_field(file_patterns,
 
     logging.debug(f"Work time: {work_timer.elapsed:.2f} sec")
     logging.debug(f"  IO time: {io_time:.2f} sec")
+    if flip_xz:
+        logging.debug(f"  Transpose time: {transpose_time:.2f} sec")
     if disp is not None:
         logging.debug(f"  Displacement field time: {disp_time:.2f} sec")
     logging.debug(f"  Mass assignor time: {ma_time:.2f} sec")
