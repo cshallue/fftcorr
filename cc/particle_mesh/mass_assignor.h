@@ -107,7 +107,9 @@ class MassAssignor {
     }
     if (!buffer_size_) {
       // We're adding particles directly to the grid.
-      window_func_->add_particle_to_grid(x, w, grid_.data());
+      window_time_.start();
+      add_particle_to_grid(x, w);
+      window_time_.stop();
     } else {
       uint64 i = grid_.data().get_index(floor(x[0]), floor(x[1]), floor(x[2]));
       gal_.emplace_back(x, w, i);
@@ -169,16 +171,14 @@ class MassAssignor {
 #pragma omp parallel for schedule(dynamic, 1)
       for (int x = start; x <= start + maxsep; x += width) {
         for (int j = first[x]; j < first[x + 1]; ++j) {
-          const Particle &p = gal_[j];
-          window_func_->add_particle_to_grid(p.pos.data(), p.w, grid_.data());
+          add_particle_to_grid(gal_[j]);
         }
       }
     }
     // Slabs at the end of the grid that were cut off to prevent overlap.
     for (int x = width + maxsep; x < ngrid[0]; ++x) {
       for (int j = first[x]; j < first[x + 1]; ++j) {
-        const Particle &p = gal_[j];
-        window_func_->add_particle_to_grid(p.pos.data(), p.w, grid_.data());
+        add_particle_to_grid(gal_[j]);
       }
     }
     window_time_.stop();
@@ -187,6 +187,14 @@ class MassAssignor {
   }
 
  private:
+  void add_particle_to_grid(const Float *pos, Float weight) {
+    window_func_->add_particle_to_grid(pos, weight, grid_.data());
+  }
+
+  void add_particle_to_grid(const Particle &p) {
+    add_particle_to_grid(p.pos.data(), p.w);
+  }
+
   // bool apply_displacement_to_grid_coord(int i, Float &x,
   //                                       const Float *dxyz) const {
   //   x += dxyz[i] / grid_.cell_size();
@@ -209,7 +217,7 @@ class MassAssignor {
   const bool periodic_wrap_;
 
   const uint64 buffer_size_;
-  std::vector<Particle> gal_;  // TODO: name
+  std::vector<Particle> gal_;  // TODO: name -> particles
   std::vector<Particle> buf_;  // Used for mergesort.
 
   uint64 num_added_;  // TODO: rename to something more descriptive
