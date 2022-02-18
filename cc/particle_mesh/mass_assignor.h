@@ -168,14 +168,14 @@ class MassAssignor {
     for (int start = 0; start < width; ++start) {
 #pragma omp parallel for schedule(dynamic, 1)
       for (int x = start; x <= start + maxsep; x += width) {
-        for (int j = first[x]; j < first[x + 1]; j++) {
+        for (int j = first[x]; j < first[x + 1]; ++j) {
           const Particle &p = gal_[j];
           window_func_->add_particle_to_grid(p.pos.data(), p.w, grid_.data());
         }
       }
     }
     // Slabs at the end of the grid that were cut off to prevent overlap.
-    for (int x = width + maxsep; x < ngrid[0]; x += 1) {
+    for (int x = width + maxsep; x < ngrid[0]; ++x) {
       for (int j = first[x]; j < first[x + 1]; ++j) {
         const Particle &p = gal_[j];
         window_func_->add_particle_to_grid(p.pos.data(), p.w, grid_.data());
