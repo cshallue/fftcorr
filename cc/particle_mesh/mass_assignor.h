@@ -150,7 +150,7 @@ class MassAssignor {
     int first[ngrid[0] + 1];
     int ptr = 0;
     for (int j = 0; j < galsize; j++) {
-      while (gal_[j].pos[0] > ptr) first[ptr++] = j;
+      while (gal_[j].pos[0] >= ptr) first[ptr++] = j;
     }
     for (; ptr <= ngrid[0]; ptr++) first[ptr] = galsize;
 
