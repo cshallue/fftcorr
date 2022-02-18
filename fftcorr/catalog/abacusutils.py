@@ -163,7 +163,7 @@ def read_density_field(file_patterns,
 
             # Possibly flip xz for faster multithreaded gridding.
             if flip_xz:
-                data.pos = np.fliplr(data.pos)
+                data.pos = np.ascontiguousarray(np.fliplr(data.pos))
 
             # Add items to the density field.
             with Timer() as ma_timer:
