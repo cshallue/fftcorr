@@ -322,13 +322,12 @@ class PeriodicCorrelator : public BaseCorrelator {
     array_ops::multiply_with_conjugation(*dens2_fft, work_.as_complex_array());
     mult_time_.stop();
 
-    // To compute the periodic cross spectrum we must rescale by a factor of
-    // V / ncells^2 = cell_size^3 / ncells, where V is the volume of the box. V
-    // comes from the conversion between the product FT[dens1] * conj(FT[dens2])
-    // and the periodic cross spectrum, where FT[.] denotes the Fourier series
-    // coefficients. The factor of (1/ncells^2) comes from the conversion
-    // between the two discrete Fourier transforms and the corresponding Fourier
-    // series coefficients.
+    // The periodic cross spectrum is (1/V) FT[f] conj(FT[g]), expressed in a
+    // Fourier convention where the Fourier series coefficients have units of
+    // volume and (1/V) appears in the inverse transform. With this convention,
+    // the output of the DFT is (N/V) times the corresponding Fourier series
+    // coefficient, where N is the number of cells. Thus, we must multiply by
+    // (1/V) / (N/V) / (N/V) = V / N^2 = cell_size^3 / ncells.
     uint64 ncells = dens1.size();
     Float k_rescale = cell_size_ * cell_size_ * cell_size_ / ncells;
 
@@ -358,11 +357,10 @@ class PeriodicCorrelator : public BaseCorrelator {
     fprintf(stdout, "# Done!\n");
     fflush(NULL);
 
-    // To compute the 2PCF we must rescale by wwo factors of (1/ncells): the
-    // first one completes the inverse FFT (FFTW doesn't include this factor
-    // automatically) and the second is the factor converting the circular
-    // cross-correlation of grids to an estimator of the cross-correlation
-    // function of random fields.
+    // The 2PCF is (1 / ncells) (f * g), where * denotes periodic
+    // cross-correlation. This is independent of Fourier conventions, but we
+    // must rescale by another factor of (1 / ncells) to complete the inverse
+    // DFT (FFTW doesn't include this factor automatically).
     Float r_rescale = (1.0 / ncells / ncells);
 
     // Extract the 2PCF, expanded in Legendre polynomials.
