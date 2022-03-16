@@ -138,13 +138,20 @@ def read_density_field(file_patterns,
     if disp is not None:
         disp = np.ascontiguousarray(disp, dtype=np.float64)
 
+    items_seen = 0
+    io_time = 0.0
+    disp_time = 0.0
+    ma_time = 0.0
+    transpose_time = 0.0
+
+    if flip_xz:
+        # Transpose the grid before adding anything; it might not be empty.
+        with Timer() as transpose_timer:
+            np.copyto(grid.data, np.transpose(grid.data, [2, 1, 0]))
+        transpose_time += transpose_timer.elapsed
+
     ma = MassAssignor(grid, periodic_wrap, buffer_size)
     with Timer() as work_timer:
-        items_seen = 0
-        io_time = 0.0
-        disp_time = 0.0
-        ma_time = 0.0
-        transpose_time = 0.0
         for filename in filenames:
             logging.info(f"Reading {os.path.basename(filename)}")
             with Timer() as io_timer:
@@ -161,8 +168,9 @@ def read_density_field(file_patterns,
                                              out=data.pos)
                 disp_time += disp_timer.elapsed
 
-            # Possibly flip xz for faster multithreaded gridding.
             if flip_xz:
+                # Only need to flip the positions; redshift distortions have
+                # already been applied.
                 data.pos = np.ascontiguousarray(np.fliplr(data.pos))
 
             # Add items to the density field.
@@ -174,6 +182,7 @@ def read_density_field(file_patterns,
             items_seen += data.pos.shape[0]
 
     if flip_xz:
+        # Transpose back to the original orientation.
         with Timer() as transpose_timer:
             np.copyto(grid.data, np.transpose(grid.data, [2, 1, 0]))
         transpose_time += transpose_timer.elapsed
