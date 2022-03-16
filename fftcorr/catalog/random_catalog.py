@@ -76,11 +76,11 @@ def add_random_particles(n,
         f"Added {ma.num_added:,} randoms ({ma.num_skipped:,} skipped). Total "
         f"weight: {ma.totw:.4g}")
 
-    logging.debug(f"Setup time: {setup_timer.elapsed:.2f} sec")
-    logging.debug(f"Work time: {work_timer.elapsed:.2f} sec")
-    logging.debug(f"  RNG time: {rng_time:.2f} sec")
+    logging.info(f"Setup time: {setup_timer.elapsed:.2f} sec")
+    logging.info(f"Work time: {work_timer.elapsed:.2f} sec")
+    logging.info(f"  RNG time: {rng_time:.2f} sec")
     if disp is not None:
-        logging.debug(f"  Displacement field time: {disp_time:.2f} sec")
-    logging.debug(f"  Mass assignor time: {ma_time:.2f} sec")
-    logging.debug(f"    Sort time: {ma.sort_time:.2f} sec")
-    logging.debug(f"    Window time: {ma.window_time:.2f} sec")
+        logging.info(f"  Displacement field time: {disp_time:.2f} sec")
+    logging.info(f"  Mass assignor time: {ma_time:.2f} sec")
+    logging.info(f"    Sort time: {ma.sort_time:.2f} sec")
+    logging.info(f"    Window time: {ma.window_time:.2f} sec")

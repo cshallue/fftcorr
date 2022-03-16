@@ -192,12 +192,12 @@ def read_density_field(file_patterns,
         f"Added {ma.num_added:,} particles ({ma.num_skipped:,} skipped). Total "
         f"weight: {ma.totw:.4g}")
 
-    logging.debug(f"Work time: {work_timer.elapsed:.2f} sec")
-    logging.debug(f"  IO time: {io_time:.2f} sec")
+    logging.info(f"Work time: {work_timer.elapsed:.2f} sec")
+    logging.info(f"  IO time: {io_time:.2f} sec")
     if flip_xz:
-        logging.debug(f"  Transpose time: {transpose_time:.2f} sec")
+        logging.info(f"  Transpose time: {transpose_time:.2f} sec")
     if disp is not None:
-        logging.debug(f"  Displacement field time: {disp_time:.2f} sec")
-    logging.debug(f"  Mass assignor time: {ma_time:.2f} sec")
-    logging.debug(f"    Sort time: {ma.sort_time:.2f} sec")
-    logging.debug(f"    Window time: {ma.window_time:.2f} sec")
+        logging.info(f"  Displacement field time: {disp_time:.2f} sec")
+    logging.info(f"  Mass assignor time: {ma_time:.2f} sec")
+    logging.info(f"    Sort time: {ma.sort_time:.2f} sec")
+    logging.info(f"    Window time: {ma.window_time:.2f} sec")
