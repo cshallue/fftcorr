@@ -341,7 +341,7 @@ class PeriodicCorrelator : public BaseCorrelator {
       // Also include the DFT scaling.
       Float coeff = sqrt((4.0 * M_PI) * (2 * ell + 1)) * k_rescale;
       ylm_time_.start();
-      make_ylm(ell, 0, kx_, ky_, kz_, coeff, 0, &inv_window, &kylm_);
+      make_ylm(ell, 0, kx_, ky_, kz_, coeff, 0, &inv_window_, &kylm_);
       ylm_time_.stop();
       work_.extract_fft_submatrix_c2r(&kgrid_, &kylm_);
       hist_time_.start();
