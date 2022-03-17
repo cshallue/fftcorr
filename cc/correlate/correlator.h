@@ -26,6 +26,14 @@ Array1D<Float> sequence(Float start, Float step, int size) {
   return seq;
 }
 
+// TODO: move elsewhere?
+Float tsc_window(Float k, Float cell_size) {
+  // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
+  Float sinsq = sin(k * cell_size / 2.0);
+  sinsq *= sinsq;
+  return 1 - sinsq + 2.0 / 15.0 * sinsq * sinsq;
+}
+
 // TODO: rename dens* to something more generic
 class BaseCorrelator {
  public:
@@ -207,17 +215,9 @@ class BaseCorrelator {
               window = 1.0;
               break;
             case kCloudInCell: {
-              // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
-              Float sinkxL = sin(kx_[i] * cell_size_ / 2.0);
-              Float sinkyL = sin(ky_[j] * cell_size_ / 2.0);
-              Float sinkzL = sin(kz_[k] * cell_size_ / 2.0);
-              sinkxL *= sinkxL;
-              sinkyL *= sinkyL;
-              sinkzL *= sinkzL;
-              Float Wx, Wy, Wz;
-              Wx = 1 - sinkxL + 2.0 / 15.0 * sinkxL * sinkxL;
-              Wy = 1 - sinkyL + 2.0 / 15.0 * sinkyL * sinkyL;
-              Wz = 1 - sinkzL + 2.0 / 15.0 * sinkzL * sinkzL;
+              Float Wx = tsc_window(kx_[i], cell_size_);
+              Float Wy = tsc_window(ky_[j], cell_size_);
+              Float Wz = tsc_window(kz_[k], cell_size_);
               window = Wx * Wy * Wz;  // This is the square of the window
               break;
             }
