@@ -46,7 +46,7 @@ class CloudInCellWindow : public WindowFunction {
     // we're assuming that nz1 == nz2, but the more general case can be handled
     // simply by making ngrid2 an additional parameter to this function.
     const std::array<int, 3>& ngrid = dens.shape();  // [nx1, ny1, nz1]
-    const int ngrid2 = ngrid[2];                     // nz2
+    const uint64 ngrid2 = ngrid[2];                  // nz2
 
     // TODO: when I have tests covering this window function, try to use
     // indexing functions.
