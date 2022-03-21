@@ -5,7 +5,7 @@ from libcpp cimport bool
 cimport numpy as cnp
 
 from fftcorr.array cimport RowMajorArrayPtr
-from fftcorr.types cimport Float, array, One, Two, Three
+from fftcorr.types cimport Float, Complex, array, One, Two, Three
 
 cdef extern from "correlator.h":
   cdef cppclass BaseCorrelator_cc "BaseCorrelator":
@@ -19,6 +19,7 @@ cdef extern from "correlator.h":
                       int maxell,
                       unsigned fftw_flags) except +
     void set_dens2(const RowMajorArrayPtr[Float, Three]& dens2)
+    void set_dens2_fft(const RowMajorArrayPtr[Complex, Three]& dens2_fft)
     void autocorrelate(const RowMajorArrayPtr[Float, Three]& dens1)
     void cross_correlate(const RowMajorArrayPtr[Float, Three]& dens1)
     void cross_correlate(const RowMajorArrayPtr[Float, Three]& dens1,

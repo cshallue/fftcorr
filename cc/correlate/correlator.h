@@ -82,11 +82,15 @@ class BaseCorrelator {
     fflush(NULL);
 
     // Save the FFT of dens2.
+    set_dens2_fft(work_.as_complex_array());
+  }
+
+  void set_dens2_fft(const RowMajorArrayPtr<Complex, 3> &dens2_fft) {
     setup_time_.start();
     if (!dens2_fft_.data()) {
       dens2_fft_.allocate(work_.as_complex_array().shape());
     }
-    array_ops::copy(work_.as_complex_array(), dens2_fft_);
+    array_ops::copy(dens2_fft, dens2_fft_);
     setup_time_.stop();
   }
 
@@ -470,7 +474,6 @@ class Correlator : public BaseCorrelator {
         work_.execute_fft();
 
         // Multiply by conj(dens2_fft), as complex numbers
-        // TODO: we could just store the conjugate form of dens2_fft.
         mult_time_.start();
         array_ops::multiply_with_conjugation(dens2_fft_,
                                              work_.as_complex_array());

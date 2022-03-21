@@ -75,6 +75,11 @@ cdef class BaseCorrelator:
         dens2 = np.ascontiguousarray(dens2, dtype=np.float64)
         self._correlator_cc.set_dens2(as_RowMajorArrayPtr[Float, Three](dens2))
 
+    def set_dens2_fft(self, dens2_fft):
+        # TODO: dtype should be set somewhere global. Here and below.
+        dens2_fft = np.ascontiguousarray(dens2_fft, dtype=np.complex128)
+        self._correlator_cc.set_dens2_fft(as_RowMajorArrayPtr[Complex, Three](dens2_fft))
+
     def autocorrelate(self, dens, squeeze=True):
         # TODO: as_RowMajorArrayPtr currently raises an error if the argument is
         # not writeable, but in this case it could be since the Correlator takes
