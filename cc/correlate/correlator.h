@@ -17,6 +17,13 @@
 #include "../types.h"
 #include "spherical_harmonics.h"
 
+// TODO: locate somewhere else?
+enum WindowCorrection {
+  kNoCorrection = 0,
+  kTscCorrection = 1,
+  kTscAliasedCorrection = 2,
+};
+
 // TODO: locate somewhere else.
 Array1D<Float> sequence(Float start, Float step, int size) {
   Array1D<Float> seq(size);
@@ -26,8 +33,18 @@ Array1D<Float> sequence(Float start, Float step, int size) {
   return seq;
 }
 
+Float sinc(Float x) {
+  if (x == 0) return 1;
+  return sin(x) / x;
+}
+
 // TODO: move elsewhere?
 Float tsc_window(Float k, Float cell_size) {
+  Float w = sinc(k * cell_size / 2.0);
+  return pow(w, 6);
+}
+
+Float tsc_window_aliased(Float k, Float cell_size) {
   // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
   Float sinsq = sin(k * cell_size / 2.0);
   sinsq *= sinsq;
@@ -38,11 +55,11 @@ Float tsc_window(Float k, Float cell_size) {
 class BaseCorrelator {
  public:
   BaseCorrelator(const std::array<int, 3> shape, Float cell_size,
-                 WindowType window_type, Float rmax, Float dr, Float kmax,
-                 Float dk, int maxell, unsigned fftw_flags)
+                 WindowCorrection window_correct, Float rmax, Float dr,
+                 Float kmax, Float dk, int maxell, unsigned fftw_flags)
       : shape_(shape),
         cell_size_(cell_size),
-        window_type_(window_type),
+        window_correct_(window_correct),
         rmax_(rmax),
         dr_(dr),
         kmax_(kmax),
@@ -214,20 +231,22 @@ class BaseCorrelator {
     for (int i = 0; i < kshape[0]; ++i) {
       for (int j = 0; j < kshape[1]; ++j) {
         for (int k = 0; k < kshape[2]; ++k) {
-          switch (window_type_) {
-            case kNearestCell:
+          switch (window_correct_) {
+            case kNoCorrection:
               window = 1.0;
               break;
-            case kCloudInCell: {
-              Float Wx = tsc_window(kx_[i], cell_size_);
-              Float Wy = tsc_window(ky_[j], cell_size_);
-              Float Wz = tsc_window(kz_[k], cell_size_);
-              window = Wx * Wy * Wz;  // This is the square of the window
+            case kTscCorrection: {
+              window = (tsc_window(kx_[i], cell_size_) *
+                        tsc_window(ky_[j], cell_size_) *
+                        tsc_window(kz_[k], cell_size_));
               break;
             }
-            case kWavelet:
-              window = 1.0;
+            case kTscAliasedCorrection: {
+              window = (tsc_window_aliased(kx_[i], cell_size_) *
+                        tsc_window_aliased(ky_[j], cell_size_) *
+                        tsc_window_aliased(kz_[k], cell_size_));
               break;
+            }
           }
           inv_window_.at(i, j, k) = 1.0 / window;
           // We will divide the power spectrum by the square of the window
@@ -239,7 +258,7 @@ class BaseCorrelator {
   // Physical dimensions of the input grid.
   std::array<int, 3> shape_;
   Float cell_size_;
-  WindowType window_type_;
+  WindowCorrection window_correct_;
 
   // Histogram arguments.
   Float rmax_;
@@ -393,10 +412,10 @@ class PeriodicCorrelator : public BaseCorrelator {
 class Correlator : public BaseCorrelator {
  public:
   Correlator(const std::array<int, 3> shape, Float cell_size,
-             const std::array<Float, 3> posmin, WindowType window_type,
+             const std::array<Float, 3> posmin, WindowCorrection window_correct,
              Float rmax, Float dr, Float kmax, Float dk, int maxell,
              unsigned fftw_flags)
-      : BaseCorrelator(shape, cell_size, window_type, rmax, dr, kmax, dk,
+      : BaseCorrelator(shape, cell_size, window_correct, rmax, dr, kmax, dk,
                        maxell, fftw_flags),
         posmin_(posmin) {
     setup_cell_coords();

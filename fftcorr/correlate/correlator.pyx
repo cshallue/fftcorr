@@ -1,6 +1,6 @@
 from fftcorr.array.numpy_adaptor cimport copy_to_numpy, as_RowMajorArrayPtr
 from fftcorr.histogram cimport HistogramList
-from fftcorr.particle_mesh.window_type cimport WindowType
+from fftcorr.particle_mesh.window_type cimport CLOUD_IN_CELL
 from fftcorr.grid cimport ConfigSpaceGrid
 
 # TODO: can numpy_adaptor take care of this? address boundary errors without it
@@ -105,7 +105,7 @@ cdef class PeriodicCorrelator(BaseCorrelator):
     def __cinit__(self,
                   shape,
                   Float cell_size,
-                  WindowType window_type,
+                  WindowCorrection window_correct,
                   Float rmax,
                   Float dr,
                   Float kmax,
@@ -116,7 +116,7 @@ cdef class PeriodicCorrelator(BaseCorrelator):
         shape = np.ascontiguousarray(shape, dtype=np.intc)
         cdef cnp.ndarray[int, ndim=1, mode="c"] cshape = shape
         self._correlator_cc = <BaseCorrelator_cc *> new PeriodicCorrelator_cc(
-            (<array[int, Three] *> &cshape[0])[0], cell_size, window_type, rmax, dr, kmax, dk, maxell, fftw_flags)
+            (<array[int, Three] *> &cshape[0])[0], cell_size, window_correct, rmax, dr, kmax, dk, maxell, fftw_flags)
 
     # TODO: this method implies that we might want to have a ConfigSpaceGridSpec
     # class and the user would pass in grid.spec.
@@ -129,9 +129,12 @@ cdef class PeriodicCorrelator(BaseCorrelator):
                        Float dk,
                        int maxell,
                        unsigned fftw_flags = 0):
+        cdef WindowCorrection window_correct = NO_CORRECTION
+        if grid.window_type == CLOUD_IN_CELL:
+            window_correct = TSC_ALIASED_CORRECTION
         return cls(shape=grid.shape,
                    cell_size=grid.cell_size,
-                   window_type=grid.window_type,
+                   window_correct=window_correct,
                    rmax=rmax,
                    dr=dr,
                    kmax=kmax,
@@ -145,7 +148,7 @@ cdef class Correlator(BaseCorrelator):
                   shape,
                   Float cell_size,
                   posmin,
-                  WindowType window_type,
+                  WindowCorrection window_correct,
                   Float rmax,
                   Float dr,
                   Float kmax,
@@ -158,7 +161,7 @@ cdef class Correlator(BaseCorrelator):
         posmin = np.ascontiguousarray(posmin, dtype=np.float64)
         cdef cnp.ndarray[Float, ndim=1, mode="c"] cposmin = posmin
         self._correlator_cc = <BaseCorrelator_cc *> new Correlator_cc(
-            (<array[int, Three] *> &cshape[0])[0], cell_size, (<array[Float, Three] *> &cposmin[0])[0], window_type, rmax, dr, kmax, dk, maxell, fftw_flags)
+            (<array[int, Three] *> &cshape[0])[0], cell_size, (<array[Float, Three] *> &cposmin[0])[0], window_correct, rmax, dr, kmax, dk, maxell, fftw_flags)
 
     # TODO: this method implies that we might want to have a ConfigSpaceGridSpec
     # class and the user would pass in grid.spec.
@@ -171,10 +174,13 @@ cdef class Correlator(BaseCorrelator):
                        Float dk,
                        int maxell,
                        unsigned fftw_flags = 0):
+        cdef WindowCorrection window_correct = NO_CORRECTION
+        if grid.window_type == CLOUD_IN_CELL:
+            window_correct = TSC_ALIASED_CORRECTION
         return cls(shape=grid.shape,
                    cell_size=grid.cell_size,
                    posmin=grid.posmin,
-                   window_type=grid.window_type,
+                   window_correct=window_correct,
                    rmax=rmax,
                    dr=dr,
                    kmax=kmax,

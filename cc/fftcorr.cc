@@ -415,14 +415,18 @@ int main(int argc, char *argv[]) {
 
   // Compute the correlations.
   BaseCorrelator *corr;  // TODO: is this what we want to do?
+  WindowCorrection window_correct = kNoCorrection;
+  if (grid.window_type() == kCloudInCell) {
+    window_correct = kTscAliasedCorrection;
+  }
   if (periodic) {
-    corr = new PeriodicCorrelator(grid.shape(), grid.cell_size(),
-                                  grid.window_type(), sep, dsep, kmax, dk,
-                                  maxell, FFTW_MEASURE);
+    corr =
+        new PeriodicCorrelator(grid.shape(), grid.cell_size(), window_correct,
+                               sep, dsep, kmax, dk, maxell, FFTW_MEASURE);
   } else {
     // fprintf(stdout, "# Using wide-angle exponent %d\n", wide_angle_exponent);
     corr = new Correlator(grid.shape(), grid.cell_size(), grid.posmin(),
-                          grid.window_type(), sep, dsep, kmax, dk, maxell,
+                          window_correct, sep, dsep, kmax, dk, maxell,
                           FFTW_MEASURE);
   }
   corr->autocorrelate(grid.data());

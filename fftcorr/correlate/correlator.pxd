@@ -8,10 +8,20 @@ from fftcorr.array cimport RowMajorArrayPtr
 from fftcorr.types cimport Float, Complex, array, One, Two, Three
 
 cdef extern from "correlator.h":
+  # TODO: cython is supposed to support C++ scoped enums as of
+  # https://github.com/cython/cython/pull/3640/files, but my current cython
+  # version (0.29.21) gives compile errors. Revisit in a later
+  # cython version and make WindowType an enum class.
+  ctypedef enum WindowCorrection:
+    NO_CORRECTION "WindowCorrection::kNoCorrection"
+    TSC_CORRECTION "WindowCorrection::kTscCorrection"
+    TSC_ALIASED_CORRECTION "WindowCorrection::kTscAliasedCorrection"
+
+
   cdef cppclass BaseCorrelator_cc "BaseCorrelator":
     BaseCorrelator_cc(const array[int, Three]& shape,
                       Float cell_size,
-                      int window_type,  # TODO: enum type?
+                      int window_correct,  # TODO: enum type?
                       Float rmax,
                       Float dr,
                       Float kmax,
@@ -47,7 +57,7 @@ cdef extern from "correlator.h":
     Correlator_cc(const array[int, Three]& shape,
                   Float cell_size,
                   const array[Float, Three]& posmin,
-                  int window_type,  # TODO: enum type?
+                  int window_correct,  # TODO: enum type?
                   Float rmax,
                   Float dr,
                   Float kmax,
