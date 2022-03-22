@@ -1,9 +1,8 @@
 #ifndef ARRAY_ND_H
 #define ARRAY_ND_H
 
-#include <assert.h>
-
 #include <array>
+#include <stdexcept>
 #include <utility>
 
 #include "../types.h"
@@ -85,8 +84,6 @@ class ArrayNdPtrBase : public ArrayNd<dtype, N> {
   virtual ~ArrayNdPtrBase() = default;
 
   void set_data(const std::array<int, N> &shape, dtype *data) {
-    assert(data_ == NULL);  // Make sure unitialized.
-    assert(data != NULL);   // Can't initialize with NULL data.
     set_shape(shape);
     data_ = data;
   }
@@ -102,7 +99,7 @@ class ArrayNdPtrBase : public ArrayNd<dtype, N> {
     shape_ = shape;
     size_ = 1;
     for (int nx : shape_) {
-      assert(nx > 0);
+      if (nx <= 0) throw std::invalid_argument("Shape must be nonnegative.");
       size_ *= nx;
     }
   }

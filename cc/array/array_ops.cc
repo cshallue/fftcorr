@@ -1,7 +1,5 @@
 #include "array_ops.h"
 
-#include <assert.h>
-
 #include "row_major_array.h"
 
 namespace array_ops {
@@ -28,9 +26,12 @@ void set_all(Float value, RowMajorArrayPtr<Float, 3> &arr) {
 
 void copy_into_padded_array(const RowMajorArrayPtr<Float, 3> &in,
                             RowMajorArrayPtr<Float, 3> &out) {
-  assert(in.shape(0) == out.shape(0));
-  assert(in.shape(1) == out.shape(1));
-  assert(in.shape(2) <= out.shape(2));
+  bool valid_shape =
+      (in.shape(0) == out.shape(0) && in.shape(1) == out.shape(1) &&
+       in.shape(2) <= out.shape(2));
+  if (!valid_shape) {
+    throw std::invalid_argument("Incompatible shapes for copy.");
+  }
 #pragma omp parallel for MY_SCHEDULE
   for (int i = 0; i < in.shape(0); ++i) {
     for (int j = 0; j < in.shape(1); ++j) {
@@ -129,9 +130,9 @@ Float sumsq(const RowMajorArray<Float, 3> &arr) {
 
 void multiply_with_conjugation(const RowMajorArrayPtr<Complex, 3> &in,
                                RowMajorArrayPtr<Complex, 3> &out) {
-  assert(in.shape(0) == out.shape(0));
-  assert(in.shape(1) == out.shape(1));
-  assert(in.shape(2) == out.shape(2));
+  if (in.shape() != out.shape()) {
+    throw std::invalid_argument("Incompatible shapes for multiply.");
+  }
 #ifdef SLAB
   int nx = in.shape(0);
   uint64 nyz = in.size() / nx;

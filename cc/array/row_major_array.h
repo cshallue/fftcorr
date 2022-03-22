@@ -121,14 +121,15 @@ class RowMajorArrayBase : public RowMajorArrayPtr<dtype, N> {
 
   // Allocates memory to store array data.
   void allocate(const std::array<int, N> &shape) {
-    assert(this->data_ == NULL);  // Make sure unitialized.
+    if (this->data_ != NULL) {
+      throw std::logic_error("Trying to re-allocate array.");
+    }
     this->set_shape(shape);
     // Page alignment is only important for our big 3D grids, but we just do it
     // for all arrays.
     int err = posix_memalign((void **)&this->data_, PAGE,
                              sizeof(dtype) * this->size_ + PAGE);
-    assert(err == 0);
-    assert(this->data_ != NULL);
+    if (err != 0) throw std::bad_alloc();
   }
 };
 

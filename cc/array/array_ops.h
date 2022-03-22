@@ -1,6 +1,8 @@
 #ifndef ARRAY_OPS_H
 #define ARRAY_OPS_H
 
+#include <stdexcept>
+
 #include "../multithreading.h"
 #include "../types.h"
 #include "row_major_array.h"
@@ -24,9 +26,9 @@ void multiply_with_conjugation(const RowMajorArrayPtr<Complex, 3> &in,
 template <typename dtype>
 void copy(const RowMajorArrayPtr<dtype, 3> &in,
           RowMajorArrayPtr<dtype, 3> &out) {
-  assert(in.shape(0) == out.shape(0));
-  assert(in.shape(1) == out.shape(1));
-  assert(in.shape(2) == out.shape(2));
+  if (in.shape() != out.shape()) {
+    throw std::invalid_argument("Incompatible shapes for copy.");
+  }
   const dtype *in_data = in.data();
   dtype *out_data = out.data();
 #ifdef SLAB
