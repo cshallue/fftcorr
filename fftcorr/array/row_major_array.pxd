@@ -1,13 +1,16 @@
+from fftcorr.array cimport Array
 from fftcorr.types cimport Float, Complex, array, One, Two, Three, Four
 cimport numpy as cnp
 
 cdef extern from "row_major_array.h":
-  cdef cppclass RowMajorArrayPtr[dtype, N]:
+  cdef cppclass RowMajorArrayPtr[dtype, N](Array):
     RowMajorArrayPtr() except +
     RowMajorArrayPtr(array[int, N], dtype *data) except +
     dtype* data()
     const array[int, N]& shape()
 
+
+# TODO: I think all of the below are obsoleted by numpy_adaptor.
 
 # TODO: since RowMajorArrayPtr has a nullary constructor, we should be able to
 # stack allocate the RowMajorArrayPtr[Float] object.

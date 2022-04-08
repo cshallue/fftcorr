@@ -1,1 +1,2 @@
+from fftcorr.array.array cimport Array
 from fftcorr.array.row_major_array cimport RowMajorArrayPtr, RowMajorArrayPtr3D_Float, RowMajorArrayPtr3D_Complex

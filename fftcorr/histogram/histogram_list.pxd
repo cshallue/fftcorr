@@ -1,4 +1,4 @@
-from fftcorr.array cimport RowMajorArrayPtr
+from fftcorr.array cimport Array, RowMajorArrayPtr
 from fftcorr.types cimport Float, array, One, Two
 cimport numpy as cnp
 
@@ -9,6 +9,8 @@ cdef extern from "histogram_list.h":
     const RowMajorArrayPtr[Float, One]& bins()
     const RowMajorArrayPtr[int, Two]& counts()
     const RowMajorArrayPtr[Float, Two]& hist_values()
+    void accumulate(int ih, const Array[Float]& x, const Array[Float]& y)
+    void reset()
 
 cdef class HistogramList:
     cdef HistogramList_cc* _cc_hist_list

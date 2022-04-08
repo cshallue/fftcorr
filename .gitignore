@@ -3,3 +3,4 @@
 *.pyc
 wisdom_fftw*
 *.DS_Store
+*.so

@@ -7,6 +7,8 @@ ctypedef double Float
 # https://github.com/pyFFTW/pyFFTW/blob/ff5e19f5aedeb52658f2ea6b3fa5541849d77e1e/pyfftw/pyfftw.pxd
 ctypedef double complex Complex
 
+ctypedef unsigned long long int uint64
+
 # The numpy type enum corresponding to the Float typedef above.
 # https://numpy.org/doc/stable/reference/c-api/dtype.html
 #cimport numpy as cnp
