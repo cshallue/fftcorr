@@ -19,7 +19,7 @@ class HistogramList {
     assert(n > 0);
     assert(maxval > minval);
     assert(binsize > 0);
-    for (int i = 0; i < nbins_; ++i) bins_[i] = (i + 0.5) * binsize_;
+    for (int i = 0; i < nbins_; ++i) bins_[i] = minval_ + (i + 0.5) * binsize_;
     reset();
   }
 
@@ -57,6 +57,8 @@ class HistogramList {
   Float minval_;
   Float binsize_;
 
+  // TODO: should rename bins_ to bin_midpoints_ or something and also expose or
+  // store the endpoints.
   int nbins_;
   Array1D<Float> bins_;  // Bin midpoints
   RowMajorArray<int, 2> counts_;
