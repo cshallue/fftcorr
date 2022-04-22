@@ -128,10 +128,8 @@ cdef class PeriodicCorrelator(BaseCorrelator):
                        Float kmax,
                        Float dk,
                        int maxell,
+                       WindowCorrection window_correct = NO_CORRECTION,
                        unsigned fftw_flags = 0):
-        cdef WindowCorrection window_correct = NO_CORRECTION
-        if grid.window_type == CLOUD_IN_CELL:
-            window_correct = TSC_ALIASED_CORRECTION
         return cls(shape=grid.shape,
                    cell_size=grid.cell_size,
                    window_correct=window_correct,
@@ -173,10 +171,8 @@ cdef class Correlator(BaseCorrelator):
                        Float kmax,
                        Float dk,
                        int maxell,
+                       WindowCorrection window_correct = NO_CORRECTION,
                        unsigned fftw_flags = 0):
-        cdef WindowCorrection window_correct = NO_CORRECTION
-        if grid.window_type == CLOUD_IN_CELL:
-            window_correct = TSC_ALIASED_CORRECTION
         return cls(shape=grid.shape,
                    cell_size=grid.cell_size,
                    posmin=grid.posmin,

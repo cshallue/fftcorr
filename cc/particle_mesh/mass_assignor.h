@@ -28,9 +28,10 @@ struct Particle {
 
 class MassAssignor {
  public:
-  MassAssignor(ConfigSpaceGrid &grid, bool periodic_wrap, uint64 buffer_size)
+  MassAssignor(ConfigSpaceGrid &grid, WindowType window_type,
+               bool periodic_wrap, uint64 buffer_size)
       : grid_(grid),
-        window_func_(make_window_function(grid.window_type())),
+        window_func_(make_window_function(window_type)),
         periodic_wrap_(periodic_wrap),
         buffer_size_(buffer_size),
         num_added_(0),

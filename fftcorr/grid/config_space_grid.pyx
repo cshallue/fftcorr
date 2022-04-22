@@ -1,7 +1,5 @@
 
 from fftcorr.array.numpy_adaptor cimport as_numpy
-from fftcorr.particle_mesh.window_type cimport WindowType
-from cpython cimport Py_INCREF
 cimport numpy as cnp
 cnp.import_array()
 
@@ -16,8 +14,7 @@ cdef class ConfigSpaceGrid:
                   posmax,
                   cell_size=None,
                   padding=0,  # padding already built in to posmin and posmax
-                  extra_pad=0,  # additional padding to add
-                  window_type=0):
+                  extra_pad=0):  # additional padding to add
         # Convert input arrays to contiguous arrays of the correct data type.
         # Then check for errors, as python objects.
         # Insist posmin is copied since it will be retained as a class attribute.
@@ -90,17 +87,14 @@ cdef class ConfigSpaceGrid:
             arr.setflags(write=False)
         self._cell_size = cell_size
         self._padding = padding + extra_pad
-        self._window_type = window_type
 
         # Create the wrapped C++ ConfigSpaceGrid.
         cdef cnp.ndarray[int, ndim=1, mode="c"] cshape = shape
         cdef cnp.ndarray[double, ndim=1, mode="c"] cposmin = posmin
-        cdef WindowType wt = window_type
         self._cc_grid = new ConfigSpaceGrid_cc(
             (<array[int, Three] *> &cshape[0])[0],
             (<array[Float, Three] *> &cposmin[0])[0],
-            cell_size,
-            wt)
+            cell_size)
         
         # Wrap the data array as a numpy array.
         self._data = as_numpy(self._cc_grid.data())
@@ -147,10 +141,6 @@ cdef class ConfigSpaceGrid:
         return self._padding
 
     @property
-    def window_type(self):
-        return self._window_type
-
-    @property
     def data(self):
         return self._data
 
@@ -165,7 +155,6 @@ cdef class ConfigSpaceGrid:
                 "posmax": self.posmax,
                 "cell_size": self.cell_size,
                 "padding": self.padding,
-                "window_type": self.window_type,
             },
             "data": self.data.astype(dtype),
         }
@@ -185,8 +174,7 @@ cdef class ConfigSpaceGrid:
                 shape=header["shape"],
                 posmin=header["posmin"],
                 posmax=header["posmax"],
-                padding=header["padding"],
-                window_type=header["window_type"])
+                padding=header["padding"])
             assert np.allclose(grid.cell_size, header["cell_size"])
             np.copyto(grid.data, af.tree["data"])
         return grid

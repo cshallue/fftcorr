@@ -45,7 +45,7 @@ cdef extern from "correlator.h":
   cdef cppclass PeriodicCorrelator_cc "PeriodicCorrelator":
     PeriodicCorrelator_cc(const array[int, Three]& shape,
                           Float cell_size,
-                          int window_type,  # TODO: enum type?
+                          int window_correct,  # TODO: enum type?
                           Float rmax,
                           Float dr,
                           Float kmax,

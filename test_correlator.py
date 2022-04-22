@@ -21,12 +21,11 @@ window_type = 0
 dens = ConfigSpaceGrid(shape=ngrid,
                        posmin=posmin,
                        posmax=posmax,
-                       cell_size=cell_size,
-                       window_type=window_type)
+                       cell_size=cell_size)
 print("created grid")
 print()
 
-ma = MassAssignor(dens, buffer_size=100)
+ma = MassAssignor(dens, window_type=window_type, buffer_size=100)
 print("Created mass assignor")
 print("num_added =", ma.num_added)
 print("totw =", ma.totw)
@@ -71,8 +70,7 @@ print()
 dens2 = ConfigSpaceGrid(shape=ngrid,
                         posmin=posmin,
                         posmax=posmax,
-                        cell_size=cell_size,
-                        window_type=window_type)
+                        cell_size=cell_size)
 np.copyto(dens2.data, np.random.uniform(size=dens2.shape))
 print("Computing cross correlation!")
 ps, corr = c.cross_correlate(dens.data, dens2.data)

@@ -7,7 +7,7 @@ cimport numpy as cnp
 
 cdef extern from "config_space_grid.h":
   cdef cppclass ConfigSpaceGrid_cc "ConfigSpaceGrid":
-    ConfigSpaceGrid_cc(array[int, Three], array[Float, Three], Float, int) except +
+    ConfigSpaceGrid_cc(array[int, Three], array[Float, Three], Float) except +
     Float cell_size()
     RowMajorArrayPtr[Float, Three]& data()
     void clear()
@@ -21,7 +21,6 @@ cdef class ConfigSpaceGrid:
     cdef cnp.ndarray _posmax
     cdef Float _cell_size
     cdef Float _padding
-    cdef int _window_type
     cdef ConfigSpaceGrid_cc *_cc_grid
     cdef cnp.ndarray _data
 

@@ -10,6 +10,7 @@ cdef extern from "mass_assignor.h":
   cdef cppclass MassAssignor_cc "MassAssignor":
     MassAssignor_cc(
       ConfigSpaceGrid_cc& grid,
+      WindowType window_type,
       bool periodic_wrap,
       int buffer_size) except +
     void clear()

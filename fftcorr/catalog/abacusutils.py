@@ -91,6 +91,7 @@ class ParticleFileReader(AbacusFileReader):
 
 def read_density_field(file_patterns,
                        grid,
+                       window_type,
                        reader=None,
                        periodic_wrap=False,
                        redshift_distortion=None,
@@ -150,7 +151,7 @@ def read_density_field(file_patterns,
             np.copyto(grid.data, np.transpose(grid.data, [2, 1, 0]))
         transpose_time += transpose_timer.elapsed
 
-    ma = MassAssignor(grid, periodic_wrap, buffer_size)
+    ma = MassAssignor(grid, window_type, periodic_wrap, buffer_size)
     with Timer() as work_timer:
         for filename in filenames:
             logging.info(f"Reading {os.path.basename(filename)}")

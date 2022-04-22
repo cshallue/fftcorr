@@ -7,6 +7,7 @@ from fftcorr.utils import Timer
 
 def add_random_particles(n,
                          grid,
+                         window_type,
                          particle_weight=None,
                          total_weight=None,
                          periodic_wrap=False,
@@ -36,7 +37,7 @@ def add_random_particles(n,
         pos_buf = np.empty((batch_size, 3), dtype=np.float64, order="C")
 
     rng = np.random.default_rng(seed)
-    ma = MassAssignor(grid, periodic_wrap, buffer_size)
+    ma = MassAssignor(grid, window_type, periodic_wrap, buffer_size)
     with Timer() as work_timer:
         particles_added = 0
         rng_time = 0.0
