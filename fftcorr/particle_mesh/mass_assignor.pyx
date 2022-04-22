@@ -16,6 +16,10 @@ from fftcorr.utils import Timer
 # deallocate the buffer?
 cdef class MassAssignor:
     def __cinit__(self, ConfigSpaceGrid grid, WindowType window_type, bool periodic_wrap=False, int buffer_size=0):
+        self._grid = grid
+        self._window_type = window_type
+        self._periodic_wrap = periodic_wrap
+        self._buffer_size = buffer_size
         self._cc_ma = new MassAssignor_cc(grid.cc_grid()[0], window_type, periodic_wrap, buffer_size)
         
 
@@ -31,6 +35,18 @@ cdef class MassAssignor:
 
     def __dealloc__(self):
         del self._cc_ma
+
+    @property
+    def window_type(self):
+        return self._window_type
+
+    @property
+    def periodic_wrap(self):
+        return self._periodic_wrap
+
+    @property
+    def buffer_size(self):
+        return self._buffer_size
 
     cpdef clear(self):
         self._cc_ma.clear()
@@ -66,6 +82,15 @@ cdef class MassAssignor:
                 f"Got {weight.shape} and {particles.shape}")
         # TODO: turn this into a helper as_ArrayPtr1D, or wrap ArrayPtr1D separately?
         cdef RowMajorArrayPtr[Float, One] wptr = as_RowMajorArrayPtr[Float, One](weight)
+
+        # Add the window type to the grid's metadata.
+        if ("window_type" in self._grid.metadata and 
+                self._grid.metadata["window_type"] != self.window_type)
+            # TODO: log a warning?
+            self._grid.metadata["window_type"] = -1
+        else:
+            self._grid.metadata["window_type"] = self.window_type
+
         return self._cc_ma.add_particles_to_buffer(pptr, wptr)
 
     cpdef flush(self):
