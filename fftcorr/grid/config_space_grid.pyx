@@ -14,7 +14,8 @@ cdef class ConfigSpaceGrid:
                   posmax,
                   cell_size=None,
                   padding=0,  # padding already built in to posmin and posmax
-                  extra_pad=0):  # additional padding to add
+                  extra_pad=0,  # additional padding to add
+                  metadata=None):
         # Convert input arrays to contiguous arrays of the correct data type.
         # Then check for errors, as python objects.
         # Insist posmin is copied since it will be retained as a class attribute.
@@ -99,6 +100,11 @@ cdef class ConfigSpaceGrid:
         # Wrap the data array as a numpy array.
         self._data = as_numpy(self._cc_grid.data())
 
+        # Additional metadata.
+        self._metadata = {}
+        if metadata:
+            self._metadata.update(metadata)
+
     def __dealloc__(self):
         del self._cc_grid
 
@@ -144,10 +150,15 @@ cdef class ConfigSpaceGrid:
     def data(self):
         return self._data
 
+    @property
+    def metadata(self):
+        return self._metadata
+
     def clear(self):
         self._cc_grid.clear()
+        self._metadata.clear()
 
-    def write(self, filename, metadata=None, dtype=np.float32):
+    def write(self, filename, dtype=np.float32):
         tree = {
             "header": {
                 "shape": self.shape,
@@ -157,12 +168,8 @@ cdef class ConfigSpaceGrid:
                 "padding": self.padding,
             },
             "data": self.data.astype(dtype),
+            "metadata": self.metadata,
         }
-        if metadata:
-            if "header" in metadata or "data" in metadata:
-                raise ValueError(
-                    "metadata cannot contain keys 'header' or 'data'")
-            tree.update(metadata)
         with asdf.AsdfFile(tree) as af:
             af.write_to(filename)
 
@@ -174,7 +181,8 @@ cdef class ConfigSpaceGrid:
                 shape=header["shape"],
                 posmin=header["posmin"],
                 posmax=header["posmax"],
-                padding=header["padding"])
+                padding=header["padding"],
+                metadata=af.tree.get("metadata"))
             assert np.allclose(grid.cell_size, header["cell_size"])
             np.copyto(grid.data, af.tree["data"])
         return grid
