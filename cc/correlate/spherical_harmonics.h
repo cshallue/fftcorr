@@ -1,9 +1,8 @@
 #ifndef SPHERICAL_HARMONICS_H
 #define SPHERICAL_HARMONICS_H
 
-#include <assert.h>
-
 #include <array>
+#include <stdexcept>
 
 #include "../array/row_major_array.h"
 #include "../multithreading.h"
@@ -34,14 +33,19 @@ void make_ylm(int ell, int m, const Array1D<Float> &xcell,
               const Array1D<Float> &ycell, const Array1D<Float> &zcell,
               Float coeff, int exponent, const RowMajorArrayPtr<Float, 3> *mult,
               RowMajorArrayPtr<Float, 3> *ylm) {
+  if (!(ell == 0 || ell == 2 || ell == 4)) {
+    throw std::invalid_argument("Unsupported ell");
+  }
+  if (m < -ell || m > ell) throw std::invalid_argument("Illegal (ell, m)");
+  if (exponent % 2 != 0) throw std::invalid_argument("Exponent must be even.");
+
   // Check dimensions.
   const int n0 = xcell.size();
   const int n1 = ycell.size();
   const int n2 = zcell.size();
-  assert(ylm->shape(0) >= n0);
-  assert(ylm->shape(1) >= n1);
-  assert(ylm->shape(2) >= n2);
-  assert(exponent % 2 == 0);
+  if (ylm->shape(0) < n0 || ylm->shape(1) < n1 || ylm->shape(2) < n2) {
+    throw std::invalid_argument("Axes do not cover grid.");
+  }
 
   if (ell == 0 && m == 0 && exponent == 0) {
     // This case is so easy that we'll do it directly and skip the setup.
@@ -66,8 +70,6 @@ void make_ylm(int ell, int m, const Array1D<Float> &xcell,
     }
     return;
   }
-
-  ylm->at(0, 0, 0) = -123456.0;  // A sentinal value.
 
   // Precompute some terms.
   Array1D<Float> z2(n2);
@@ -174,8 +176,6 @@ void make_ylm(int ell, int m, const Array1D<Float> &xcell,
       }
     }
   }
-  // Traps whether the user entered an illegal (ell,m)
-  assert(ylm->at(0, 0, 0) != 123456.0);
 }
 
 #endif  // SPHERICAL_HARMONICS_H
