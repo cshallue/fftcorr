@@ -1,8 +1,6 @@
 #ifndef CORRELATE_H
 #define CORRELATE_H
 
-#include <assert.h>
-
 #include <array>
 #include <cmath>
 #include <vector>
