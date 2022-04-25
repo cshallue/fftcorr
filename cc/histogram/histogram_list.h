@@ -1,7 +1,7 @@
 #ifndef HISTOGRAM_H
 #define HISTOGRAM_H
 
-#include <assert.h>
+#include <stdexcept>
 
 #include "../array/array.h"
 #include "../array/row_major_array.h"
@@ -16,9 +16,11 @@ class HistogramList {
         bins_(nbins_),
         counts_({n, nbins_}),
         hist_values_({n, nbins_}) {
-    assert(n > 0);
-    assert(maxval > minval);
-    assert(binsize > 0);
+    if (n <= 0) throw std::invalid_argument("n must be positive.");
+    if (minval >= maxval) {
+      throw std::invalid_argument("maxval must be greater than minval.");
+    }
+    if (binsize <= 0) throw std::invalid_argument("binsize must be positive.");
     for (int i = 0; i < nbins_; ++i) bins_[i] = minval_ + (i + 0.5) * binsize_;
     reset();
   }
@@ -29,7 +31,7 @@ class HistogramList {
   const RowMajorArrayPtr<Float, 2> &hist_values() const { return hist_values_; }
 
   void accumulate(int ih, const Array<Float> &x, const Array<Float> &y) {
-    assert(ih < counts_.shape(0));
+    if (ih >= counts_.shape(0)) throw std::out_of_range("ih out of range.");
     int *count = counts_.get_row(ih);
     Float *hist = hist_values_.get_row(ih);
     const Float *xdata = x.data();

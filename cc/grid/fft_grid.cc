@@ -1,7 +1,7 @@
 #include "fft_grid.h"
 
-#include <assert.h>
 #include <math.h>
+#include <stdexcept>
 
 #include "../array/array_ops.h"
 #include "../array/row_major_array.h"
@@ -25,7 +25,7 @@ FftGrid::FftGrid(std::array<int, 3> shape)
   // The default 3D FFTW format must have the following:
   dsize_z = 2 * (rshape_[2] / 2 + 1);
 #endif
-  assert(dsize_z % 2 == 0);
+  if (dsize_z % 2 != 0) throw std::runtime_error("dsize_z must be even.");
   fprintf(stdout, "# Using dsize_z_=%d for FFT r2c padding\n", dsize_z);
 
   std::array<int, 3> dshape = {rshape_[0], rshape_[1], dsize_z};
@@ -123,7 +123,7 @@ bool FftGrid::fft_ready() {
 }
 
 void FftGrid::execute_fft() {
-  assert(fft_ready());
+  if (!fft_ready()) throw std::runtime_error("FFT not yet set up.");
   fft_time_.start();
 #ifndef FFTSLAB
   fftw_execute(fft_);
@@ -150,7 +150,7 @@ void FftGrid::execute_fft() {
 }
 
 void FftGrid::execute_ifft() {
-  assert(fft_ready());
+  if (!fft_ready()) throw std::runtime_error("FFT not yet set up.");
   fft_time_.start();
 #ifndef FFTSLAB
   fftw_execute(ifft_);
