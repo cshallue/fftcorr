@@ -11,10 +11,14 @@ cell_size = 25
 g = fftcorr.grid.ConfigSpaceGrid(shape=ngrid,
                                  posmin=posmin,
                                  posmax=posmax,
-                                 cell_size=cell_size)
+                                 cell_size=cell_size,
+                                 metadata={"hello": 12345})
 print(g.cell_size)
 print(g.posmin)
 print(g.posmax)
+print(g.metadata)
+g.metadata["banana"] = 45678
+print(g.metadata)
 print()
 
 g_refcount = ctypes.c_long.from_address(id(g)).value

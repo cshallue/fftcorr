@@ -18,12 +18,13 @@ posmax = [50, 45, 120]
 cell_size = 25
 g = fftcorr.grid.ConfigSpaceGrid(ngrid, posmin, posmax, cell_size=cell_size)
 print("created grid")
+print("metadata =", g.metadata)
 d = g.data
 print(d.flatten())
 print("sum =", np.sum(g))
 print()
 
-ma = fftcorr.particle_mesh.MassAssignor(g, window_type=0, buffer_size=100)
+ma = fftcorr.particle_mesh.MassAssignor(g, window_type=1, buffer_size=100)
 print("Created mass assignor")
 print(dir(ma))
 print("num_added =", ma.num_added)
@@ -43,6 +44,7 @@ print("we haven't flushed yet, so...")
 print("sum =", np.sum(g))
 print("sort time =", ma.sort_time)
 print("window time =", ma.window_time)
+print("metadata =", g.metadata)
 print(d.flatten())
 print()
 
@@ -54,6 +56,7 @@ print("totwsq =", ma.totwsq)
 print("sum =", np.sum(g))
 print("sort time =", ma.sort_time)
 print("window time =", ma.window_time)
+print("metadata =", g.metadata)
 print(d.flatten())
 print()
 

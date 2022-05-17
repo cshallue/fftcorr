@@ -23,6 +23,7 @@ cdef class ConfigSpaceGrid:
     cdef Float _padding
     cdef ConfigSpaceGrid_cc *_cc_grid
     cdef cnp.ndarray _data
+    cdef dict _metadata
 
     cdef ConfigSpaceGrid_cc* cc_grid(self)
     cdef bool get_grid_coords(self, const Float*, bool, Float*)

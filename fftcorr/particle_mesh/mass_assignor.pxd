@@ -20,6 +20,7 @@ cdef extern from "mass_assignor.h":
     void add_particles_to_buffer(const RowMajorArrayPtr[Float, Two]&, Float)
     void add_particle_to_buffer(Float*, Float)
     void flush()
+    int buffer_size()
     unsigned long long num_added()
     unsigned long long num_skipped()
     Float totw()
