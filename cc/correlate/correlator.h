@@ -49,7 +49,6 @@ Float tsc_window_aliased(Float k, Float cell_size) {
   return 1 - sinsq + 2.0 / 15.0 * sinsq * sinsq;
 }
 
-// TODO: rename dens* to something more generic
 class BaseCorrelator {
  public:
   BaseCorrelator(const std::array<int, 3> shape, Float cell_size,
@@ -75,37 +74,37 @@ class BaseCorrelator {
 
   virtual ~BaseCorrelator() {}
 
-  virtual void autocorrelate(const RowMajorArrayPtr<Float, 3> &dens) = 0;
+  virtual void autocorrelate(const RowMajorArrayPtr<Float, 3> &grid) = 0;
 
-  virtual void cross_correlate(const RowMajorArrayPtr<Float, 3> &dens1) = 0;
+  virtual void cross_correlate(const RowMajorArrayPtr<Float, 3> &grid1) = 0;
 
-  void cross_correlate(const RowMajorArrayPtr<Float, 3> &dens1,
-                       const RowMajorArrayPtr<Float, 3> &dens2) {
-    set_dens2(dens2);
-    cross_correlate(dens1);
+  void cross_correlate(const RowMajorArrayPtr<Float, 3> &grid1,
+                       const RowMajorArrayPtr<Float, 3> &grid2) {
+    set_grid2(grid2);
+    cross_correlate(grid1);
   }
 
-  void set_dens2(const RowMajorArrayPtr<Float, 3> &dens2) {
+  void set_grid2(const RowMajorArrayPtr<Float, 3> &grid2) {
     setup_time_.start();
-    array_ops::copy_into_padded_array(dens2, work_.as_real_array());
+    array_ops::copy_into_padded_array(grid2, work_.as_real_array());
     setup_time_.stop();
 
-    fprintf(stdout, "# Computing the density 2 FFT...");
+    fprintf(stdout, "# Computing grid 2 FFT...");
     fflush(NULL);
     work_.execute_fft();
     fprintf(stdout, "# Done!\n");
     fflush(NULL);
 
-    // Save the FFT of dens2.
-    set_dens2_fft(work_.as_complex_array());
+    // Save the FFT of grid2.
+    set_grid2_fft(work_.as_complex_array());
   }
 
-  void set_dens2_fft(const RowMajorArrayPtr<Complex, 3> &dens2_fft) {
+  void set_grid2_fft(const RowMajorArrayPtr<Complex, 3> &grid2_fft) {
     setup_time_.start();
-    if (!dens2_fft_.data()) {
-      dens2_fft_.allocate(work_.as_complex_array().shape());
+    if (!grid2_fft_.data()) {
+      grid2_fft_.allocate(work_.as_complex_array().shape());
     }
-    array_ops::copy(dens2_fft, dens2_fft_);
+    array_ops::copy(grid2_fft, grid2_fft_);
     setup_time_.stop();
   }
 
@@ -278,7 +277,7 @@ class BaseCorrelator {
   RowMajorArray<Float, 3> rylm_;
 
   // Fourier-space arrays.
-  RowMajorArray<Complex, 3> dens2_fft_;
+  RowMajorArray<Complex, 3> grid2_fft_;
   RowMajorArray<Float, 3> ksubgrid_;
   Array1D<Float> kx_;
   Array1D<Float> ky_;
@@ -304,43 +303,43 @@ class PeriodicCorrelator : public BaseCorrelator {
  public:
   using BaseCorrelator::BaseCorrelator;  // Inherit constructors.
 
-  void autocorrelate(const RowMajorArrayPtr<Float, 3> &dens) {
-    correlate_internal(dens, NULL);
+  void autocorrelate(const RowMajorArrayPtr<Float, 3> &grid) {
+    correlate_internal(grid, NULL);
   }
 
-  void cross_correlate(const RowMajorArrayPtr<Float, 3> &dens1) {
-    correlate_internal(dens1, &dens2_fft_);
+  void cross_correlate(const RowMajorArrayPtr<Float, 3> &grid1) {
+    correlate_internal(grid1, &grid2_fft_);
   }
 
   // TODO: this appears to be necessary for cython?
-  void cross_correlate(const RowMajorArrayPtr<Float, 3> &dens1,
-                       const RowMajorArrayPtr<Float, 3> &dens2) {
-    BaseCorrelator::cross_correlate(dens1, dens2);
+  void cross_correlate(const RowMajorArrayPtr<Float, 3> &grid1,
+                       const RowMajorArrayPtr<Float, 3> &grid2) {
+    BaseCorrelator::cross_correlate(grid1, grid2);
   }
 
  protected:
-  void correlate_internal(const RowMajorArrayPtr<Float, 3> &dens1,
-                          const RowMajorArrayPtr<Complex, 3> *dens2_fft) {
+  void correlate_internal(const RowMajorArrayPtr<Float, 3> &grid1,
+                          const RowMajorArrayPtr<Complex, 3> *grid2_fft) {
     total_time_.start();
     rhist_.reset();
     khist_.reset();
 
-    array_ops::copy_into_padded_array(dens1, work_.as_real_array());
-    fprintf(stdout, "# Computing the density 1 FFT...");
+    array_ops::copy_into_padded_array(grid1, work_.as_real_array());
+    fprintf(stdout, "# Computing grid 1 FFT...");
     fflush(NULL);
     work_.execute_fft();
     fprintf(stdout, "# Done!\n");
     fflush(NULL);
 
-    if (!dens2_fft) {
-      dens2_fft = &work_.as_complex_array();  // Autocorrelation.
+    if (!grid2_fft) {
+      grid2_fft = &work_.as_complex_array();  // Autocorrelation.
     }
 
     fprintf(stdout, "# Multiply...");
     fflush(NULL);
     // TODO: inplace abs^2?
     mult_time_.start();
-    array_ops::multiply_with_conjugation(*dens2_fft, work_.as_complex_array());
+    array_ops::multiply_with_conjugation(*grid2_fft, work_.as_complex_array());
     mult_time_.stop();
 
     // The periodic cross spectrum is (1/V) FT[f] conj(FT[g]), expressed in a
@@ -349,7 +348,7 @@ class PeriodicCorrelator : public BaseCorrelator {
     // the output of the DFT is (N/V) times the corresponding Fourier series
     // coefficient, where N is the number of cells. Thus, we must multiply by
     // (1/V) / (N/V) / (N/V) = V / N^2 = cell_size^3 / ncells.
-    uint64 ncells = dens1.size();
+    uint64 ncells = grid1.size();
     Float k_rescale = cell_size_ * cell_size_ * cell_size_ / ncells;
 
     // Extract the power spectrum, expanded in Legendre polynomials.
@@ -419,12 +418,12 @@ class Correlator : public BaseCorrelator {
     setup_cell_coords();
   }
 
-  void autocorrelate(const RowMajorArrayPtr<Float, 3> &dens) {
-    BaseCorrelator::cross_correlate(dens, dens);
+  void autocorrelate(const RowMajorArrayPtr<Float, 3> &grid) {
+    BaseCorrelator::cross_correlate(grid, grid);
   }
 
-  void cross_correlate(const RowMajorArrayPtr<Float, 3> &dens1) {
-    correlate_internal(dens1);
+  void cross_correlate(const RowMajorArrayPtr<Float, 3> &grid1) {
+    correlate_internal(grid1);
   }
 
  protected:
@@ -439,9 +438,9 @@ class Correlator : public BaseCorrelator {
     // grid, but displaced far away in the -x direction. This is an
     // inefficient way to compute the periodic case, but it's a good sanity
     // check. for (int i = 0; i < 3; ++i) {
-    //   observer[i] = dens1.shape(i) / 2.0;
+    //   observer[i] = grid1.shape(i) / 2.0;
     // }
-    // observer[0] -= dens1.shape(0) * 1e6;  // Observer far away!
+    // observer[0] -= grid1.shape(0) * 1e6;  // Observer far away!
 
     // Coordinates of the cell centers in each dimension, relative to the
     // observer. We're using grid units (scale doesn't matter when computing
@@ -453,14 +452,14 @@ class Correlator : public BaseCorrelator {
 
   // TODO: the normalization doesn't match the periodic case, but that doesn't
   // really matter because here we take the ratios of NN and RR.
-  void correlate_internal(const RowMajorArrayPtr<Float, 3> &dens1) {
+  void correlate_internal(const RowMajorArrayPtr<Float, 3> &grid1) {
     constexpr int wide_angle_exponent = 0;  // TODO: do we still need this?
     total_time_.start();
     rhist_.reset();
     khist_.reset();
 
-    array_ops::copy_into_padded_array(dens1, work_.as_real_array());
-    fprintf(stdout, "# Computing the density 1 FFT...");
+    array_ops::copy_into_padded_array(grid1, work_.as_real_array());
+    fprintf(stdout, "# Computing grid 1 FFT...");
     fflush(NULL);
     work_.execute_fft();
     fprintf(stdout, "# Done!\n");
@@ -479,20 +478,20 @@ class Correlator : public BaseCorrelator {
         fprintf(stdout, "# Computing %d %2d...", ell, m);
 
         // Create the Ylm matrix times work_
-        // TODO: here, is it advantageous if dens1 is padded as well, so its
+        // TODO: here, is it advantageous if grid1 is padded as well, so its
         // boundaries match with those of work?
         ylm_time_.start();
         make_ylm(ell, m, xcell_, ycell_, zcell_, 1.0, -wide_angle_exponent,
-                 &dens1, &work_.as_real_array());
+                 &grid1, &work_.as_real_array());
         ylm_time_.stop();
         fprintf(stdout, "Ylm...");
 
         // FFT in place
         work_.execute_fft();
 
-        // Multiply by conj(dens2_fft), as complex numbers
+        // Multiply by conj(grid2_fft), as complex numbers
         mult_time_.start();
-        array_ops::multiply_with_conjugation(dens2_fft_,
+        array_ops::multiply_with_conjugation(grid2_fft_,
                                              work_.as_complex_array());
         mult_time_.stop();
 
@@ -522,7 +521,7 @@ class Correlator : public BaseCorrelator {
         // Create Ylm for the submatrix that we'll extract for histogramming
         // Include the SE15 normalization and the factor of ncells to finish
         // the inverse FFT (FFTW doesn't include this factor automatically).
-        uint64 ncells = dens1.size();
+        uint64 ncells = grid1.size();
         ylm_time_.start();
         make_ylm(ell, m, rx_, ry_, rz_, 4.0 * M_PI / ncells,
                  wide_angle_exponent, NULL, &rylm_);

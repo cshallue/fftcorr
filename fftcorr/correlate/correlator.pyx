@@ -70,33 +70,33 @@ cdef class BaseCorrelator:
             names=("k", "ps", "histogram", "count"),
             copy=True)
 
-    def set_dens2(self, dens2):
+    def set_grid2(self, grid2):
         # TODO: dtype should be set somewhere global. Here and below.
-        dens2 = np.ascontiguousarray(dens2, dtype=np.float64)
-        self._correlator_cc.set_dens2(as_RowMajorArrayPtr[Float, Three](dens2))
+        grid2 = np.ascontiguousarray(grid2, dtype=np.float64)
+        self._correlator_cc.set_grid2(as_RowMajorArrayPtr[Float, Three](grid2))
 
-    def set_dens2_fft(self, dens2_fft):
+    def set_grid2_fft(self, grid2_fft):
         # TODO: dtype should be set somewhere global. Here and below.
-        dens2_fft = np.ascontiguousarray(dens2_fft, dtype=np.complex128)
-        self._correlator_cc.set_dens2_fft(as_RowMajorArrayPtr[Complex, Three](dens2_fft))
+        grid2_fft = np.ascontiguousarray(grid2_fft, dtype=np.complex128)
+        self._correlator_cc.set_grid2_fft(as_RowMajorArrayPtr[Complex, Three](grid2_fft))
 
-    def autocorrelate(self, dens, squeeze=True):
+    def autocorrelate(self, grid, squeeze=True):
         # TODO: as_RowMajorArrayPtr currently raises an error if the argument is
         # not writeable, but in this case it could be since the Correlator takes
         # a const RowMajorArrayPtr.
-        dens = np.ascontiguousarray(dens, dtype=np.float64)
-        self._correlator_cc.autocorrelate(as_RowMajorArrayPtr[Float, Three](dens))
+        grid = np.ascontiguousarray(grid, dtype=np.float64)
+        self._correlator_cc.autocorrelate(as_RowMajorArrayPtr[Float, Three](grid))
         return self._power_spectrum(squeeze), self._correlation(squeeze)
 
-    def cross_correlate(self, dens1, dens2=None, squeeze=True):
-        dens1 = np.ascontiguousarray(dens1, dtype=np.float64)
-        if dens2 is None:
-            self._correlator_cc.cross_correlate(as_RowMajorArrayPtr[Float, Three](dens1))
+    def cross_correlate(self, grid1, grid2=None, squeeze=True):
+        grid1 = np.ascontiguousarray(grid1, dtype=np.float64)
+        if grid2 is None:
+            self._correlator_cc.cross_correlate(as_RowMajorArrayPtr[Float, Three](grid1))
         else:
-            dens2 = np.ascontiguousarray(dens2, dtype=np.float64)
+            grid2 = np.ascontiguousarray(grid2, dtype=np.float64)
             self._correlator_cc.cross_correlate(
-                as_RowMajorArrayPtr[Float, Three](dens1),
-                as_RowMajorArrayPtr[Float, Three](dens2))
+                as_RowMajorArrayPtr[Float, Three](grid1),
+                as_RowMajorArrayPtr[Float, Three](grid2))
 
         return self._power_spectrum(squeeze), self._correlation(squeeze)
 

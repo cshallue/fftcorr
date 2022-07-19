@@ -28,12 +28,12 @@ cdef extern from "correlator.h":
                       Float dk,
                       int maxell,
                       unsigned fftw_flags) except +
-    void set_dens2(const RowMajorArrayPtr[Float, Three]& dens2)
-    void set_dens2_fft(const RowMajorArrayPtr[Complex, Three]& dens2_fft)
-    void autocorrelate(const RowMajorArrayPtr[Float, Three]& dens1)
-    void cross_correlate(const RowMajorArrayPtr[Float, Three]& dens1)
-    void cross_correlate(const RowMajorArrayPtr[Float, Three]& dens1,
-                         const RowMajorArrayPtr[Float, Three]& dens2)
+    void set_grid2(const RowMajorArrayPtr[Float, Three]& grid2)
+    void set_grid2_fft(const RowMajorArrayPtr[Complex, Three]& grid2_fft)
+    void autocorrelate(const RowMajorArrayPtr[Float, Three]& grid1)
+    void cross_correlate(const RowMajorArrayPtr[Float, Three]& grid1)
+    void cross_correlate(const RowMajorArrayPtr[Float, Three]& grid1,
+                         const RowMajorArrayPtr[Float, Three]& grid2)
     Float zerolag()
     const RowMajorArrayPtr[Float, One]& correlation_r()
     const RowMajorArrayPtr[int, Two]& correlation_counts()

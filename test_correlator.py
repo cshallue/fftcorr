@@ -80,7 +80,7 @@ print(ps)
 print()
 
 print("Computing cross correlation!")
-c.set_dens2(dens2.data)
+c.set_grid2(dens2.data)
 ps, corr = c.cross_correlate(dens.data)
 print("Done correlating!")
 print(corr)
