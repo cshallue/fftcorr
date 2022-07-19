@@ -160,11 +160,9 @@ class BaseCorrelator {
     rnorm_.allocate(rshape);
     for (int i = 0; i < rshape[0]; ++i) {
       for (int j = 0; j < rshape[1]; ++j) {
+        Float *row = rnorm_.get_row(i, j);
         for (int k = 0; k < rshape[2]; ++k) {
-          // TODO: use get_row or something faster everywhere I call at() in a
-          // loop.
-          rnorm_.at(i, j, k) =
-              sqrt(rx_[i] * rx_[i] + ry_[j] * ry_[j] + rz_[k] * rz_[k]);
+          row[k] = sqrt(rx_[i] * rx_[i] + ry_[j] * ry_[j] + rz_[k] * rz_[k]);
         }
       }
     }
@@ -214,9 +212,9 @@ class BaseCorrelator {
     knorm_.allocate(kshape);
     for (int i = 0; i < kshape[0]; ++i) {
       for (int j = 0; j < kshape[1]; ++j) {
+        Float *row = knorm_.get_row(i, j);
         for (int k = 0; k < kshape[2]; ++k) {
-          knorm_.at(i, j, k) =
-              sqrt(kx_[i] * kx_[i] + ky_[j] * ky_[j] + kz_[k] * kz_[k]);
+          row[k] = sqrt(kx_[i] * kx_[i] + ky_[j] * ky_[j] + kz_[k] * kz_[k]);
         }
       }
     }
@@ -227,6 +225,7 @@ class BaseCorrelator {
     Float window = 1.0;
     for (int i = 0; i < kshape[0]; ++i) {
       for (int j = 0; j < kshape[1]; ++j) {
+        Float *row = inv_window_.get_row(i, j);
         for (int k = 0; k < kshape[2]; ++k) {
           switch (window_correct_) {
             case kNoCorrection:
@@ -245,8 +244,7 @@ class BaseCorrelator {
               break;
             }
           }
-          inv_window_.at(i, j, k) = 1.0 / window;
-          // We will divide the power spectrum by the square of the window
+          row[k] = 1.0 / window;
         }
       }
     }
