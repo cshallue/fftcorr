@@ -84,23 +84,22 @@ cloud-in-cell to keep up.
 
 #include "array/array_ops.h"
 #include "array/row_major_array.h"
+#include "catalog_reader.h"
 #include "correlate/correlator.h"
 #include "grid/config_space_grid.h"
 #include "histogram/histogram_list.h"
 #include "multithreading.h"
 #include "particle_mesh/mass_assignor.h"
 #include "particle_mesh/window_functions.h"
-#include "profiling/timer.h"
-#include "read_catalog.h"
-#include "survey_box.h"
 #include "types.h"
 
-void report_times(FILE *fp, const SurveyReader &sr, const MassAssignor &ma,
-                  const BaseCorrelator &corr, double total_time,
-                  double grid_time, uint64 nfft, uint64 ngrid3, int cnt) {
+void report_times(FILE *fp, const CatalogReader &cr, const MassAssignor &ma,
+                  const BaseCorrelator &corr, double total_time, uint64 nfft,
+                  uint64 ngrid3, int cnt) {
   fflush(NULL);
   fprintf(fp, "#\n# Timing Report: \n");
-  Float io_time = sr.total_time() - grid_time;
+  Float io_time = cr.io_time();
+  Float grid_time = cr.grid_time();
   fprintf(fp,
           "# IO time:         %8.4f s, %6.3f Mparticles/sec, %6.2f "
           "MB/sec\n",
@@ -327,38 +326,37 @@ int main(int argc, char *argv[]) {
 
   setup_wavelet();
 
-  // Read box dimensions from catalog header.
-  SurveyBox box;
-  box.read_header(infile);
-  if (!periodic) {
-    box.pad_to_sep(sep);
-  }
+  CatalogReader reader;
 
+  // Read box dimensions from catalog header.
+  std::array<Float, 3> posmin;
+  std::array<Float, 3> posmax;
+  reader.read_header(infile, posmin, posmax);
+  if (!periodic) {
+    // Expand the survey box to ensure a minimum separation.
+    Float pad = sep / 1.5;
+    for (int i = 0; i < 3; i++) {
+      posmin[i] -= pad;
+      posmax[i] += pad;
+    }
+  }
   // Make sure the cell size covers the data.
   for (int i = 0; i < 3; ++i) {
-    cell_size = std::max(cell_size, (box.posmax(i) - box.posmin(i)) / ngrid[i]);
+    cell_size = std::max(cell_size, (posmax[i] - posmin[i]) / ngrid[i]);
   }
   fprintf(stdout, "# Adopted cell_size=%f for ngrid=[%d, %d, %d]\n", cell_size,
           ngrid[0], ngrid[1], ngrid[2]);
   fprintf(stdout, "# Adopted boxsize: %6.1f %6.1f %6.1f\n",
           cell_size * ngrid[0], cell_size * ngrid[1], cell_size * ngrid[2]);
 
-  ConfigSpaceGrid grid(ngrid, box.posmin(), cell_size);
+  ConfigSpaceGrid grid(ngrid, posmin, cell_size);
 
   int particle_batch_size = 1000000;
-  Timer grid_time;
-  grid_time.start();
   MassAssignor mass_assignor(grid, window_type, periodic, particle_batch_size);
-  SurveyReader reader(&mass_assignor);
-  reader.read_galaxies(infile);
+  reader.read_galaxies(infile, &mass_assignor);
   if (infile2 != NULL) {
-    reader.read_galaxies(infile2);
+    reader.read_galaxies(infile2, &mass_assignor);
   }
-  // TODO: it should be the same if this goes at the end of read_galaxies(), but
-  // right now it causes different behavior! Figure this out: does the same
-  // thing happen with NEAREST_CELL?
-  mass_assignor.flush();
-  grid_time.stop();
 
   RowMajorArray<Float, 3> &dens = grid.data();
   fprintf(stdout, "# Found %llu particles. Total weight %10.4e.\n",
@@ -460,7 +458,6 @@ int main(int argc, char *argv[]) {
   nfft *= ngrid3;
   fprintf(stdout, "#\n");
   report_times(stderr, reader, mass_assignor, *corr, total_time.elapsed_sec(),
-               grid_time.elapsed_sec(), nfft, ngrid3,
-               mass_assignor.num_added());
+               nfft, ngrid3, mass_assignor.num_added());
   return 0;
 }
