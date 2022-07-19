@@ -68,8 +68,8 @@ class BaseCorrelator {
         khist_(maxell_ / 2 + 1, 0.0, kmax_, dk_) {
     setup_time_.start();
     work_.plan_fft(fftw_flags);
-    setup_rgrid();
-    setup_kgrid();
+    setup_r_subgrid();
+    setup_k_subgrid();
     setup_time_.stop();
   }
 
@@ -139,7 +139,7 @@ class BaseCorrelator {
   Float total_time() const { return total_time_.elapsed_sec(); }
 
  protected:
-  void setup_rgrid() {
+  void setup_r_subgrid() {
     // Create the separation-space subgrid.
     int rmax_cells = ceil(rmax_ / cell_size_);  // rmax in grid cell units.
     fprintf(stderr, "rmax = %f, cell_size = %f, rmax_cells =%d\n", rmax_,
@@ -147,9 +147,9 @@ class BaseCorrelator {
     // Number of cells in each dimension of the subgrid.
     int sizex = 2 * rmax_cells + 1;  // Include negative separation vectors.
     std::array<int, 3> rshape = {sizex, sizex, sizex};
-    fprintf(stderr, "rgrid shape = [%d, %d, %d]\n", rshape[0], rshape[1],
+    fprintf(stderr, "r_subgrid shape = [%d, %d, %d]\n", rshape[0], rshape[1],
             rshape[2]);
-    rgrid_.allocate(rshape);
+    rsubgrid_.allocate(rshape);
 
     // The axes of the cell centers in separation space in physical units.
     const Float minsep = -cell_size_ * rmax_cells;
@@ -174,7 +174,7 @@ class BaseCorrelator {
     rylm_.allocate(rshape);
   }
 
-  void setup_kgrid() {
+  void setup_k_subgrid() {
     // Create the Fourier-space subgrid.
     // Our box has cubic-sized cells, so k_Nyquist is the same in all
     // directions. The spacing of modes is therefore 2*k_Nyq/ngrid.
@@ -197,7 +197,7 @@ class BaseCorrelator {
                 i, kshape[i]);
       }
     }
-    kgrid_.allocate(kshape);
+    ksubgrid_.allocate(kshape);
     fprintf(stdout,
             "# Done setting up the wavevector submatrix of size +-%d, %d, %d\n",
             kshape[0] / 2, kshape[1] / 2, kshape[2] / 2);
@@ -269,7 +269,7 @@ class BaseCorrelator {
   FftGrid work_;
 
   // Separation-space arrays.
-  RowMajorArray<Float, 3> rgrid_;  // TODO: rtotal_?
+  RowMajorArray<Float, 3> rsubgrid_;
   std::array<int, 3> rzero_;
   Array1D<Float> rx_;
   Array1D<Float> ry_;
@@ -279,7 +279,7 @@ class BaseCorrelator {
 
   // Fourier-space arrays.
   RowMajorArray<Complex, 3> dens2_fft_;
-  RowMajorArray<Float, 3> kgrid_;  // TODO: ktotal_?
+  RowMajorArray<Float, 3> ksubgrid_;
   Array1D<Float> kx_;
   Array1D<Float> ky_;
   Array1D<Float> kz_;
@@ -355,7 +355,7 @@ class PeriodicCorrelator : public BaseCorrelator {
     // Extract the power spectrum, expanded in Legendre polynomials.
     for (int ell = 0; ell <= maxell_; ell += 2) {
       setup_time_.start();
-      array_ops::set_all(0.0, kgrid_);
+      array_ops::set_all(0.0, ksubgrid_);
       setup_time_.stop();
       // P_l = Y_l0 * sqrt(4.0 * M_PI / (2 * ell + 1)) and then we need to
       // multiply by (2 * ell + 1) to account for the normalization of P_l's.
@@ -364,9 +364,9 @@ class PeriodicCorrelator : public BaseCorrelator {
       ylm_time_.start();
       make_ylm(ell, 0, kx_, ky_, kz_, coeff, 0, &inv_window_, &kylm_);
       ylm_time_.stop();
-      work_.extract_fft_submatrix_c2r(&kgrid_, &kylm_);
+      work_.extract_fft_submatrix_c2r(&ksubgrid_, &kylm_);
       hist_time_.start();
-      khist_.accumulate(ell / 2, knorm_, kgrid_);
+      khist_.accumulate(ell / 2, knorm_, ksubgrid_);
       hist_time_.stop();
     }
 
@@ -386,7 +386,7 @@ class PeriodicCorrelator : public BaseCorrelator {
     // Extract the 2PCF, expanded in Legendre polynomials.
     for (int ell = 0; ell <= maxell_; ell += 2) {
       setup_time_.start();
-      array_ops::set_all(0.0, rgrid_);
+      array_ops::set_all(0.0, rsubgrid_);
       setup_time_.stop();
       // P_l = Y_l0 * sqrt(4.0 * M_PI / (2 * ell + 1)) and then we need to
       // multiply by (2 * ell + 1) to account for the normalization of P_l's.
@@ -395,12 +395,12 @@ class PeriodicCorrelator : public BaseCorrelator {
       ylm_time_.start();
       make_ylm(ell, 0, rx_, ry_, rz_, coeff, 0, NULL, &rylm_);
       ylm_time_.stop();
-      work_.extract_submatrix(&rgrid_, &rylm_);
+      work_.extract_submatrix(&rsubgrid_, &rylm_);
       hist_time_.start();
-      rhist_.accumulate(ell / 2, rnorm_, rgrid_);
+      rhist_.accumulate(ell / 2, rnorm_, rsubgrid_);
       hist_time_.stop();
       if (ell == 0) {
-        zerolag_ = rgrid_.at(rzero_[0], rzero_[1], rzero_[2]);
+        zerolag_ = rsubgrid_.at(rzero_[0], rzero_[1], rzero_[2]);
       }
     }
     total_time_.stop();
@@ -471,8 +471,8 @@ class Correlator : public BaseCorrelator {
     for (int ell = 0; ell <= maxell_; ell += 2) {
       // Initialize the submatrix
       setup_time_.start();
-      array_ops::set_all(0.0, rgrid_);
-      array_ops::set_all(0.0, kgrid_);
+      array_ops::set_all(0.0, rsubgrid_);
+      array_ops::set_all(0.0, ksubgrid_);
       setup_time_.stop();
       // Loop over m
       for (int m = -ell; m <= ell; m++) {
@@ -513,7 +513,7 @@ class Correlator : public BaseCorrelator {
         // negligible by isotropy of the universe...but that might not be true
         // in redshift space? This may sink the idea of using this class to
         // compute cross-correlations.
-        work_.extract_fft_submatrix_c2r(&kgrid_, &kylm_);
+        work_.extract_fft_submatrix_c2r(&ksubgrid_, &kylm_);
 
         // iFFT the result, in place
         work_.execute_ifft();
@@ -530,17 +530,17 @@ class Correlator : public BaseCorrelator {
 
         // Multiply these Ylm by the correlation result, and then add to
         // total.
-        work_.extract_submatrix(&rgrid_, &rylm_);
+        work_.extract_submatrix(&rsubgrid_, &rylm_);
 
         fprintf(stdout, "Done!\n");
         fflush(NULL);
       }
       hist_time_.start();
-      rhist_.accumulate(ell / 2, rnorm_, rgrid_);
-      khist_.accumulate(ell / 2, knorm_, kgrid_);
+      rhist_.accumulate(ell / 2, rnorm_, rsubgrid_);
+      khist_.accumulate(ell / 2, knorm_, ksubgrid_);
       hist_time_.stop();
       if (ell == 0) {
-        zerolag_ = rgrid_.at(rzero_[0], rzero_[1], rzero_[2]);
+        zerolag_ = rsubgrid_.at(rzero_[0], rzero_[1], rzero_[2]);
       }
     }
     total_time_.stop();
