@@ -6,5 +6,5 @@ cdef extern from "distribution_functions.h":
   # TODO: 
   ctypedef enum DistributionScheme:
     NEAREST_CELL "DistributionScheme::kNearestCell"
-    CLOUD_IN_CELL "DistributionScheme::kCloudInCell"
+    TRIANGULAR_SHAPED_CLOUD "DistributionScheme::kTriangularShapedCloud"
     WAVELET "DistributionScheme::kWavelet"

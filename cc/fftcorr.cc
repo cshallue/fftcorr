@@ -390,7 +390,7 @@ int main(int argc, char *argv[]) {
     case kNearestCell:
       fprintf(stdout, "# Using nearest cell method\n");
       break;
-    case kCloudInCell:
+    case kTriangularShapedCloud:
       totwsq *= 0.55 * 0.55 * 0.55;
       fprintf(stdout, "# Using triangular cloud-in-cell\n");
       break;
@@ -414,7 +414,7 @@ int main(int argc, char *argv[]) {
   // Compute the correlations.
   BaseCorrelator *corr;  // TODO: is this what we want to do?
   WindowCorrection window_correct = kNoCorrection;
-  if (dist_scheme == kCloudInCell) {
+  if (dist_scheme == kTriangularShapedCloud) {
     window_correct = kTscAliasedCorrection;
   }
   if (periodic) {

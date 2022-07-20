@@ -10,7 +10,7 @@
 
 enum DistributionScheme {
   kNearestCell = 0,
-  kCloudInCell = 1,
+  kTriangularShapedCloud = 1,
   kWavelet = 2,
 };
 
@@ -31,9 +31,7 @@ class NearestCellDistributionFunction : public DistributionFunction {
   }
 };
 
-// TODO: isn't this more commonly called triangular shaped cloud? (CIC is the
-// top hat cloud function)
-class CloudInCellDistributionFunction : public DistributionFunction {
+class TriangularShapedCloudDistributionFunction : public DistributionFunction {
   int width() override { return 3; }
 
   void add_particle_to_grid(const Float* pos, Float weight,
@@ -229,8 +227,8 @@ std::unique_ptr<DistributionFunction> make_distribution_function(
     case kNearestCell:
       func = new NearestCellDistributionFunction();
       break;
-    case kCloudInCell:
-      func = new CloudInCellDistributionFunction();
+    case kTriangularShapedCloud:
+      func = new TriangularShapedCloudDistributionFunction();
       break;
     case kWavelet:
       func = new WaveletDistributionFunction();
