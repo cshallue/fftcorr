@@ -89,8 +89,8 @@ cloud-in-cell to keep up.
 #include "grid/config_space_grid.h"
 #include "histogram/histogram_list.h"
 #include "multithreading.h"
+#include "particle_mesh/distribution_functions.h"
 #include "particle_mesh/mass_assignor.h"
-#include "particle_mesh/window_functions.h"
 #include "types.h"
 
 void report_times(FILE *fp, const CatalogReader &cr, const MassAssignor &ma,
@@ -197,8 +197,8 @@ void usage() {
           "   -periodic (or -p): Configure for cubic periodic box, set mean "
           "density to zero and divide by the mean.\n");
   fprintf(stderr,
-          "   -w <int> (or -window): Window function for mass assignment. See "
-          "enum WindowType.\n");
+          "   -dist <int> (or -d): Distribution scheme for mass assignment. "
+          "See enum DistributionScheme.\n");
   fprintf(stderr, "   -in <filename>:  Input file name\n");
   fprintf(stderr, "   -in2 <filename>: Second input file name\n");
   fprintf(stderr, "   -out <filename>: Output file name, default to stdout\n");
@@ -242,7 +242,7 @@ int main(int argc, char *argv[]) {
   // int wide_angle_exponent = 0;
   int ngridCube = 256;
   bool periodic = false;
-  WindowType window_type = kWavelet;
+  DistributionScheme dist_scheme = kWavelet;
   std::array<int, 3> ngrid = {-1, -1, -1};
   Float cell_size = -123.0;  // Default to what's implied by the file
   const char default_fname[] = "/tmp/corrRR.dat";
@@ -286,8 +286,8 @@ int main(int argc, char *argv[]) {
       outfile = argv[++i];
     else if (!strcmp(argv[i], "-periodic") || !strcmp(argv[i], "-p"))
       periodic = true;
-    else if (!strcmp(argv[i], "-window") || !strcmp(argv[i], "-w"))
-      window_type = WindowType(atoi(argv[++i]));
+    else if (!strcmp(argv[i], "-dist") || !strcmp(argv[i], "-d"))
+      dist_scheme = DistributionScheme(atoi(argv[++i]));
     else if (!strcmp(argv[i], "-wisdom") || !strcmp(argv[i], "-wf"))
       wisdomfile = argv[++i];
     else
@@ -352,7 +352,7 @@ int main(int argc, char *argv[]) {
   ConfigSpaceGrid grid(ngrid, posmin, cell_size);
 
   int particle_batch_size = 1000000;
-  MassAssignor mass_assignor(grid, window_type, periodic, particle_batch_size);
+  MassAssignor mass_assignor(grid, dist_scheme, periodic, particle_batch_size);
   reader.read_galaxies(infile, &mass_assignor);
   if (infile2 != NULL) {
     reader.read_galaxies(infile2, &mass_assignor);
@@ -386,7 +386,7 @@ int main(int argc, char *argv[]) {
   // (sum of R^2)/Vcell - (11/20)**3*(sum_R w^2)/Vcell
   // The latter is correcting the estimate for shot noise
   // The 11/20 factor is for triangular cloud in cell.
-  switch (window_type) {
+  switch (dist_scheme) {
     case kNearestCell:
       fprintf(stdout, "# Using nearest cell method\n");
       break;
@@ -414,7 +414,7 @@ int main(int argc, char *argv[]) {
   // Compute the correlations.
   BaseCorrelator *corr;  // TODO: is this what we want to do?
   WindowCorrection window_correct = kNoCorrection;
-  if (window_type == kCloudInCell) {
+  if (dist_scheme == kCloudInCell) {
     window_correct = kTscAliasedCorrection;
   }
   if (periodic) {

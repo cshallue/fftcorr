@@ -17,7 +17,7 @@ with open(DATA_FILE, "rb") as f:
 
 ngrid = [256, 256, 256]
 cell_size = 100
-window_type = 0
+dist_scheme = 0
 dens = ConfigSpaceGrid(shape=ngrid,
                        posmin=posmin,
                        posmax=posmax,
@@ -25,7 +25,7 @@ dens = ConfigSpaceGrid(shape=ngrid,
 print("created grid")
 print()
 
-ma = MassAssignor(dens, window_type=window_type, buffer_size=100)
+ma = MassAssignor(dens, distribution_scheme=dist_scheme, buffer_size=100)
 print("Created mass assignor")
 print("num_added =", ma.num_added)
 print("totw =", ma.totw)

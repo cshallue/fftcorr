@@ -1,6 +1,5 @@
 from fftcorr.array.numpy_adaptor cimport copy_to_numpy, as_RowMajorArrayPtr
 from fftcorr.histogram cimport HistogramList
-from fftcorr.particle_mesh.window_type cimport CLOUD_IN_CELL
 from fftcorr.grid cimport ConfigSpaceGrid
 
 # TODO: can numpy_adaptor take care of this? address boundary errors without it

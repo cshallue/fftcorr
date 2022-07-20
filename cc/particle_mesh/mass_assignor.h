@@ -12,8 +12,8 @@
 #include "../multithreading.h"
 #include "../profiling/timer.h"
 #include "../types.h"
+#include "distribution_functions.h"
 #include "merge_sort_omp.h"
-#include "window_functions.h"
 
 struct Particle {
   Particle(const Float *_pos, Float _w, uint64 _index)
@@ -29,10 +29,10 @@ struct Particle {
 
 class MassAssignor {
  public:
-  MassAssignor(ConfigSpaceGrid &grid, WindowType window_type,
+  MassAssignor(ConfigSpaceGrid &grid, DistributionScheme distribution_scheme,
                bool periodic_wrap, uint64 buffer_size)
       : grid_(grid),
-        window_func_(make_window_function(window_type)),
+        dist_func_(make_distribution_function(distribution_scheme)),
         periodic_wrap_(periodic_wrap),
         buffer_size_(buffer_size),
         num_added_(0),
@@ -165,7 +165,7 @@ class MassAssignor {
     // for memory to respond, not actually piping between processors.  b)
     // Adjacent slabs may not be on the same memory bank anyways.  Keep it
     // simple.
-    int width = window_func_->width();
+    int width = dist_func_->width();
     // We shouldn't overlap the start of the grid with the end of the grid, due
     // to periodic wrapping. The maximum end slab index that will not overlap
     // with a given start index is start + maxsep.
@@ -192,7 +192,7 @@ class MassAssignor {
 
  private:
   void add_particle_to_grid(const Float *pos, Float weight) {
-    window_func_->add_particle_to_grid(pos, weight, grid_.data());
+    dist_func_->add_particle_to_grid(pos, weight, grid_.data());
   }
 
   void add_particle_to_grid(const Particle &p) {
@@ -215,7 +215,7 @@ class MassAssignor {
   // }
 
   ConfigSpaceGrid &grid_;
-  std::unique_ptr<WindowFunction> window_func_;
+  std::unique_ptr<DistributionFunction> dist_func_;
 
   // Whether the grid should be treated as periodic.
   const bool periodic_wrap_;

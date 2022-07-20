@@ -15,16 +15,16 @@ from fftcorr.utils import Timer
 # when the context exits, flush() should be called. should it also
 # deallocate the buffer?
 cdef class MassAssignor:
-    def __cinit__(self, ConfigSpaceGrid grid, WindowType window_type, bool periodic_wrap=False, int buffer_size=0):
+    def __cinit__(self, ConfigSpaceGrid grid, DistributionScheme distribution_scheme, bool periodic_wrap=False, int buffer_size=0):
         # Add the window type to the grid's metadata.
-        if ("window_type" in grid.metadata and 
-                grid.metadata["window_type"] != window_type):
+        if ("distribution_scheme" in grid.metadata and 
+                grid.metadata["distribution_scheme"] != distribution_scheme):
             # TODO: log a warning?
-            grid.metadata["window_type"] = -1
+            grid.metadata["distribution_scheme"] = -1
         else:
-            grid.metadata["window_type"] = window_type
+            grid.metadata["distribution_scheme"] = distribution_scheme
 
-        self._cc_ma = new MassAssignor_cc(grid.cc_grid()[0], window_type, periodic_wrap, buffer_size)
+        self._cc_ma = new MassAssignor_cc(grid.cc_grid()[0], distribution_scheme, periodic_wrap, buffer_size)
         
 
     # @staticmethod

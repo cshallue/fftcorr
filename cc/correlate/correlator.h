@@ -10,7 +10,6 @@
 #include "../grid/config_space_grid.h"
 #include "../grid/fft_grid.h"
 #include "../histogram/histogram_list.h"
-#include "../particle_mesh/window_functions.h"
 #include "../profiling/timer.h"
 #include "../types.h"
 #include "spherical_harmonics.h"

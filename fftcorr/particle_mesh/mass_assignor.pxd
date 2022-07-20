@@ -1,6 +1,6 @@
 from fftcorr.array cimport RowMajorArrayPtr
 from fftcorr.grid cimport ConfigSpaceGrid_cc
-from fftcorr.particle_mesh cimport WindowType
+from fftcorr.particle_mesh cimport DistributionScheme
 from fftcorr.types cimport Float, One, Two, Four
 
 from libcpp cimport bool
@@ -10,7 +10,7 @@ cdef extern from "mass_assignor.h":
   cdef cppclass MassAssignor_cc "MassAssignor":
     MassAssignor_cc(
       ConfigSpaceGrid_cc& grid,
-      WindowType window_type,
+      DistributionScheme dist_scheme,
       bool periodic_wrap,
       int buffer_size) except +
     void clear()

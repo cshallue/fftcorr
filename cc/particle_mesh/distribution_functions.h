@@ -1,5 +1,5 @@
-#ifndef WINDOW_FUNCTIONS_H
-#define WINDOW_FUNCTIONS_H
+#ifndef DISTRIBUTION_FUNCTIONS_H
+#define DISTRIBUTION_FUNCTIONS_H
 
 #include <array>
 #include <memory>
@@ -8,22 +8,21 @@
 #include "../types.h"
 #include "d12.h"  // TODO: possibly incorporate into this file
 
-enum WindowType {
+enum DistributionScheme {
   kNearestCell = 0,
   kCloudInCell = 1,
   kWavelet = 2,
 };
 
-// TODO: rename to "Particle distribution scheme", as per Jeong 2010 Ch 7.1.1?
-class WindowFunction {
+class DistributionFunction {
  public:
-  virtual ~WindowFunction() {}
+  virtual ~DistributionFunction() {}
   virtual int width() = 0;
   virtual void add_particle_to_grid(const Float* pos, Float weight,
                                     RowMajorArrayPtr<Float, 3>& dens) = 0;
 };
 
-class NearestCellWindow : public WindowFunction {
+class NearestCellDistributionFunction : public DistributionFunction {
   int width() override { return 1; }
 
   void add_particle_to_grid(const Float* pos, Float weight,
@@ -34,7 +33,7 @@ class NearestCellWindow : public WindowFunction {
 
 // TODO: isn't this more commonly called triangular shaped cloud? (CIC is the
 // top hat cloud function)
-class CloudInCellWindow : public WindowFunction {
+class CloudInCellDistributionFunction : public DistributionFunction {
   int width() override { return 3; }
 
   void add_particle_to_grid(const Float* pos, Float weight,
@@ -164,7 +163,7 @@ class CloudInCellWindow : public WindowFunction {
   }
 };
 
-class WaveletWindow : public WindowFunction {
+class WaveletDistributionFunction : public DistributionFunction {
   int width() override { return WCELLS; }
 
   void add_particle_to_grid(const Float* pos, Float weight,
@@ -223,20 +222,21 @@ class WaveletWindow : public WindowFunction {
 
 // TODO: this can go at the top of the file if the implementations are in a cc
 // file.
-std::unique_ptr<WindowFunction> make_window_function(WindowType type) {
-  WindowFunction* func = NULL;
+std::unique_ptr<DistributionFunction> make_distribution_function(
+    DistributionScheme type) {
+  DistributionFunction* func = NULL;
   switch (type) {
     case kNearestCell:
-      func = new NearestCellWindow();
+      func = new NearestCellDistributionFunction();
       break;
     case kCloudInCell:
-      func = new CloudInCellWindow();
+      func = new CloudInCellDistributionFunction();
       break;
     case kWavelet:
-      func = new WaveletWindow();
+      func = new WaveletDistributionFunction();
       break;
   }
-  return std::unique_ptr<WindowFunction>(func);
+  return std::unique_ptr<DistributionFunction>(func);
 }
 
-#endif  // WINDOW_FUNCTIONS_H
+#endif  // DISTRIBUTION_FUNCTIONS_H

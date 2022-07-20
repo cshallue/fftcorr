@@ -24,7 +24,9 @@ print(d.flatten())
 print("sum =", np.sum(g))
 print()
 
-ma = fftcorr.particle_mesh.MassAssignor(g, window_type=1, buffer_size=100)
+ma = fftcorr.particle_mesh.MassAssignor(g,
+                                        distribution_scheme=1,
+                                        buffer_size=100)
 print("Created mass assignor")
 print(dir(ma))
 print("num_added =", ma.num_added)

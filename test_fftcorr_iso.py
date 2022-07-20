@@ -24,7 +24,7 @@ class TestCorrelateCPP(unittest.TestCase):
         with tempfile.TemporaryDirectory() as test_dir:
             outfile = os.path.join(test_dir, "corrDD.dat.out")
             cmd = ("{}/cc/fftcorr -in {} -out {} -n 256 -p -r 250.00 -dr 5 "
-                   "-kmax 0.4 -dk 0.002 -maxell 0 -w 0 -periodic").format(
+                   "-kmax 0.4 -dk 0.002 -maxell 0 -d 0 -periodic").format(
                        os.getcwd(), infile, outfile)
             print(cmd)
             self.assertEqual(subprocess.call(shlex.split(cmd)), 0)
