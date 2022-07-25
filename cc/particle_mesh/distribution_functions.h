@@ -45,8 +45,6 @@ class TriangularShapedCloudDistributionFunction : public DistributionFunction {
     const std::array<int, 3>& ngrid = dens.shape();  // [nx1, ny1, nz1]
     const uint64 ngrid2 = ngrid[2];                  // nz2
 
-    // TODO: when I have tests covering this window function, try to use
-    // indexing functions.
     Float* d = dens.get_row(0, 0);
     // 27-point triangular cloud-in-cell.
     uint64 index;

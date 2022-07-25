@@ -13,31 +13,7 @@
 #include "../profiling/timer.h"
 #include "../types.h"
 #include "spherical_harmonics.h"
-
-// TODO: locate somewhere else?
-enum WindowCorrection {
-  kNoCorrection = 0,
-  kTscCorrection = 1,
-  kTscAliasedCorrection = 2,
-};
-
-Float sinc(Float x) {
-  if (x == 0) return 1;
-  return sin(x) / x;
-}
-
-// TODO: move elsewhere?
-Float tsc_window(Float k, Float cell_size) {
-  Float w = sinc(k * cell_size / 2.0);
-  return pow(w, 6);
-}
-
-Float tsc_window_aliased(Float k, Float cell_size) {
-  // For TSC, the square window is 1-sin^2(kL/2)+2/15*sin^4(kL/2)
-  Float sinsq = sin(k * cell_size / 2.0);
-  sinsq *= sinsq;
-  return 1 - sinsq + 2.0 / 15.0 * sinsq * sinsq;
-}
+#include "window_correct.h"
 
 class BaseCorrelator {
  public:
@@ -212,29 +188,15 @@ class BaseCorrelator {
 
     // Set up window correction.
     inv_window_.allocate(kshape);
-    Float window = 1.0;
+    std::unique_ptr<WindowSquaredNorm> sq_norm =
+        make_window_function(window_correct_);
     for (int i = 0; i < kshape[0]; ++i) {
       for (int j = 0; j < kshape[1]; ++j) {
         Float *row = inv_window_.get_row(i, j);
         for (int k = 0; k < kshape[2]; ++k) {
-          switch (window_correct_) {
-            case kNoCorrection:
-              window = 1.0;
-              break;
-            case kTscCorrection: {
-              window = (tsc_window(kx_[i], cell_size_) *
-                        tsc_window(ky_[j], cell_size_) *
-                        tsc_window(kz_[k], cell_size_));
-              break;
-            }
-            case kTscAliasedCorrection: {
-              window = (tsc_window_aliased(kx_[i], cell_size_) *
-                        tsc_window_aliased(ky_[j], cell_size_) *
-                        tsc_window_aliased(kz_[k], cell_size_));
-              break;
-            }
-          }
-          row[k] = 1.0 / window;
+          row[k] = 1.0 / (sq_norm->evaluate(kx_[i], cell_size_) *
+                          sq_norm->evaluate(ky_[j], cell_size_) *
+                          sq_norm->evaluate(kz_[k], cell_size_));
         }
       }
     }
