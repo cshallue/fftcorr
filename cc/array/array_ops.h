@@ -9,6 +9,9 @@
 
 namespace array_ops {
 
+// Ops for 1D Float arrays.
+Array1D<Float> sequence(Float start, Float step, int size);
+
 // Ops for 3D Float arrays.
 void set_all(Float value, RowMajorArrayPtr<Float, 3> &arr);
 void add_scalar(Float s, RowMajorArray<Float, 3> &arr);

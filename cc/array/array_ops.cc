@@ -4,6 +4,14 @@
 
 namespace array_ops {
 
+Array1D<Float> sequence(Float start, Float step, int size) {
+  Array1D<Float> seq(size);
+  for (int i = 0; i < size; ++i) {
+    seq[i] = start + i * step;
+  }
+  return seq;
+}
+
 void set_all(Float value, RowMajorArrayPtr<Float, 3> &arr) {
 #ifdef SLAB
   int nx = arr.shape(0);

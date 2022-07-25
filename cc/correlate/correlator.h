@@ -21,15 +21,6 @@ enum WindowCorrection {
   kTscAliasedCorrection = 2,
 };
 
-// TODO: locate somewhere else.
-Array1D<Float> sequence(Float start, Float step, int size) {
-  Array1D<Float> seq(size);
-  for (int i = 0; i < size; ++i) {
-    seq[i] = start + i * step;
-  }
-  return seq;
-}
-
 Float sinc(Float x) {
   if (x == 0) return 1;
   return sin(x) / x;
@@ -151,9 +142,9 @@ class BaseCorrelator {
 
     // The axes of the cell centers in separation space in physical units.
     const Float minsep = -cell_size_ * rmax_cells;
-    rx_ = sequence(minsep, cell_size_, rshape[0]);
-    ry_ = sequence(minsep, cell_size_, rshape[1]);
-    rz_ = sequence(minsep, cell_size_, rshape[2]);
+    rx_ = array_ops::sequence(minsep, cell_size_, rshape[0]);
+    ry_ = array_ops::sequence(minsep, cell_size_, rshape[1]);
+    rz_ = array_ops::sequence(minsep, cell_size_, rshape[2]);
 
     // Radius of each separation-space subgrid cell in physical units.
     rnorm_.allocate(rshape);
@@ -200,12 +191,12 @@ class BaseCorrelator {
     fprintf(stderr, "kshape = [%d, %d, %d]\n", kshape[0], kshape[1], kshape[2]);
 
     // The axes in Fourier space.
-    kx_ = sequence((-kshape[0] / 2) * 2.0 * k_Nyq / shape_[0],
-                   2.0 * k_Nyq / shape_[0], kshape[0]);
-    ky_ = sequence((-kshape[1] / 2) * 2.0 * k_Nyq / shape_[1],
-                   2.0 * k_Nyq / shape_[1], kshape[1]);
-    kz_ = sequence((-kshape[2] / 2) * 2.0 * k_Nyq / shape_[2],
-                   2.0 * k_Nyq / shape_[2], kshape[2]);
+    kx_ = array_ops::sequence((-kshape[0] / 2) * 2.0 * k_Nyq / shape_[0],
+                              2.0 * k_Nyq / shape_[0], kshape[0]);
+    ky_ = array_ops::sequence((-kshape[1] / 2) * 2.0 * k_Nyq / shape_[1],
+                              2.0 * k_Nyq / shape_[1], kshape[1]);
+    kz_ = array_ops::sequence((-kshape[2] / 2) * 2.0 * k_Nyq / shape_[2],
+                              2.0 * k_Nyq / shape_[2], kshape[2]);
 
     // Frequency of each freqency subgrid cell in physical units.
     knorm_.allocate(kshape);
@@ -442,9 +433,9 @@ class Correlator : public BaseCorrelator {
     // Coordinates of the cell centers in each dimension, relative to the
     // observer. We're using grid units (scale doesn't matter when computing
     // Ylms).
-    xcell_ = sequence(0.5 - observer[0], 1.0, shape_[0]);
-    ycell_ = sequence(0.5 - observer[1], 1.0, shape_[1]);
-    zcell_ = sequence(0.5 - observer[2], 1.0, shape_[2]);
+    xcell_ = array_ops::sequence(0.5 - observer[0], 1.0, shape_[0]);
+    ycell_ = array_ops::sequence(0.5 - observer[1], 1.0, shape_[1]);
+    zcell_ = array_ops::sequence(0.5 - observer[2], 1.0, shape_[2]);
   }
 
   // TODO: the normalization doesn't match the periodic case, but that doesn't
