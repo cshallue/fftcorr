@@ -68,6 +68,8 @@ class BaseCorrelator {
   void set_grid2_fft(const RowMajorArrayPtr<Complex, 3> &grid2_fft) {
     setup_time_.start();
     if (!grid2_fft_.data()) {
+      // Lazy allocate because periodic autocorrelation doesn't require a
+      // separate copy.
       grid2_fft_.allocate(work_.as_complex_array().shape());
     }
     array_ops::copy(grid2_fft, grid2_fft_);
@@ -287,7 +289,6 @@ class PeriodicCorrelator : public BaseCorrelator {
 
     fprintf(stdout, "# Multiply...");
     fflush(NULL);
-    // TODO: inplace abs^2?
     mult_time_.start();
     array_ops::multiply_with_conjugation(*grid2_fft, work_.as_complex_array());
     mult_time_.stop();
